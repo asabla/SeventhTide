@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#171c18" />
+    <title>The second wake · Seventh Tide</title>
+    <link rel="stylesheet" href="./hand.css" />
+  </head>
+  <body>
+    <header class="mast">
+      <a href="./">Seventh Tide</a>
+      <span>Equipment study</span>
+    </header>
+    <main class="board">
+      <section class="forecast" aria-labelledby="tide-title">
+        <p class="kicker">Tide I of VII</p>
+        <h1 id="tide-title">The second wake</h1>
+        <p>Another wake follows your own.</p>
+      </section>
+      <aside class="log" aria-labelledby="log-title">
+        <h2 id="log-title">Ship’s log</h2>
+        <dl>
+          <div>
+            <dt>Hull</dt>
+            <dd id="hull"></dd>
+          </div>
+          <div>
+            <dt>Brace</dt>
+            <dd id="brace"></dd>
+          </div>
+          <div>
+            <dt>Mara’s cold</dt>
+            <dd id="cold"></dd>
+          </div>
+          <div id="swimmer-row">
+            <dt>Ivo’s cold</dt>
+            <dd id="swimmer"></dd>
+          </div>
+        </dl>
+        <fieldset>
+          <legend>Mara’s position</legend>
+          <label
+            ><input
+              type="radio"
+              name="position"
+              value="raft"
+              checked
+            />Raft</label
+          >
+          <label
+            ><input type="radio" name="position" value="water" />Water</label
+          >
+        </fieldset>
+      </aside>
+      <section class="table" aria-labelledby="hand-title">
+        <div class="play-area" id="play-area">
+          <div id="played-face" aria-hidden="true"></div>
+          <div class="play-note">
+            <h2 id="play-label">Mara’s play</h2>
+            <p id="receipt" role="status" aria-atomic="true"></p>
+          </div>
+        </div>
+        <div class="hand">
+          <div class="hand-label">
+            <h2 id="hand-title">Mara’s hand</h2>
+            <span>Boatswain</span>
+          </div>
+          <div id="cards"></div>
+          <div class="controls">
+            <button id="play" type="button" disabled>Play card</button>
+            <button id="reset" type="button" hidden>Try another play</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./hand.ts"></script>
+  </body>
+</html>

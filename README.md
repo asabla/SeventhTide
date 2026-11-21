@@ -117,3 +117,7 @@ Each voyage stores its initial seed, rules version, and ordered move IDs. Its re
 Volunteer changes increment `offerRevision` and leave the voyage revision unchanged. When assigning the swimmer, the client sends the displayed `offerRevision` as `expectedOfferRevision` with the move. If the volunteers have changed, the server returns HTTP 409 so the host can review the current choices.
 
 The server replays voyages with the current rules version and rejects an unsupported version. Before changing a released rule, follow the [replay compatibility steps](.agents/skills/seventh-tide-voyage-rules/SKILL.md).
+
+## Preview the illustrated hand
+
+Open [/hand.html](http://127.0.0.1:4173/hand.html) on the running game server. This standalone study shows Mara using a Sounding line or Boathook. Switch her position to see the other face of each card. Select a card to preview its effect and cost. Select **Play card** to lay it on the raft and update the ship’s log. Select **Try another play** to reset the study.
