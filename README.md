@@ -39,6 +39,14 @@ Oxlint rejects unsafe use of `any`, unhandled promises, import cycles, and unuse
 
 The rule tests must cover at least 95% of lines, 90% of branches, and 95% of functions in the shared rules they load. CI runs `npm run check:ci`, which also runs the PostgreSQL integration suite. To run the CI gate locally, set `TEST_DATABASE_URL` to a test database.
 
+### Verify the tide outcome laws
+
+From the repository root, run `mise trust verification/tide/mise.toml` once, then `mise -C verification/tide run verify`. The verification configuration pins Bend and Lean for macOS and Linux. The GitHub Actions job `tide-laws` runs the same verification command.
+
+The laws in `verification/tide/LAWS.bend` describe the outcome after all event effects have resolved. Zero hull or any sailor at five or more cold ends the voyage. A surviving crew lands on tide seven and continues on earlier tides. Bend checks the model with the independent kernel. The verification script then compares the model with the phase returned by the TypeScript game rules on boundary cases. This comparison covers outcome selection. The rule tests cover how cards and events change the resources used to select the outcome.
+
+The game imports only the TypeScript rules. The checker generates its reference module in a temporary directory and removes it after the comparison.
+
 ## Technology decisions
 
 | Layer          | Choice and responsibility                                                                                                                                                                                                        |

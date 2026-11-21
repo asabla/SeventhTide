@@ -23,6 +23,12 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false
   },
-  "include": ["web/**/*", "server/**/*", "packages/**/*", "tests/**/*"],
+  "include": [
+    "verification/**/*.ts",
+    "web/**/*",
+    "server/**/*",
+    "packages/**/*",
+    "tests/**/*"
+  ],
   "exclude": ["**/node_modules", "**/dist"]
 }
