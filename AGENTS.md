@@ -4,7 +4,7 @@ Use direct, formal language. Use ASD-STE100 Simplified Technical English for tec
 
 ## Working in this repository
 
-Use the project checkout in the selected Codex cloud environment for development. Use the local checkout for verification and play with friends. See the [README](README.md) for the stack, build commands, and database setup.
+Use the project checkout in the selected Codex cloud environment for development. Use the local checkout for verification and play with friends. Follow the [mise setup](README.md#set-up-the-development-tools) in a fresh checkout. Use `mise exec --` for npm commands in shells without mise activation.
 
 - Implement game decisions in `packages/rules/`. Both solo play and the voyage API use this package. The client displays legal choices and their costs.
 - Keep card text and controls in HTML. Use Phaser for the sea scene. Store original generated art and its prompt in `art/` and use a smaller export in `web/assets/`.
