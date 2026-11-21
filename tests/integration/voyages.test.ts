@@ -4,7 +4,14 @@ import { once } from "node:events";
 import { createInterface } from "node:readline";
 import test, { type TestContext } from "node:test";
 import { Pool } from "pg";
-import { start, play, moves, rulesVersion } from "@seventh-tide/rules";
+import {
+  start,
+  play,
+  moves,
+  rulesVersion,
+  currentEvent,
+  crewMember,
+} from "@seventh-tide/rules";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 if (!databaseUrl)
@@ -209,6 +216,7 @@ for (const players of [2, 3]) {
         token: string,
         moveId: string,
         expectedRevision: number,
+        expectedOfferRevision?: number,
       ) =>
         fetch(url + "/moves", {
           method: "POST",
@@ -216,7 +224,25 @@ for (const players of [2, 3]) {
             Authorization: "Bearer " + token,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ moveId, expectedRevision }),
+          body: JSON.stringify({
+            moveId,
+            expectedRevision,
+            expectedOfferRevision,
+          }),
+        });
+      const offer = (
+        token: string,
+        sailor: number,
+        volunteer: boolean,
+        expectedRevision = 1,
+      ) =>
+        fetch(url + "/volunteers", {
+          method: "PUT",
+          headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ expectedRevision, sailor, offer: volunteer }),
         });
       const guest = await read(ivo);
       assert.equal(guest.seat, 1);
@@ -226,7 +252,40 @@ for (const players of [2, 3]) {
       assert.ok(salvage);
       assert.equal((await playCard(ivo, salvage.id, 0)).status, 422);
       assert.equal((await playCard(host, salvage.id, 0)).status, 200);
+      assert.deepEqual((await read(ivo)).offerSeats, [1]);
+      assert.equal((await offer(ivo, 0, true)).status, 422);
+      const offers = await Promise.all([
+        offer(ivo, 1, true),
+        offer(host, 0, true),
+      ]);
+      assert.deepEqual(
+        offers.map((r) => r.status),
+        [200, 200],
+      );
+      const offered = await read(host);
+      assert.deepEqual(offered.volunteers, [0, 1]);
+      assert.equal(offered.revision, 1);
+      assert.equal(offered.offerRevision, 2);
+      assert.equal(
+        (await readSnapshot(await offer(ivo, 1, true))).offerRevision,
+        2,
+      );
+      assert.equal((await playCard(host, "swim-2", 1)).status, 422);
+      assert.deepEqual(
+        (await readSnapshot(await offer(host, 0, false))).volunteers,
+        [1],
+      );
+      assert.deepEqual(
+        (await readSnapshot(await offer(ivo, 1, false))).choices,
+        [],
+      );
+      assert.equal((await read(host)).choices.length, 3);
+      assert.equal((await playCard(host, "swim-1", 1, 2)).status, 409);
+      await offer(ivo, 1, true);
       assert.equal((await playCard(host, "swim-1", 1)).status, 200);
+      assert.deepEqual((await read(ivo)).volunteers, []);
+      assert.equal((await offer(ivo, 1, true)).status, 409);
+      assert.equal((await offer(ivo, 1, true, 2)).status, 422);
       assert.equal((await playCard(host, "float-1", 2)).status, 422);
       assert.equal((await playCard(ivo, "lash-2", 2)).status, 422);
       const onRaft = (await read(host)).choices.map((c) => c.id);
@@ -264,3 +323,86 @@ for (const players of [2, 3]) {
     },
   );
 }
+
+await test("two seats complete all seven tides and the host rejoins mid-voyage", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 2 }),
+    }),
+  );
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  const seed = 111;
+  await pool.query("UPDATE voyages SET seed=$1 WHERE id=$2", [seed, room.id]);
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const host = room.token;
+  const guest: unknown = room.invites[0];
+  assert.ok(typeof guest === "string");
+  let expected = start(seed);
+  let revision = 0;
+  async function act(id: string, token: string) {
+    const response = await fetch(base + "/" + room.id + "/moves", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ moveId: id, expectedRevision: revision }),
+    });
+    assert.equal(response.status, 200);
+    expected = play(expected, id);
+    const next = await readSnapshot(response);
+    assert.equal(next.revision, ++revision);
+    assert.equal(next.phase, expected.phase);
+    assert.deepEqual(next.crew, expected.crew);
+  }
+  const salvage = expected.salvage[0];
+  assert.ok(salvage);
+  await act(salvage.id, host);
+  for (let tide = 1; tide <= 7; tide++) {
+    if (tide === 4) {
+      const restored = await readSnapshot(
+        await fetch(base + "/" + room.id, {
+          headers: { Authorization: "Bearer " + host },
+        }),
+      );
+      assert.equal(restored.revision, revision);
+      assert.deepEqual(restored.invites, room.invites);
+      assert.equal(restored.tide, tide);
+    }
+    const swimmer = (tide - 1) % 3;
+    const seat = (index: number) => (index === 1 ? guest : host);
+    await act("swim-" + swimmer, host);
+    await act("sound-" + swimmer, seat(swimmer));
+    const mates = [0, 1, 2].filter((i) => i !== swimmer);
+    const helper =
+      mates.find((i) => crewMember(expected, i).food > 0) ?? mates[0];
+    assert.ok(helper !== undefined);
+    const repairer = mates.find((i) => i !== helper);
+    assert.ok(repairer !== undefined);
+    await act(
+      crewMember(expected, helper).food
+        ? "feed-" + helper + "-" + swimmer
+        : "haul-" + helper,
+      seat(helper),
+    );
+    await act("lash-" + repairer, seat(repairer));
+    await act(
+      expected.hull > currentEvent(expected)[3] - expected.guard
+        ? "hull"
+        : "dive",
+      host,
+    );
+  }
+  assert.equal(expected.phase, "won");
+});

@@ -6,6 +6,33 @@ export interface Room {
   token: string;
 }
 
+const hostSave = "seventh-tide-host-room";
+export function savedHostRoom(): Room | null {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(hostSave) ?? "null");
+    if (
+      record(saved) &&
+      typeof saved.id === "string" &&
+      /^[a-f0-9-]{36}$/.test(saved.id) &&
+      typeof saved.token === "string" &&
+      /^[\w-]{43}$/.test(saved.token)
+    )
+      return { id: saved.id, token: saved.token };
+  } catch {
+    /* Storage is optional. */
+  }
+  return null;
+}
+
+export function storeHostRoom(room: Room, finished = false) {
+  try {
+    if (!finished) localStorage.setItem(hostSave, JSON.stringify(room));
+    else if (savedHostRoom()?.id === room.id) localStorage.removeItem(hostSave);
+  } catch {
+    /* The seat remains available in this tab. */
+  }
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -48,6 +75,11 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     ) &&
     Array.isArray(value.log) &&
     value.log.every((line: unknown) => typeof line === "string") &&
+    typeof value.offerRevision === "number" &&
+    Array.isArray(value.volunteers) &&
+    value.volunteers.every((i: unknown) => typeof i === "number") &&
+    Array.isArray(value.offerSeats) &&
+    value.offerSeats.every((i: unknown) => typeof i === "number") &&
     typeof value.seat === "number" &&
     typeof value.players === "number" &&
     Array.isArray(value.invites) &&
@@ -97,29 +129,40 @@ export async function hostRoom(players: number) {
     typeof value.token !== "string"
   )
     throw new Error("Invalid room response.");
-  location.assign(roomUrl({ id: value.id, token: value.token }));
+  const room = { id: value.id, token: value.token };
+  storeHostRoom(room);
+  location.assign(roomUrl(room));
 }
 
 export class TurnConflict extends Error {}
 
+export type RoomAction =
+  | { moveId: string; expectedOfferRevision?: number }
+  | { sailor: number; offer: boolean };
+
 export async function readTurn(
   room: Room,
-  move?: { expectedRevision: number; moveId: string },
+  move?: RoomAction & { expectedRevision: number },
 ): Promise<RoomSnapshot> {
   const path = "/api/voyages/" + encodeURIComponent(room.id);
   const headers = {
     Authorization: "Bearer " + room.token,
     "Content-Type": "application/json",
   };
+  const volunteer = move && "offer" in move;
   const response = await fetch(
-    move ? path + "/moves" : path,
+    move ? path + (volunteer ? "/volunteers" : "/moves") : path,
     move
-      ? { method: "POST", headers, body: JSON.stringify(move) }
+      ? {
+          method: volunteer ? "PUT" : "POST",
+          headers,
+          body: JSON.stringify(move),
+        }
       : { headers },
   );
-  if (response.status === 409)
+  if (response.status === 409 || response.status === 422)
     throw new TurnConflict(
-      "The crew played another card. Choose again from the current hand.",
+      "The crew made another choice. Check the latest turn and choose again.",
     );
   if (response.status === 401 || response.status === 404)
     throw new Error(

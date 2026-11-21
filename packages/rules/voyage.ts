@@ -35,6 +35,7 @@ export const jobs = ["Boatswain", "Shipwright", "Lookout"];
 export const maxHull = 5;
 export const coldLimit = 5;
 export const swimmerRation = 1;
+export const swimmerCold = 2;
 
 const salvage = [
   {
@@ -283,13 +284,23 @@ export function play(state: Voyage, moveId: string): Voyage {
         break;
     }
     s.acted.push(i);
-    s.log.push(crewMember(s, i).name + " played " + move.name + ".");
+    const targetName =
+      action === "haul"
+        ? " for " + crewMember(s, s.swimmer).name
+        : action === "lash" || action === "sound"
+          ? " for the raft"
+          : action === "float"
+            ? " for themself"
+            : "";
+    s.log.push(
+      crewMember(s, i).name + " played " + move.name + targetName + ".",
+    );
     if (s.acted.length === s.crew.length) s.phase = "event";
   } else if (s.phase === "event" && s.swimmer !== null) {
     if (action === "hull")
       s.hull = Math.max(0, s.hull - Math.max(0, currentEvent(s)[3] - s.guard));
     else cold(s.swimmer, currentEvent(s)[4]);
-    s.crew.forEach((_, i) => cold(i, i === s.swimmer ? 2 : -1));
+    s.crew.forEach((_, i) => cold(i, i === s.swimmer ? swimmerCold : -1));
     crewMember(s, s.swimmer).food += swimmerRation;
     s.log.push(
       move.name +

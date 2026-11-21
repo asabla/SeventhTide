@@ -3,7 +3,11 @@ import type { Pool } from "pg";
 
 // One migration runner at a time, including when two server instances start together.
 export async function migrate(pool: Pool) {
-  const files = ["001-voyages.sql", "002-crew-seats.sql"];
+  const files = [
+    "001-voyages.sql",
+    "002-crew-seats.sql",
+    "003-swimmer-offers.sql",
+  ];
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

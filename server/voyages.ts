@@ -17,6 +17,8 @@ interface Row {
   rules_version: number;
   moves: string[];
   revision: number;
+  volunteer_mask: number;
+  offer_revision: number;
   guests: number;
   seat: number;
 }
@@ -33,10 +35,20 @@ function guestToken(owner: string, seat: number) {
     .digest("base64url");
 }
 
+function controls(row: Row, sailor: number) {
+  return row.seat === (sailor > row.guests ? 0 : sailor);
+}
+
+function volunteered(row: Row, sailor: number) {
+  return (row.volunteer_mask & (1 << sailor)) !== 0;
+}
+
 function crewChoices(row: Row, state: Voyage) {
-  return moves(state).filter(({ actor }) => {
+  return moves(state).filter(({ actor, id }) => {
+    if (state.phase === "board" && row.volunteer_mask)
+      return row.seat === 0 && volunteered(row, Number(id.slice(5)));
     if (actor === undefined) return row.seat === 0;
-    return row.seat === (actor > row.guests ? 0 : actor);
+    return controls(row, actor);
   });
 }
 
@@ -60,6 +72,12 @@ function snapshot(row: Row, state: Voyage, token: string) {
         ? { title: event[0], description: event[2] }
         : null,
     choices: crewChoices(row, state),
+    offerRevision: row.offer_revision,
+    volunteers: state.crew.flatMap((_, i) => (volunteered(row, i) ? [i] : [])),
+    offerSeats:
+      state.phase === "board" && row.guests > 0
+        ? state.crew.flatMap((_, i) => (controls(row, i) ? [i] : []))
+        : [],
     seat: row.seat,
     players: row.guests + 1,
     invites:
@@ -127,7 +145,7 @@ export async function voyageRoutes(
       return undefined;
     }
     const result = await pool.query<Row>(
-      `SELECT id, rules_version, seed, moves, revision, cardinality(guest_digests) AS guests,
+      `SELECT id, rules_version, seed, moves, revision, volunteer_mask, offer_revision, cardinality(guest_digests) AS guests,
               COALESCE(array_position(guest_digests, $2::bytea), 0) AS seat
          FROM voyages WHERE id = $1 AND (owner_digest = $2 OR $2 = ANY(guest_digests))`,
       [request.params.id, digest(token)],
@@ -157,7 +175,7 @@ export async function voyageRoutes(
         (_, i) => digest(guestToken(token, i + 1)),
       );
       const result = await pool.query<Row>(
-        "INSERT INTO voyages (id, owner_digest, rules_version, seed, guest_digests) VALUES ($1, $2, $3, $4, $5) RETURNING id, rules_version, seed, moves, revision, cardinality(guest_digests) AS guests, 0 AS seat",
+        "INSERT INTO voyages (id, owner_digest, rules_version, seed, guest_digests) VALUES ($1, $2, $3, $4, $5) RETURNING id, rules_version, seed, moves, revision, volunteer_mask, offer_revision, cardinality(guest_digests) AS guests, 0 AS seat",
         [
           randomUUID(),
           digest(token),
@@ -185,9 +203,62 @@ export async function voyageRoutes(
     },
   );
 
+  app.put<{
+    Params: { id: string };
+    Body: { expectedRevision: number; sailor: number; offer: boolean };
+  }>(
+    "/:id/volunteers",
+    {
+      schema: {
+        params,
+        body: {
+          type: "object",
+          required: ["expectedRevision", "sailor", "offer"],
+          properties: {
+            expectedRevision: {
+              type: "integer",
+              minimum: 0,
+              maximum: 2147483647,
+            },
+            sailor: { type: "integer", minimum: 0, maximum: 2 },
+            offer: { type: "boolean" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row, token } = session;
+      const { expectedRevision, sailor, offer } = request.body;
+      if (row.revision !== expectedRevision)
+        return reply.code(409).send({ error: "The voyage has changed." });
+      const state = replay(row);
+      if (state.phase !== "board" || !row.guests || !controls(row, sailor))
+        return reply
+          .code(422)
+          .send({ error: "This sailor cannot volunteer now." });
+      const update = await pool.query<
+        Pick<Row, "volunteer_mask" | "offer_revision">
+      >(
+        `UPDATE voyages SET volunteer_mask = CASE WHEN $3 THEN volunteer_mask | $4 ELSE volunteer_mask & ~$4 END,
+          offer_revision = offer_revision + CASE WHEN ((volunteer_mask & $4) <> 0) = $3 THEN 0 ELSE 1 END
+        WHERE id = $1 AND revision = $2 RETURNING volunteer_mask, offer_revision`,
+        [row.id, expectedRevision, offer, 1 << sailor],
+      );
+      const saved = update.rows[0];
+      if (!saved) return reply.code(409).send({ error: "Boarding has ended." });
+      return snapshot({ ...row, ...saved }, state, token);
+    },
+  );
+
   app.post<{
     Params: { id: string };
-    Body: { expectedRevision: number; moveId: string };
+    Body: {
+      expectedRevision: number;
+      moveId: string;
+      expectedOfferRevision?: number;
+    };
   }>(
     "/:id/moves",
     {
@@ -198,6 +269,11 @@ export async function voyageRoutes(
           required: ["expectedRevision", "moveId"],
           properties: {
             expectedRevision: {
+              type: "integer",
+              minimum: 0,
+              maximum: 2147483647,
+            },
+            expectedOfferRevision: {
               type: "integer",
               minimum: 0,
               maximum: 2147483647,
@@ -216,20 +292,27 @@ export async function voyageRoutes(
         reply
           .code(409)
           .send({ error: "Voyage changed. Reload before choosing a move." });
-      if (row.revision !== expectedRevision) return conflict();
+      if (
+        row.revision !== expectedRevision ||
+        (request.body.expectedOfferRevision !== undefined &&
+          request.body.expectedOfferRevision !== row.offer_revision)
+      )
+        return conflict();
       const before = replay(row);
       if (!crewChoices(row, before).some((move) => move.id === moveId)) {
         return reply.code(422).send({ error: "This move is unavailable." });
       }
       const next = play(before, moveId);
       // PostgreSQL checks this condition again after waiting for a concurrent writer.
-      const updated = await pool.query<{ revision: number }>(
-        "UPDATE voyages SET moves = array_append(moves, $1::text) WHERE id = $2 AND revision = $3 RETURNING revision",
-        [moveId, row.id, expectedRevision],
+      const updated = await pool.query<
+        Pick<Row, "revision" | "volunteer_mask">
+      >(
+        "UPDATE voyages SET moves = array_append(moves, $1::text), volunteer_mask = 0 WHERE id = $2 AND revision = $3 AND offer_revision = $4 RETURNING revision, volunteer_mask",
+        [moveId, row.id, expectedRevision, row.offer_revision],
       );
       const saved = updated.rows[0];
       if (!saved) return conflict();
-      return snapshot({ ...row, revision: saved.revision }, next, token);
+      return snapshot({ ...row, ...saved }, next, token);
     },
   );
 }

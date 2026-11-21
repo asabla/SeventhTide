@@ -1,4 +1,13 @@
-import { hostRoom, readRoom, readTurn, roomUrl, TurnConflict } from "./room.ts";
+import {
+  hostRoom,
+  readRoom,
+  readTurn,
+  roomUrl,
+  TurnConflict,
+  savedHostRoom,
+  storeHostRoom,
+  type RoomAction,
+} from "./room.ts";
 import type { RoomSnapshot } from "../server/voyages.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
 import {
@@ -9,6 +18,8 @@ import {
   jobs,
   maxHull,
   coldLimit,
+  swimmerCold,
+  swimmerRation,
   type Voyage,
   type Move,
 } from "@seventh-tide/rules";
@@ -49,10 +60,19 @@ function showRoomError(error: unknown) {
 }
 
 function setTurn(next: RoomSnapshot) {
-  if (turn && next.revision <= turn.revision) return;
+  if (
+    turn &&
+    (next.revision < turn.revision ||
+      (next.revision === turn.revision &&
+        next.offerRevision <= turn.offerRevision))
+  )
+    return;
   const joined = !turn;
   turn = next;
   if (joined) roomControls(next);
+  const finished = next.phase === "won" || next.phase === "lost";
+  if (room && next.seat === 0 && (joined || finished))
+    storeHostRoom(room, finished);
   render();
   paintSea?.();
 }
@@ -81,14 +101,17 @@ async function refreshRoom() {
   }
 }
 
-async function sendMove(id: string) {
+async function sendMove(action: RoomAction) {
   if (!room || !turn || sending) return;
   sending = true;
   select("choices").setAttribute("inert", "");
   try {
     const next = await readTurn(room, {
       expectedRevision: turn.revision,
-      moveId: id,
+      ...(turn.phase === "board" && "moveId" in action
+        ? { expectedOfferRevision: turn.offerRevision }
+        : {}),
+      ...action,
     });
     setTurn(next);
     select("room-status").textContent = "";
@@ -103,7 +126,7 @@ async function sendMove(id: string) {
 }
 function act(id: string) {
   if (room) {
-    void sendMove(id);
+    void sendMove({ moveId: id });
     return;
   }
   if (id === "again") {
@@ -148,6 +171,12 @@ function buttons(options: Move[]) {
       btn.className = "salvage";
       btn.append(element("span", "", "item " + move.id));
     }
+    if (move.id.startsWith("sound-") || move.id.startsWith("haul-")) {
+      btn.className = move.id.startsWith("sound-")
+        ? "action-art sound"
+        : "action-art haul";
+      btn.append(element("span", "", "engraving"));
+    }
     const copy = element("span");
     copy.append(element("strong", move.name), element("small", move.detail));
     btn.append(copy);
@@ -156,6 +185,59 @@ function buttons(options: Move[]) {
   }
   return group;
 }
+function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
+  const list = element("div", "", "boarding");
+  s.crew.forEach((sailor, i) => {
+    const offered = turn?.volunteers.includes(i);
+    const row = element("section", "", "boarding-sailor");
+    row.append(element("h3", sailor.name + (offered ? " · Volunteered" : "")));
+    const projected = sailor.cold + swimmerCold;
+    row.append(
+      element(
+        "p",
+        sailor.cold +
+          " cold · " +
+          sailor.food +
+          (sailor.food === 1 ? " ration" : " rations"),
+      ),
+    );
+    row.append(
+      element(
+        "p",
+        "Swimming ends with " +
+          projected +
+          " cold and " +
+          (sailor.food + swimmerRation) +
+          (sailor.food + swimmerRation === 1 ? " ration." : " rations.") +
+          (projected >= coldLimit
+            ? " Needs help to stay below " + coldLimit + " cold."
+            : ""),
+      ),
+    );
+    if (turn?.offerSeats.includes(i)) {
+      const offer = element(
+        "button",
+        (offered ? "Withdraw " : "Volunteer ") + sailor.name,
+      );
+      offer.type = "button";
+      offer.addEventListener(
+        "click",
+        () => void sendMove({ sailor: i, offer: !offered }),
+      );
+      row.append(offer);
+    }
+    const move = choices.find((m) => m.id === "swim-" + i);
+    if (move) {
+      const confirm = element("button", "Assign " + sailor.name + " to swim");
+      confirm.type = "button";
+      confirm.addEventListener("click", () => act(move.id));
+      row.append(confirm);
+    }
+    list.append(row);
+  });
+  return list;
+}
+
 function render() {
   const s = turn ?? state;
   const localEvent = room ? null : currentEvent(state);
@@ -197,19 +279,37 @@ function render() {
   const choices = select("choices");
   choices.replaceChildren();
   const options = turn?.choices ?? moves(state);
-  if (turn && !options.length && phase !== "won" && phase !== "lost") {
+  if (turn && !options.length && (phase === "salvage" || phase === "event")) {
     select("instruction").textContent =
-      phase === "cards"
-        ? "Waiting for the other sailors to play their cards."
-        : "Waiting for the host to " +
-          {
-            salvage: "choose salvage",
-            board: "assign the swimmer",
-            event: "resolve the tide",
-          }[phase] +
-          ".";
+      phase === "salvage"
+        ? "Waiting for the host to choose salvage."
+        : "Waiting for the host to resolve the tide.";
   }
-  if (phase === "cards") {
+  const feedback = select("turn-feedback");
+  let turnText = "";
+  if (phase === "cards" || phase === "event") {
+    const remaining = s.crew
+      .filter((_, i) => !s.acted.includes(i))
+      .map((p) => p.name);
+    const pending = remaining.length
+      ? "Waiting for " + new Intl.ListFormat("en").format(remaining) + "."
+      : "All three sailors have played.";
+    turnText = (s.acted.length ? (s.log.at(-1) ?? "") + " " : "") + pending;
+  }
+  if (feedback.textContent !== turnText) feedback.textContent = turnText;
+  if (phase === "board") {
+    if (turn)
+      select("instruction").textContent =
+        forecast +
+        (turn.seat === 0
+          ? " Choose a volunteer to swim, or assign anyone if nobody volunteers."
+          : " You can volunteer your sailor. The host confirms who swims.") +
+        " Sailors on the raft shed 1 cold at tide’s end.";
+    select("instruction").append(
+      " The preview shows the result before cards and events.",
+    );
+    choices.append(boarding(s, options));
+  } else if (phase === "cards") {
     s.crew.forEach((p, i) => {
       const hand = options.filter((o) => o.actor === i);
       if (hand.length)
@@ -338,10 +438,20 @@ if (room) {
   window.setInterval(() => void refreshRoom(), 2500);
   document.addEventListener("visibilitychange", () => void refreshRoom());
 } else {
+  const resume = element("button", "Resume crew voyage", "resume-room");
+  resume.type = "button";
+  resume.hidden = !savedHostRoom();
+  resume.addEventListener("click", () => {
+    const previous = savedHostRoom();
+    if (previous) location.assign(roomUrl(previous));
+    else resume.hidden = true;
+  });
+  select("room-panel").before(resume);
   window.addEventListener("pageshow", (event) => {
     if (event.persisted) {
       select("room-controls").removeAttribute("inert");
       select("room-status").textContent = "";
+      resume.hidden = !savedHostRoom();
     }
   });
   for (const [id, players] of [

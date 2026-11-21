@@ -67,7 +67,9 @@ Start the server with PostgreSQL using the commands below. For friends on the sa
 
 Open **Play on separate devices** and choose two or three players. Send each guest their private seat link. The host plays Mara and makes the salvage, boarding, and event decisions. The second player plays Ivo. In a two-player room the host also plays Nell. In a three-player room the third player plays Nell.
 
-Each device shows the cards its player can use. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. Guests can also rejoin with their invite link. Anyone with that link can play the seat.
+During boarding, each player can volunteer or withdraw a sailor they control. The host assigns a volunteer, or any sailor if nobody has volunteered. The preview shows exposure and rations before cards and events change the outcome.
+
+Each device shows the cards its player can use, the last card played, and the sailors still to act. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. After closing the tab, the host can open the game in the same browser and select **Resume crew voyage** for the most recently hosted room. Guests can also rejoin with their invite link. Anyone with that link can play the seat.
 
 ## Durable voyages
 
