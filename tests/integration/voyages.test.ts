@@ -17,6 +17,66 @@ const databaseUrl = process.env.TEST_DATABASE_URL;
 if (!databaseUrl)
   throw new Error("Set TEST_DATABASE_URL to a test PostgreSQL database.");
 
+await test("a returning guest can see the marked landing routes and only the host can commit one", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 2 }),
+    }),
+  );
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const guest: unknown = room.invites[0];
+  assert.ok(typeof guest === "string");
+  const history =
+    "canvas swim-0 float-0 lash-1 lash-2 hull swim-1 float-1 feed-0-1 lash-2 dive swim-2 float-2 feed-1-2 lash-0 hull swim-0 float-0 feed-2-0 lash-1 dive swim-1 float-1 feed-0-1 lash-2 dive swim-2 line-2 feed-1-2 lash-0 dive swim-0 float-0 feed-2-0 lash-1".split(
+      " ",
+    );
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  await pool.query("UPDATE voyages SET seed=$1, moves=$2 WHERE id=$3", [
+    4203543429,
+    history,
+    room.id,
+  ]);
+  const url = base + "/" + room.id;
+  const view = await readSnapshot(
+    await fetch(url, { headers: { Authorization: "Bearer " + guest } }),
+  );
+  assert.equal(view.channelMarked, true);
+  assert.deepEqual(view.choices, []);
+  assert.ok(isRecord(view.event) && Array.isArray(view.event.landingRoutes));
+  assert.deepEqual(
+    view.event.landingRoutes,
+    moves(history.reduce(play, start(4203543429))).map(({ name, detail }) => ({
+      name,
+      detail,
+    })),
+  );
+  const land = (token: string) =>
+    fetch(url + "/moves", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({
+        expectedRevision: history.length,
+        moveId: "channel",
+      }),
+    });
+  assert.equal((await land(guest)).status, 422);
+  assert.equal((await readSnapshot(await land(room.token))).phase, "won");
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

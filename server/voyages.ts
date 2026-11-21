@@ -59,6 +59,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
     rulesVersion: row.rules_version,
     phase: state.phase,
     tide: state.tide,
+    channelMarked: state.channelMarked,
     hull: state.hull,
     crew: state.crew,
     hands: state.crew.map((_, i) =>
@@ -71,7 +72,14 @@ function snapshot(row: Row, state: Voyage, token: string) {
     forecast: state.phase === "salvage" ? null : event[1],
     event:
       state.phase === "event"
-        ? { title: event[0], description: event[2] }
+        ? {
+            title: event[0],
+            description: event[2],
+            landingRoutes:
+              state.tide === 7 && state.channelMarked !== undefined
+                ? moves(state).map(({ name, detail }) => ({ name, detail }))
+                : [],
+          }
         : null,
     choices: crewChoices(row, state),
     offerRevision: row.offer_revision,

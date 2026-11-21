@@ -1,16 +1,21 @@
 import { CANVAS, Game, Scene } from "phaser";
 import seaUrl from "./assets/first-water.jpg";
+import lanternsUrl from "./assets/answering-light.jpg";
 import type { Voyage } from "@seventh-tide/rules";
 
 // The image below the canvas is also the first paint while the engine loads.
 export function mountSea(
   parent: HTMLElement,
-  readVoyage: () => Pick<Voyage, "tide">,
+  readVoyage: () => {
+    tide: Voyage["tide"];
+    channelMarked?: boolean | undefined;
+  },
 ) {
   let backdrop: Phaser.GameObjects.Image;
   class SeaScene extends Scene {
     preload() {
       this.load.image("wreck-field", seaUrl);
+      this.load.image("lanterns", lanternsUrl);
     }
     create() {
       backdrop = this.add.image(0, 0, "wreck-field").setOrigin(0, 0);
@@ -36,6 +41,8 @@ export function mountSea(
     const height = parent.clientHeight;
     if (!width || !height) return;
     const voyage = readVoyage();
+    const sighted = voyage.channelMarked !== undefined && voyage.tide >= 6;
+    backdrop.setTexture(sighted ? "lanterns" : "wreck-field");
     const zoom = 1 + (voyage.tide - 1) * 0.015;
     const scale =
       Math.max(width / backdrop.width, height / backdrop.height) * zoom;
@@ -43,7 +50,7 @@ export function mountSea(
     backdrop.setScale(scale);
     backdrop.setPosition(
       (width - backdrop.displayWidth) / 2,
-      (height - backdrop.displayHeight) * 0.64,
+      (height - backdrop.displayHeight) * (sighted ? 0.44 : 0.64),
     );
     // This scene only changes on a turn or resize. Stop rendering between them.
     game.loop.wake();

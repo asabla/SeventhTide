@@ -31,3 +31,9 @@ The generator received this common prompt followed by the scene for each card.
 **Haul the line** · [Original PNG](haul-the-line.png) · [Game JPEG](../web/assets/haul-the-line.jpg)
 
 > From raft level an exhausted sailor crouches on the lashed timbers, braced boots against rough wood, both hands hauling a taut knotted hemp line angling over the lower right edge into dark water. A small amber lantern glows behind one shoulder. The gesture and taut rope dominate.
+
+## The answering light
+
+The built-in image generator produced `answering-light.png`. The scene uses `web/assets/answering-light.jpg` from tide six onward.
+
+> Create a wide landscape 3:2 antique maritime copperplate engraving for Seventh Tide. From the waterline, two answering lanterns amid a fogbound channel: a steady amber lamp on the prow of a rescue cutter, and a second pale lamp drifting against a curling wake with no visible vessel beneath it. Put both lights close to the centre, horizontally separated, at mid-height so they read in a shallow banner and a phone crop. Dark carbon-black engraved waves and muted sea-green ink on worn bone paper, bold silhouettes, fine etched hatching, restrained amber. No lettering, borders or interface.

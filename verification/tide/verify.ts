@@ -33,6 +33,7 @@ function checkOutcomes(
           for (const cold of [0, 2, 3, 4, 5, 6]) {
             const before = structuredClone(event);
             Object.assign(before, { tide, hull, guard });
+            before.channelMarked = tide === 7;
             const member = before.crew[sailor];
             assert.ok(member);
             member.cold = cold;
@@ -72,7 +73,7 @@ function checkOutcomes(
       }
     }
   }
-  assert.equal(count, 2016);
+  assert.equal(count, 2160);
   console.log(count + " TypeScript event outcomes agree with Bend.");
 }
 

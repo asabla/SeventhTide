@@ -76,6 +76,12 @@ On new voyages, the first salvage adds two copies of a card to the shared ten-ca
 
 Play a held card to discard it and draw its replacement. Basic actions and ration sharing take the sailor’s turn and keep both cards for later. When the draw pile is empty, the crew reshuffles the discard pile. Existing solo saves and stored rooms finish with their original rules.
 
+## The answering light
+
+On tide six, two lanterns appear at the reef. Play Sounding line as the swimmer to mark a channel to the rescue cutter. The card still gives one brace and costs one cold. On tide seven the host can follow that channel without paying a landing cost. The swimmer still gains two cold from exposure. Without the mark, force a landing for four hull before brace, or scout the reef for two extra cold.
+
+Run `mise exec -- node verification/landing/simulate.ts` to compare spending and saving the line on the same 1,024 starting deals. The output includes replayable voyages and a separate count of landings by crews that never held a line.
+
 ## Play with friends
 
 Start the server with [PostgreSQL](#durable-voyages). For friends on the same Wi-Fi, set `HOST=0.0.0.0` when starting the server. Open the game using the host computer’s LAN address on **all** devices, including the host. An invite created on `localhost` or `127.0.0.1` points back to the device that opens it. For remote play, use a shared HTTPS address.
