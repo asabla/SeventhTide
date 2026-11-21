@@ -51,24 +51,151 @@ function showTotals(totals: typeof initial) {
 const cards = required("cards");
 const receipt = required("receipt");
 const reset = required("reset");
-const play = document.querySelector<HTMLButtonElement>("#play");
-if (!play) throw new Error("Missing play button");
-const playButton = play;
+const area = required("play-area");
+const dropSurface = document.querySelector<HTMLButtonElement>("#place-card");
+if (!dropSurface) throw new Error("Missing drop area");
+const destination = dropSurface;
 const playedFace = required("played-face");
-let selected: HTMLButtonElement | null = null;
-let resolvePlay: (() => void) | null = null;
+type Equipment = (typeof equipment)[number];
+type Card = {
+  button: HTMLButtonElement;
+  name: string;
+  face: Equipment["raft"] | Equipment["water"];
+};
+let selected: Card | null = null;
+let drag: {
+  card: Card;
+  id: number;
+  x: number;
+  y: number;
+  moved: boolean;
+} | null = null;
 
+function selectCard(card: Card) {
+  selected?.button.setAttribute("aria-pressed", "false");
+  selected = card;
+  card.button.setAttribute("aria-pressed", "true");
+  destination.disabled = false;
+  area.classList.add("ready");
+  receipt.textContent = card.name + " · " + card.face.effect + " Take 1 cold.";
+}
+
+function endDrag() {
+  if (!drag) return;
+  const { card, id } = drag;
+  drag = null;
+  area.classList.remove("over");
+  card.button.classList.remove("dragging");
+  card.button.style.removeProperty("translate");
+  if (card.button.hasPointerCapture(id)) card.button.releasePointerCapture(id);
+}
+
+function placeCard() {
+  const card = selected;
+  if (!card || destination.disabled) return;
+  const origin = card.button.getBoundingClientRect();
+  endDrag();
+  selected = null;
+  destination.disabled = true;
+  showTotals({ ...initial, cold: 2, ...card.face.result });
+  for (const choice of cards.querySelectorAll("button")) choice.disabled = true;
+  card.button.hidden = true;
+  const mark = new Image();
+  mark.src = card.face.image;
+  mark.alt = "";
+  playedFace.replaceChildren(mark);
+  area.classList.remove("ready");
+  area.classList.add("resolved");
+  receipt.textContent =
+    "Mara played " +
+    card.name +
+    ". " +
+    card.face.effect +
+    " Mara takes 1 cold.";
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const end = mark.getBoundingClientRect();
+    mark.animate(
+      [
+        {
+          transform:
+            "translate(" +
+            (origin.x + origin.width / 2 - end.x - end.width / 2) +
+            "px, " +
+            (origin.y + origin.height / 2 - end.y - end.height / 2) +
+            "px) rotate(-4deg)",
+        },
+        { transform: "none" },
+      ],
+      { duration: 200, easing: "ease-out" },
+    );
+  }
+  reset.hidden = false;
+  reset.focus({ preventScroll: true });
+}
+
+function overArea(event: PointerEvent) {
+  const box = area.getBoundingClientRect();
+  return (
+    event.clientX >= box.left &&
+    event.clientX <= box.right &&
+    event.clientY >= box.top &&
+    event.clientY <= box.bottom
+  );
+}
+
+function cancelPointer(event: PointerEvent) {
+  if (drag?.id === event.pointerId) endDrag();
+}
+
+function connectCard(card: Card) {
+  const button = card.button;
+  button.addEventListener("pointerdown", (event) => {
+    if (!event.isPrimary || event.button !== 0 || drag) return;
+    selectCard(card);
+    button.setPointerCapture(event.pointerId);
+    drag = {
+      card,
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      moved: false,
+    };
+  });
+  button.addEventListener("pointermove", (event) => {
+    if (!drag || drag.id !== event.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true;
+    button.classList.add("dragging");
+    button.style.translate = dx + "px " + dy + "px";
+    area.classList.toggle("over", overArea(event));
+  });
+  button.addEventListener("pointerup", (event) => {
+    if (!drag || drag.id !== event.pointerId) return;
+    if (drag.moved && overArea(event)) placeCard();
+    else endDrag();
+  });
+  button.addEventListener("pointercancel", cancelPointer);
+  button.addEventListener("lostpointercapture", cancelPointer);
+  button.addEventListener("click", (event) => {
+    if (button.disabled) return;
+    selectCard(card);
+    if (event.detail === 0) destination.focus();
+  });
+}
 function renderHand() {
   const water = document.querySelector('input[value="water"]:checked') !== null;
   required("swimmer-row").hidden = water;
   showTotals(initial);
-  receipt.textContent = "Select one equipment card.";
+  endDrag();
+  receipt.textContent =
+    "Drag a card here, or select a card and then this space.";
   selected = null;
-  resolvePlay = null;
+
   playedFace.replaceChildren();
-  required("play-area").classList.remove("resolved");
-  playButton.hidden = false;
-  playButton.disabled = true;
+  area.classList.remove("ready", "resolved");
+  destination.disabled = true;
   reset.hidden = true;
   cards.replaceChildren();
   for (const item of equipment) {
@@ -82,6 +209,7 @@ function renderHand() {
     const art = new Image();
     art.src = face.image;
     art.alt = "";
+    art.draggable = false;
     const action = document.createElement("span");
     action.className = "action";
     action.textContent = face.action;
@@ -92,60 +220,27 @@ function renderHand() {
     cost.className = "cost";
     cost.textContent = "Cost · Take 1 cold";
     button.append(name, art, action, effect, cost);
-    button.addEventListener("click", () => {
-      selected?.setAttribute("aria-pressed", "false");
-      selected = button;
-      button.setAttribute("aria-pressed", "true");
-      playButton.disabled = false;
-      receipt.textContent =
-        item.name + " selected. " + face.effect + " Take 1 cold.";
-      resolvePlay = () => {
-        const origin = art.getBoundingClientRect();
-        showTotals({ ...initial, cold: 2, ...face.result });
-        for (const choice of cards.querySelectorAll("button"))
-          choice.disabled = true;
-        button.hidden = true;
-        const mark = new Image();
-        mark.src = face.image;
-        mark.alt = "";
-        playedFace.replaceChildren(mark);
-        required("play-area").classList.add("resolved");
-        receipt.textContent =
-          "Mara played " +
-          item.name +
-          ". " +
-          face.effect +
-          " Mara takes 1 cold.";
-        if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
-          const end = mark.getBoundingClientRect();
-          mark.animate(
-            [
-              {
-                transform:
-                  "translate(" +
-                  (origin.x - end.x) +
-                  "px, " +
-                  (origin.y - end.y) +
-                  "px) rotate(-5deg)",
-              },
-              { transform: "none" },
-            ],
-            { duration: 280, easing: "ease-out" },
-          );
-        }
-        playButton.hidden = true;
-        reset.hidden = false;
-        reset.focus({ preventScroll: true });
-        resolvePlay = null;
-      };
-    });
+    const flecks = document.createElement("span");
+    flecks.className = "salt";
+    flecks.setAttribute("aria-hidden", "true");
+    flecks.append(
+      document.createElement("i"),
+      document.createElement("i"),
+      document.createElement("i"),
+    );
+    button.append(flecks);
+    connectCard({ button, name: item.name, face });
     cards.append(button);
   }
 }
 for (const position of document.querySelectorAll('input[name="position"]')) {
   position.addEventListener("change", renderHand);
 }
-playButton.addEventListener("click", () => resolvePlay?.());
+destination.addEventListener("click", placeCard);
+window.addEventListener("blur", endDrag);
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") endDrag();
+});
 reset.addEventListener("click", () => {
   renderHand();
   cards.querySelector("button")?.focus({ preventScroll: true });
