@@ -122,6 +122,10 @@ h1 {
   margin: 0;
 }
 
+:where(.boarding-sailor) p {
+  margin: 5px 0 10px;
+}
+
 details p,
 .play > p:not(.label) {
   line-height: 1.54;
@@ -359,4 +363,49 @@ details {
 
 #room-status:empty {
   display: none;
+}
+
+.boarding {
+  display: grid;
+  gap: 12px;
+}
+
+.boarding-sailor {
+  border-top: 1px solid var(--line);
+  padding: 0 0 8px;
+}
+
+.boarding-sailor button {
+  margin: 0 8px 6px 0;
+}
+
+.resume-room:not([hidden]) {
+  display: inline-block;
+  margin: 12px 0;
+}
+
+#turn-feedback:empty {
+  display: none;
+}
+
+.action-art {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.engraving {
+  width: 60px;
+  aspect-ratio: 1;
+  background-position: center;
+  background-size: cover;
+}
+
+.sound .engraving {
+  background-image: url("./assets/sound-the-depths.jpg");
+}
+
+.haul .engraving {
+  background-image: url("./assets/haul-the-line.jpg");
 }
