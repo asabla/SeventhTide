@@ -4,15 +4,15 @@ Use direct, formal language. Use ASD-STE100 Simplified Technical English for tec
 
 ## Working in this repository
 
-Use the project checkout in the selected Codex cloud environment for development. Use the local checkout for verification and play with friends. Follow the [mise setup](README.md#set-up-the-development-tools) in a fresh checkout. Use `mise exec --` for npm commands in shells without mise activation.
+Follow the [mise setup](README.md#set-up-the-development-tools) in a fresh checkout. Use `mise exec --` for npm commands in shells without mise activation.
 
-- Implement game decisions in `packages/rules/`. Both solo play and the voyage API use this package. The client displays legal choices and their costs.
-- Keep card text and controls in HTML. Use Phaser for the sea scene. Store original generated art and its prompt in `art/` and use a smaller export in `web/assets/`.
+- Implement voyage rules in `packages/rules/`. Solo play and the voyage API use the same rules. The API filters legal moves by crew seat and boarding volunteers. The client displays the available choices and their costs. Follow the [voyage rules skill](.agents/skills/seventh-tide-voyage-rules/SKILL.md) when a change affects game rules or replay.
+- Keep card text and controls in HTML. Use Phaser for the sea scene. Follow the [game art skill](.agents/skills/seventh-tide-game-art/SKILL.md) when adding or replacing illustrations.
 - For browser interaction and verification, use the built-in Browser. Use Playwright only when the user explicitly requests it.
 
 ## Verification
 
-Run `npm run check` for code changes. When a test PostgreSQL database is available, set `TEST_DATABASE_URL` and run `npm run check:ci` for the full gate. Use `npm run format` to apply the repository formatter. The [quality guide](README.md#code-quality) describes what each command covers.
+Run `npm run check` for code changes. When a separate PostgreSQL test database is available, set `TEST_DATABASE_URL` and run `npm run check:ci`. It includes `check` and the database tests. For changes to tide outcomes or their verification, also run the [tide law check](README.md#verify-the-tide-outcome-laws). Use `npm run format` to apply the repository formatter. See the [quality guide](README.md#code-quality).
 
 ## Commits and pull requests
 

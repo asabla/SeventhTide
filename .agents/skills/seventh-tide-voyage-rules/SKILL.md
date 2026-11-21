@@ -13,3 +13,5 @@ Start in [the shared rules](../../../packages/rules/voyage.ts). Trace the reques
 - The [server](../../../server/voyages.ts) stores a rules version and replays accepted moves. Incrementing the version alone makes earlier rows unreadable under the current implementation. For an incompatible change, retain a replay path for the old version or migrate the affected saves with a verified result.
 
 Use [the voyage tests](../../../tests/voyage.test.ts) to exercise the choice through the public rules functions. Assert the specific cost or outcome and the legal next moves that the change affects. For compatibility work, replay the captured history and compare it with the recorded expectation. Replaying it twice with the new implementation only checks repeatability.
+
+For a change to the conditions for loss, landfall, or continuation, review the [tide outcome laws](../../../verification/tide/LAWS.bend) and the [comparison with the game](../../../verification/tide/verify.ts). The comparison maps the crew’s cold and the tide number to the model inputs. Update the affected boundaries and run the [tide law check](../../../README.md#verify-the-tide-outcome-laws).
