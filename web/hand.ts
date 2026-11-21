@@ -87,6 +87,8 @@ function endDrag() {
   area.classList.remove("over");
   card.button.classList.remove("dragging");
   card.button.style.removeProperty("translate");
+  card.button.style.removeProperty("scale");
+  card.button.style.removeProperty("transform-origin");
   if (card.button.hasPointerCapture(id)) card.button.releasePointerCapture(id);
 }
 
@@ -133,13 +135,11 @@ function placeCard() {
   reset.focus({ preventScroll: true });
 }
 
-function overArea(event: PointerEvent) {
-  const box = area.getBoundingClientRect();
-  return (
-    event.clientX >= box.left &&
-    event.clientX <= box.right &&
-    event.clientY >= box.top &&
-    event.clientY <= box.bottom
+// Measure to the nearest edge so that entering anywhere in the tray gives the same size.
+function distanceToTray(x: number, y: number, box: DOMRect) {
+  return Math.hypot(
+    Math.max(box.left - x, 0, x - box.right),
+    Math.max(box.top - y, 0, y - box.bottom),
   );
 }
 
@@ -166,14 +166,32 @@ function connectCard(card: Card) {
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
     if (!drag.moved && Math.hypot(dx, dy) < 5) return;
-    drag.moved = true;
-    button.classList.add("dragging");
+    if (!drag.moved) {
+      drag.moved = true;
+      button.classList.add("dragging");
+      const bounds = button.getBoundingClientRect();
+      button.style.transformOrigin =
+        drag.x - bounds.left + "px " + (drag.y - bounds.top) + "px";
+    }
+    const tray = area.getBoundingClientRect();
+    const distance = distanceToTray(event.clientX, event.clientY, tray);
+    const startDistance = Math.max(1, distanceToTray(drag.x, drag.y, tray));
+    const progress = 1 - Math.min(1, distance / startDistance);
+    button.style.scale = String(1 - 0.22 * progress);
     button.style.translate = dx + "px " + dy + "px";
-    area.classList.toggle("over", overArea(event));
+    area.classList.toggle("over", distance === 0);
   });
   button.addEventListener("pointerup", (event) => {
     if (!drag || drag.id !== event.pointerId) return;
-    if (drag.moved && overArea(event)) placeCard();
+    if (
+      drag.moved &&
+      distanceToTray(
+        event.clientX,
+        event.clientY,
+        area.getBoundingClientRect(),
+      ) === 0
+    )
+      placeCard();
     else endDrag();
   });
   button.addEventListener("pointercancel", cancelPointer);
