@@ -55,6 +55,14 @@
       </aside>
       <section class="table" aria-labelledby="hand-title">
         <div class="play-area" id="play-area">
+          <button
+            type="button"
+            class="drop-surface"
+            id="place-card"
+            aria-label="Place selected card in Mara’s play"
+            disabled
+          ></button>
+          <span class="water" aria-hidden="true"><i></i><i></i><i></i></span>
           <div id="played-face" aria-hidden="true"></div>
           <div class="play-note">
             <h2 id="play-label">Mara’s play</h2>
@@ -68,7 +76,6 @@
           </div>
           <div id="cards"></div>
           <div class="controls">
-            <button id="play" type="button" disabled>Play card</button>
             <button id="reset" type="button" hidden>Try another play</button>
           </div>
         </div>

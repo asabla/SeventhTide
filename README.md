@@ -120,4 +120,4 @@ The server replays voyages with the current rules version and rejects an unsuppo
 
 ## Preview the illustrated hand
 
-Open [/hand.html](http://127.0.0.1:4173/hand.html) on the running game server. This standalone study shows Mara using a Sounding line or Boathook. Switch her position to see the other face of each card. Select a card to preview its effect and cost. Select **Play card** to lay it on the raft and update the ship’s log. Select **Try another play** to reset the study.
+Open [/hand.html](http://127.0.0.1:4173/hand.html) on the running game server. This standalone study shows Mara using a Sounding line or Boathook. Switch her position to see the other face of each card. Drag a card into **Mara’s play** to apply its effect and cost. You can also select a card, then activate the drop area. Release outside the area or press Escape during a drag to return the card to the hand. Select **Try another play** to reset the study.
