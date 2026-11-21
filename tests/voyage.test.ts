@@ -9,7 +9,7 @@ import {
 } from "@seventh-tide/rules";
 
 function board(seed = 17) {
-  const s = start(seed);
+  const s = start(seed, 1);
   const [card] = moves(s);
   assert.ok(card);
   return play(s, card.id);
@@ -52,7 +52,7 @@ await test("one swimmer gets the ration once, only after all crew play and the e
 
 await test("a crew can reach shore on tide seven and replay the same voyage", () => {
   const seed = 111;
-  let s = start(seed);
+  let s = start(seed, 1);
   const history: string[] = [];
   function act(id: string) {
     history.push(id);
@@ -79,7 +79,7 @@ await test("a crew can reach shore on tide seven and replay the same voyage", ()
     act(s.hull > currentEvent(s)[3] - s.guard ? "hull" : "dive");
   }
   assert.equal(s.phase, "won");
-  assert.deepEqual(history.reduce(play, start(seed)), s);
+  assert.deepEqual(history.reduce(play, start(seed, 1)), s);
   assert.equal(moves(s).length, 0);
 });
 

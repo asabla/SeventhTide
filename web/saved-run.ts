@@ -1,4 +1,5 @@
 export interface SavedRun {
+  rulesVersion?: 1 | 2;
   seed: number;
   history: string[];
 }
@@ -20,5 +21,11 @@ export function parseSavedRun(saved: string): SavedRun {
   ) {
     throw new Error("Invalid saved voyage.");
   }
-  return { seed: value.seed, history: value.history };
+  const run: SavedRun = { seed: value.seed, history: value.history };
+  if ("rulesVersion" in value) {
+    if (value.rulesVersion !== 1 && value.rulesVersion !== 2)
+      throw new Error("Invalid saved voyage.");
+    run.rulesVersion = value.rulesVersion;
+  }
+  return run;
 }

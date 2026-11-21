@@ -12,6 +12,9 @@ import type { RoomSnapshot } from "../server/voyages.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
 import {
   start,
+  rulesVersion,
+  handPreview,
+  salvagePreview,
   play,
   moves,
   currentEvent,
@@ -31,6 +34,7 @@ function select(id: string): HTMLElement {
 const saveKey = "seventh-tide-v1";
 function newRun(): SavedRun {
   return {
+    rulesVersion,
     seed: new DataView(
       crypto.getRandomValues(new Uint8Array(4)).buffer,
     ).getUint32(0),
@@ -41,7 +45,7 @@ let run: SavedRun, state: Voyage;
 try {
   const saved = localStorage.getItem(saveKey);
   run = saved ? parseSavedRun(saved) : newRun();
-  state = run.history.reduce(play, start(run.seed));
+  state = run.history.reduce(play, start(run.seed, run.rulesVersion ?? 1));
 } catch {
   run = newRun();
   state = start(run.seed);
@@ -163,6 +167,9 @@ function element<K extends keyof HTMLElementTagNameMap>(
   if (className) el.className = className;
   return el;
 }
+function usesCrewDeck() {
+  return turn ? turn.rulesVersion === 2 : Boolean(state.deck);
+}
 function buttons(options: Move[]) {
   const group = element("div", "", "choices");
   for (const move of options) {
@@ -177,11 +184,40 @@ function buttons(options: Move[]) {
         : "action-art haul";
       btn.append(element("span", "", "engraving"));
     }
+    if (move.card === "line") {
+      btn.className =
+        move.actor === (turn ?? state).swimmer
+          ? "action-art sound"
+          : "action-art haul";
+      btn.append(element("span", "", "engraving"));
+    }
     const copy = element("span");
-    copy.append(element("strong", move.name), element("small", move.detail));
+    copy.append(
+      element("strong", move.name),
+      element(
+        "small",
+        move.detail +
+          (usesCrewDeck() && move.actor !== undefined
+            ? move.card
+              ? " Discard and draw one."
+              : " Keep both cards."
+            : ""),
+      ),
+    );
     btn.append(copy);
     btn.addEventListener("click", () => act(move.id));
-    group.append(btn);
+    if (usesCrewDeck() && (turn ?? state).phase === "salvage") {
+      const item = element("div", "", "salvage-choice");
+      const preview = element("details");
+      const card = salvagePreview(move.id);
+      preview.append(
+        element("summary", card.name + " effects"),
+        element("p", "On the raft · " + card.raft.text),
+        element("p", "In the water · " + card.water.text),
+      );
+      item.append(btn, preview);
+      group.append(item);
+    } else group.append(btn);
   }
   return group;
 }
@@ -214,6 +250,16 @@ function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
             : ""),
       ),
     );
+    const cards = turn ? turn.hands[i] : handPreview(state.deck, i);
+    for (const card of cards ?? []) {
+      const item = element("details");
+      item.append(
+        element("summary", card.name),
+        element("p", "In the water · " + card.water),
+        element("p", "On the raft · " + card.raft),
+      );
+      row.append(item);
+    }
     if (turn?.offerSeats.includes(i)) {
       const offer = element(
         "button",
@@ -243,6 +289,7 @@ function render() {
   const localEvent = room ? null : currentEvent(state);
   const forecast = turn?.forecast ?? localEvent?.[1] ?? "";
   const phase = s.phase;
+  select("deck-rules").hidden = !usesCrewDeck();
   const heads = {
     salvage: "What can you save?",
     board: "Who takes the line?",
@@ -312,14 +359,24 @@ function render() {
   } else if (phase === "cards") {
     s.crew.forEach((p, i) => {
       const hand = options.filter((o) => o.actor === i);
-      if (hand.length)
+      if (hand.length) {
         choices.append(
           element(
             "h3",
             p.name + (s.swimmer === i ? " · in the water" : " · on the raft"),
           ),
-          buttons(hand),
         );
+        if (usesCrewDeck()) {
+          const held =
+            (turn ? turn.hands[i] : handPreview(state.deck, i)) ?? [];
+          choices.append(
+            element("p", "In hand · " + held.map((c) => c.name).join(" / ")),
+            buttons(hand.filter((o) => o.card)),
+            element("h4", "Basic actions"),
+            buttons(hand.filter((o) => !o.card)),
+          );
+        } else choices.append(buttons(hand));
+      }
     });
   } else if (options.length) choices.append(buttons(options));
   else if (!room)

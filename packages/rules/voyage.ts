@@ -1,4 +1,18 @@
-export const rulesVersion = 1;
+import { nextSeed, shuffle } from "./random.ts";
+import {
+  cardInfo,
+  deal,
+  replaceCard,
+  salvageCard,
+  type CardId,
+  type Deck,
+} from "./hands.ts";
+export { handPreview } from "./hands.ts";
+
+export function salvagePreview(id: string) {
+  return cardInfo(salvageCard(id));
+}
+export const rulesVersion = 2;
 
 export type Phase = "salvage" | "board" | "cards" | "event" | "won" | "lost";
 
@@ -7,6 +21,7 @@ export interface Move {
   name: string;
   detail: string;
   actor?: number;
+  card?: CardId;
 }
 
 type TideEvent = [
@@ -18,6 +33,7 @@ type TideEvent = [
 ];
 
 export interface Voyage {
+  deck?: Deck;
   tide: number;
   phase: Phase;
   hull: number;
@@ -121,27 +137,25 @@ export function crewMember(voyage: Voyage, index: number) {
   return member;
 }
 
-function shuffle<T>(items: T[], random: () => number) {
-  const deck = [...items];
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    const left = deck[i];
-    const right = deck[j];
-    if (left === undefined || right === undefined)
-      throw new RangeError("Missing card in deck.");
-    deck[i] = right;
-    deck[j] = left;
-  }
-  return deck;
-}
-
-export function start(seed: number): Voyage {
+export function start(seed: number, version: number = rulesVersion): Voyage {
+  if (version !== 1 && version !== rulesVersion)
+    throw new Error("Unsupported voyage rules version.");
   let bits = seed >>> 0;
   const random = () => {
-    bits = (Math.imul(bits, 1664525) + 1013904223) >>> 0;
+    bits = nextSeed(bits);
     return bits / 4294967296;
   };
   return {
+    ...(version === 2
+      ? {
+          deck: {
+            random: (seed ^ 0xa5a5a5a5) >>> 0,
+            draw: [],
+            discard: [],
+            hands: [],
+          },
+        }
+      : {}),
     tide: 1,
     phase: "salvage",
     hull: 4,
@@ -156,7 +170,17 @@ export function start(seed: number): Voyage {
 }
 
 export function moves(s: Voyage): Move[] {
-  if (s.phase === "salvage") return s.salvage;
+  if (s.phase === "salvage")
+    return s.deck
+      ? s.salvage.map((m) => ({
+          ...m,
+          detail:
+            m.detail +
+            " Add two copies of " +
+            salvagePreview(m.id).name +
+            " to the crew deck.",
+        }))
+      : s.salvage;
   if (s.phase === "board")
     return s.crew.map((p, i) => ({
       id: "swim-" + i,
@@ -185,7 +209,9 @@ export function moves(s: Voyage): Move[] {
               {
                 id: "lash",
                 name: "Lash the timbers",
-                detail: "Repair 1 hull. Take 1 cold.",
+                detail: s.deck
+                  ? "Repair 1 hull by hand. Take 2 cold."
+                  : "Repair 1 hull. Take 1 cold.",
               },
               {
                 id: "haul",
@@ -193,7 +219,34 @@ export function moves(s: Voyage): Move[] {
                 detail: "The swimmer sheds 1 cold. Take 1 cold yourself.",
               },
             ];
-      const hand = options.map((o) => ({ ...o, id: o.id + "-" + i, actor: i }));
+      const basic = s.deck
+        ? options.filter((o) => o.id === "float" || o.id === "lash")
+        : options;
+      const hand: Move[] = basic.map((o) => ({
+        ...o,
+        id: o.id + "-" + i,
+        actor: i,
+      }));
+      for (const card of new Set(s.deck?.hands[i])) {
+        const definition = cardInfo(card);
+        const effect = i === s.swimmer ? definition.water : definition.raft;
+        const option = {
+          card,
+          actor: i,
+          name: definition.name,
+          detail: effect.text,
+          id: card + "-" + i,
+        };
+        if (effect.targetCold) {
+          s.crew.forEach((target, j) =>
+            hand.push({
+              ...option,
+              id: option.id + "-" + j,
+              name: option.name + " · " + target.name,
+            }),
+          );
+        } else hand.push(option);
+      }
       if (p.food > 0)
         s.crew.forEach((target, j) => {
           hand.push({
@@ -246,6 +299,7 @@ export function play(state: Voyage, moveId: string): Voyage {
       if (action === "spar") cold(i, 1);
     });
     s.log.push("Salvaged " + move.name.toLowerCase() + ".");
+    if (s.deck) deal(s.deck, move.id);
     s.phase = "board";
   } else if (s.phase === "board") {
     s.swimmer = Number(who);
@@ -261,31 +315,42 @@ export function play(state: Voyage, moveId: string): Voyage {
     s.phase = "cards";
   } else if (s.phase === "cards" && s.swimmer !== null) {
     const i = Number(who);
-    switch (action) {
-      case "feed":
-        crewMember(s, i).food--;
-        cold(Number(target), -2);
-        break;
-      case "sound":
-        s.guard++;
-        cold(i, 1);
-        break;
-      case "float":
-        cold(i, -1);
-        s.hull = Math.max(0, s.hull - 1);
-        break;
-      case "lash":
-        s.hull = Math.min(maxHull, s.hull + 1);
-        cold(i, 1);
-        break;
-      case "haul":
-        cold(s.swimmer, -1);
-        cold(i, 1);
-        break;
-    }
+    if (s.deck && move.card) {
+      const definition = cardInfo(move.card);
+      const effect = i === s.swimmer ? definition.water : definition.raft;
+      s.hull = Math.max(0, Math.min(maxHull, s.hull + (effect.hull ?? 0)));
+      s.guard += effect.brace ?? 0;
+      cold(i, effect.cold ?? 0);
+      if (effect.swimmerCold) cold(s.swimmer, effect.swimmerCold);
+      if (effect.targetCold) cold(Number(target), effect.targetCold);
+      crewMember(s, i).food += effect.food ?? 0;
+      replaceCard(s.deck, i, move.card);
+    } else
+      switch (action) {
+        case "feed":
+          crewMember(s, i).food--;
+          cold(Number(target), -2);
+          break;
+        case "sound":
+          s.guard++;
+          cold(i, 1);
+          break;
+        case "float":
+          cold(i, -1);
+          s.hull = Math.max(0, s.hull - 1);
+          break;
+        case "lash":
+          s.hull = Math.min(maxHull, s.hull + 1);
+          cold(i, s.deck ? 2 : 1);
+          break;
+        case "haul":
+          cold(s.swimmer, -1);
+          cold(i, 1);
+          break;
+      }
     s.acted.push(i);
     const targetName =
-      action === "haul"
+      action === "haul" || (action === "line" && i !== s.swimmer)
         ? " for " + crewMember(s, s.swimmer).name
         : action === "lash" || action === "sound"
           ? " for the raft"

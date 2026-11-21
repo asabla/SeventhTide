@@ -10,7 +10,7 @@ function eventState() {
   const initial = start(111);
   const salvage = moves(initial)[0];
   assert.ok(salvage);
-  return [salvage.id, "swim-1", "sound-1", "lash-0", "haul-2"].reduce(
+  return [salvage.id, "swim-1", "float-1", "lash-0", "lash-2"].reduce(
     play,
     initial,
   );

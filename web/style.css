@@ -409,3 +409,11 @@ details {
 .haul .engraving {
   background-image: url("./assets/haul-the-line.jpg");
 }
+
+.salvage-choice > button {
+  width: 100%;
+}
+
+.salvage-choice > details {
+  margin-top: 8px;
+}
