@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#172b2b" />
+    <title>Seventh Tide</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <span class="brand">Seventh Tide</span><a href="#log">Ship’s log</a>
+    </header>
+    <main>
+      <section class="scene">
+        <img
+          src="./assets/first-water.jpg"
+          alt="Two sailors on a timber raft hold a line to a swimmer reaching for a ration tin."
+        />
+        <div class="caption">
+          <span id="location"></span>
+          <h1>Seventh Tide</h1>
+        </div>
+      </section>
+      <div class="table">
+        <section class="play">
+          <p class="label" id="step"></p>
+          <h2 tabindex="-1" id="heading"></h2>
+          <p id="instruction"></p>
+          <div id="choices"></div>
+        </section>
+        <aside>
+          <div class="sidehead">
+            <h2>Crew manifest</h2>
+            <span>2 seats</span>
+          </div>
+          <div id="crew"></div>
+          <div id="hull"></div>
+          <details>
+            <summary>Voyage rules</summary>
+            <p>
+              Keep all three sailors alive through tide seven. Each tide, assign
+              one swimmer and play one card per sailor in any order. The swimmer
+              gains 2 cold and recovers 1 personal ration from the wreckage.
+              Each seated sailor sheds 1 cold.
+            </p>
+            <p>
+              Spend a ration as a card to remove 2 cold from anyone. A brace
+              blocks 1 hull damage this tide. Check hull and cold after the
+              event and the seating effects. At 5 cold or 0 hull, the voyage
+              ends.
+            </p>
+          </details>
+        </aside>
+      </div>
+      <details id="log">
+        <summary>Ship’s log</summary>
+        <ol id="entries"></ol>
+      </details>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
