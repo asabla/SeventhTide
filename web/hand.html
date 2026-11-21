@@ -53,7 +53,7 @@
           >
         </fieldset>
       </aside>
-      <section class="table" aria-labelledby="hand-title">
+      <section class="table" aria-label="Equipment table">
         <div class="play-area" id="play-area">
           <button
             type="button"
@@ -62,23 +62,15 @@
             aria-label="Place selected card in Mara’s play"
             disabled
           ></button>
-          <span class="water" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="water" aria-hidden="true"><i></i><i></i></span>
           <div id="played-face" aria-hidden="true"></div>
           <div class="play-note">
             <h2 id="play-label">Mara’s play</h2>
             <p id="receipt" role="status" aria-atomic="true"></p>
-          </div>
-        </div>
-        <div class="hand">
-          <div class="hand-label">
-            <h2 id="hand-title">Mara’s hand</h2>
-            <span>Boatswain</span>
-          </div>
-          <div id="cards"></div>
-          <div class="controls">
             <button id="reset" type="button" hidden>Try another play</button>
           </div>
         </div>
+        <div id="cards" role="group" aria-label="Equipment cards"></div>
       </section>
     </main>
     <script type="module" src="./hand.ts"></script>
