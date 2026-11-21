@@ -3,10 +3,7 @@ import type { Pool } from "pg";
 
 // One migration runner at a time, including when two server instances start together.
 export async function migrate(pool: Pool) {
-  const sql = await readFile(
-    new URL("./migrations/001-voyages.sql", import.meta.url),
-    "utf8",
-  );
+  const files = ["001-voyages.sql", "002-crew-seats.sql"];
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -18,11 +15,19 @@ export async function migrate(pool: Pool) {
       "SELECT version FROM voyage_migrations ORDER BY version DESC LIMIT 1",
     );
     const version = applied.rows[0]?.version ?? 0;
-    if (version > 1)
+    if (version > files.length)
       throw new Error("Voyage database requires a newer server.");
-    if (version === 0) {
+    for (const [index, file] of files.entries()) {
+      if (index < version) continue;
+      const sql = await readFile(
+        new URL("./migrations/" + file, import.meta.url),
+        "utf8",
+      );
       await client.query(sql);
-      await client.query("INSERT INTO voyage_migrations (version) VALUES (1)");
+      await client.query(
+        "INSERT INTO voyage_migrations (version) VALUES ($1)",
+        [index + 1],
+      );
     }
     await client.query("COMMIT");
   } catch (error) {

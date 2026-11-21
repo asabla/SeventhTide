@@ -342,3 +342,21 @@ details {
 #sea canvas {
   display: block;
 }
+
+#room-controls label {
+  display: block;
+  margin-bottom: 12px;
+}
+
+#room-controls input {
+  box-sizing: border-box;
+  display: block;
+  width: min(100%, 45ch);
+  margin-top: 4px;
+  padding: 8px;
+  font: inherit;
+}
+
+#room-status:empty {
+  display: none;
+}

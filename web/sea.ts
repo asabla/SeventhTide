@@ -3,7 +3,10 @@ import seaUrl from "./assets/first-water.jpg";
 import type { Voyage } from "@seventh-tide/rules";
 
 // The image below the canvas is also the first paint while the engine loads.
-export function mountSea(parent: HTMLElement, readVoyage: () => Voyage) {
+export function mountSea(
+  parent: HTMLElement,
+  readVoyage: () => Pick<Voyage, "tide">,
+) {
   let backdrop: Phaser.GameObjects.Image;
   class SeaScene extends Scene {
     preload() {

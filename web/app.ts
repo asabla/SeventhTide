@@ -1,3 +1,5 @@
+import { hostRoom, readRoom, readTurn, roomUrl, TurnConflict } from "./room.ts";
+import type { RoomSnapshot } from "../server/voyages.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
 import {
   start,
@@ -34,7 +36,76 @@ try {
   state = start(run.seed);
 }
 let paintSea: (() => void) | undefined;
+const roomId = new URLSearchParams(location.search).get("room");
+const room = roomId ? readRoom(roomId) : null;
+let turn: RoomSnapshot | undefined;
+let sending = false;
+let refreshing = false;
+let connectionFailed = false;
+
+function showRoomError(error: unknown) {
+  select("room-status").textContent =
+    error instanceof Error ? error.message : "Could not reach the room.";
+}
+
+function setTurn(next: RoomSnapshot) {
+  if (turn && next.revision <= turn.revision) return;
+  const joined = !turn;
+  turn = next;
+  if (joined) roomControls(next);
+  render();
+  paintSea?.();
+}
+
+async function refreshRoom() {
+  if (
+    !room ||
+    refreshing ||
+    document.hidden ||
+    turn?.phase === "won" ||
+    turn?.phase === "lost"
+  )
+    return;
+  refreshing = true;
+  try {
+    const next = await readTurn(room);
+    if (!turn || next.revision > turn.revision || connectionFailed)
+      select("room-status").textContent = "";
+    connectionFailed = false;
+    setTurn(next);
+  } catch (error) {
+    connectionFailed = true;
+    showRoomError(error);
+  } finally {
+    refreshing = false;
+  }
+}
+
+async function sendMove(id: string) {
+  if (!room || !turn || sending) return;
+  sending = true;
+  select("choices").setAttribute("inert", "");
+  try {
+    const next = await readTurn(room, {
+      expectedRevision: turn.revision,
+      moveId: id,
+    });
+    setTurn(next);
+    select("room-status").textContent = "";
+    select("heading").focus();
+  } catch (error) {
+    if (error instanceof TurnConflict) await refreshRoom();
+    showRoomError(error);
+  } finally {
+    select("choices").removeAttribute("inert");
+    sending = false;
+  }
+}
 function act(id: string) {
+  if (room) {
+    void sendMove(id);
+    return;
+  }
   if (id === "again") {
     run = newRun();
     state = start(run.seed);
@@ -73,7 +144,7 @@ function buttons(options: Move[]) {
   const group = element("div", "", "choices");
   for (const move of options) {
     const btn = element("button");
-    if (state.phase === "salvage") {
+    if ((turn ?? state).phase === "salvage") {
       btn.className = "salvage";
       btn.append(element("span", "", "item " + move.id));
     }
@@ -86,14 +157,15 @@ function buttons(options: Move[]) {
   return group;
 }
 function render() {
-  const s = state;
-  const event = currentEvent(s);
+  const s = turn ?? state;
+  const localEvent = room ? null : currentEvent(state);
+  const forecast = turn?.forecast ?? localEvent?.[1] ?? "";
   const phase = s.phase;
   const heads = {
     salvage: "What can you save?",
     board: "Who takes the line?",
     cards: "Play the crew’s hand",
-    event: event[0],
+    event: turn?.event?.title ?? localEvent?.[0] ?? "",
     won: "Three souls ashore",
     lost: "Lost at sea",
   };
@@ -101,13 +173,13 @@ function render() {
     salvage:
       "The ship is sinking. Take one salvage card for the crew before you board the raft.",
     board:
-      event[1] +
+      forecast +
       " Choose one swimmer. They gain 2 cold and 1 personal ration at tide’s end. The two on the raft each shed 1 cold.",
     cards:
-      event[1] +
+      forecast +
       " Play one card per sailor, in any order. Check for loss after the event.",
     event:
-      event[2] +
+      (turn?.event?.description ?? localEvent?.[2] ?? "") +
       " Choose who pays. Then apply cold, warmth, and the swimmer’s ration.",
     won: "All three sailors survived the seventh tide.",
     lost: s.log.at(-1) ?? "",
@@ -124,7 +196,19 @@ function render() {
   select("instruction").textContent = instructions[phase];
   const choices = select("choices");
   choices.replaceChildren();
-  const options = moves(s);
+  const options = turn?.choices ?? moves(state);
+  if (turn && !options.length && phase !== "won" && phase !== "lost") {
+    select("instruction").textContent =
+      phase === "cards"
+        ? "Waiting for the other sailors to play their cards."
+        : "Waiting for the host to " +
+          {
+            salvage: "choose salvage",
+            board: "assign the swimmer",
+            event: "resolve the tide",
+          }[phase] +
+          ".";
+  }
   if (phase === "cards") {
     s.crew.forEach((p, i) => {
       const hand = options.filter((o) => o.actor === i);
@@ -138,7 +222,7 @@ function render() {
         );
     });
   } else if (options.length) choices.append(buttons(options));
-  else
+  else if (!room)
     choices.append(
       buttons([
         {
@@ -181,11 +265,104 @@ function render() {
     ...s.log.map((line) => element("li", line)),
   );
 }
-render();
+function soloLink() {
+  const link = element("a", "Return to solo voyage");
+  link.href = location.pathname;
+  return link;
+}
+
+function roomControls(snapshot: RoomSnapshot) {
+  const controls = select("room-controls");
+  const sailor = snapshot.crew[snapshot.seat]?.name ?? "";
+  const role =
+    snapshot.seat === 0
+      ? "Host · " + sailor + (snapshot.players === 2 ? " and Nell" : "")
+      : "Playing as " + sailor;
+  select("room-label").textContent = role;
+  controls.replaceChildren();
+  if (snapshot.invites.length) {
+    controls.append(
+      element(
+        "p",
+        "Send each private link to the player who will control that sailor.",
+      ),
+    );
+    snapshot.invites.forEach((token, i) => {
+      const label = element(
+        "label",
+        snapshot.crew[i + 1]?.name + "’s invite link",
+      );
+      const field = element("input");
+      field.readOnly = true;
+      field.value = roomUrl({ id: snapshot.id, token });
+      field.addEventListener("focus", () => field.select());
+      label.append(field);
+      const copy = element(
+        "button",
+        "Copy " + snapshot.crew[i + 1]?.name + "’s link",
+      );
+      copy.type = "button";
+      copy.addEventListener("click", () => {
+        field.focus();
+        field.select();
+        if (!navigator.clipboard) {
+          select("room-status").textContent = "Copy the selected invite link.";
+          return;
+        }
+        void navigator.clipboard.writeText(field.value).then(
+          () => {
+            select("room-status").textContent = "Invite link copied.";
+          },
+          () => {
+            select("room-status").textContent =
+              "Copy the selected invite link.";
+          },
+        );
+      });
+      controls.append(label, copy);
+    });
+  }
+  controls.append(soloLink());
+}
+
+if (room) {
+  window.addEventListener("hashchange", () => {
+    if (/^#[\w-]{43}$/.test(location.hash)) location.reload();
+  });
+  const panel = select("room-panel");
+  panel.setAttribute("open", "");
+  select("room-label").textContent = "Crew room";
+  select("room-controls").replaceChildren(soloLink());
+  select("heading").textContent = "Joining the crew";
+  void refreshRoom();
+  window.setInterval(() => void refreshRoom(), 2500);
+  document.addEventListener("visibilitychange", () => void refreshRoom());
+} else {
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+      select("room-controls").removeAttribute("inert");
+      select("room-status").textContent = "";
+    }
+  });
+  for (const [id, players] of [
+    ["host-two", 2],
+    ["host-three", 3],
+  ] as const) {
+    select(id).addEventListener("click", () => {
+      select("room-controls").setAttribute("inert", "");
+      select("room-status").textContent = "Opening a crew room…";
+      void hostRoom(players).catch((error: unknown) => {
+        select("room-controls").removeAttribute("inert");
+        showRoomError(error);
+      });
+    });
+  }
+  render();
+}
 
 // The crew controls are ready before the presentation engine finishes loading.
 void import("./sea.ts")
   .then(({ mountSea }) => {
-    paintSea = mountSea(select("sea"), () => state);
+    paintSea = mountSea(select("sea"), () => turn ?? state);
   })
   .catch((error: unknown) => console.warn("Sea scene unavailable", error));
