@@ -1,6 +1,6 @@
 # Seventh Tide
 
-Seventh Tide is a cooperative maritime horror card game for browsers and phones, with a solo mode and seven tides per voyage. The current build supports solo and shared-screen play.
+Seventh Tide is a cooperative maritime horror card game for browsers and phones, with a solo mode and seven tides per voyage. Play solo, share a screen, or invite one or two friends to play on separate devices.
 
 ## Set up the development tools
 
@@ -61,6 +61,14 @@ Phaser supplies the 2D rendering and scene tools the illustrated table needs. Us
 - `tests/` covers card order, swimmer rewards, replay, and both voyage outcomes.
 - `art/` contains original illustrations and their production notes.
 
+## Play with friends
+
+Start the server with PostgreSQL using the commands below. For friends on the same Wi-Fi, set `HOST=0.0.0.0` and open the game using the host computer’s LAN address on **all** devices, including the host. An invite created on `localhost` or `127.0.0.1` points back to the device that opens it. For remote play, use a shared HTTPS address.
+
+Open **Play on separate devices** and choose two or three players. Send each guest their private seat link. The host plays Mara and makes the salvage, boarding, and event decisions. The second player plays Ivo. In a two-player room the host also plays Nell. In a three-player room the third player plays Nell.
+
+Each device shows the cards its player can use. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. Guests can also rejoin with their invite link. Anyone with that link can play the seat.
+
 ## Durable voyages
 
 The browser currently saves solo voyages on the device. To enable the server's voyage API, set `DATABASE_URL` to a PostgreSQL connection URL. On startup the server applies pending migrations in a transaction. The database user needs permission to create tables. For a local database, install Docker with the Compose plugin and start the Docker engine. Then run the following after the build.
@@ -78,7 +86,7 @@ The database uses a named volume. Use `docker compose stop db` to stop it betwee
 | `GET /api/voyages/{id}`        | Replays the recorded moves and returns the current state and choices.                                                                                  |
 | `POST /api/voyages/{id}/moves` | Accepts a JSON body such as `{"expectedRevision":0,"moveId":"locker"}`. Select a move ID from the current choices. Returns the new state and revision. |
 
-For reads and moves, send the token in the `Authorization: Bearer <token>` header. The server stores its digest. The holder controls the entire voyage. Individual player seats and invitations come in the room layer.
+For reads and moves, send the token in the `Authorization: Bearer <token>` header. The server stores its digest. A request without a body creates a single-owner voyage. Send `{"players":2}` or `{"players":3}` to create a crew room. The host receives one private token per guest in `invites`. A guest uses their token for the same read and move endpoints. The server filters choices and checks each move against the caller’s seat.
 
 Each voyage stores its initial seed, rules version, and ordered move IDs. Its revision is the number of stored moves. A single conditional database update appends a legal move at the expected revision. A competing write or a repeated submission at an old revision receives HTTP 409. Read the current state before making the next choice. An unavailable move at the current revision receives HTTP 422.
 

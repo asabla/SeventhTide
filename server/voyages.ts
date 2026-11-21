@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Pool } from "pg";
 import {
@@ -17,6 +17,8 @@ interface Row {
   rules_version: number;
   moves: string[];
   revision: number;
+  guests: number;
+  seat: number;
 }
 
 function replay(row: Row) {
@@ -25,7 +27,20 @@ function replay(row: Row) {
   return row.moves.reduce(play, start(Number(row.seed)));
 }
 
-function snapshot(row: Row, state: Voyage) {
+function guestToken(owner: string, seat: number) {
+  return createHmac("sha256", owner)
+    .update("crew-seat-" + seat)
+    .digest("base64url");
+}
+
+function crewChoices(row: Row, state: Voyage) {
+  return moves(state).filter(({ actor }) => {
+    if (actor === undefined) return row.seat === 0;
+    return row.seat === (actor > row.guests ? 0 : actor);
+  });
+}
+
+function snapshot(row: Row, state: Voyage, token: string) {
   const event = currentEvent(state);
   return {
     id: row.id,
@@ -44,9 +59,17 @@ function snapshot(row: Row, state: Voyage) {
       state.phase === "event"
         ? { title: event[0], description: event[2] }
         : null,
-    choices: moves(state),
+    choices: crewChoices(row, state),
+    seat: row.seat,
+    players: row.guests + 1,
+    invites:
+      row.seat === 0
+        ? Array.from({ length: row.guests }, (_, i) => guestToken(token, i + 1))
+        : [],
   };
 }
+
+export type RoomSnapshot = ReturnType<typeof snapshot>;
 
 const params = {
   type: "object",
@@ -104,36 +127,61 @@ export async function voyageRoutes(
       return undefined;
     }
     const result = await pool.query<Row>(
-      "SELECT id, rules_version, seed, moves, revision FROM voyages WHERE id = $1 AND owner_digest = $2",
+      `SELECT id, rules_version, seed, moves, revision, cardinality(guest_digests) AS guests,
+              COALESCE(array_position(guest_digests, $2::bytea), 0) AS seat
+         FROM voyages WHERE id = $1 AND (owner_digest = $2 OR $2 = ANY(guest_digests))`,
       [request.params.id, digest(token)],
     );
     const row = result.rows[0];
     if (!row) reply.code(404).send({ error: "Voyage unavailable." });
-    return row;
+    return row && { row, token };
   }
 
-  app.post("/", async (_request, reply) => {
-    const token = randomBytes(32).toString("base64url");
-    const result = await pool.query<Row>(
-      "INSERT INTO voyages (id, owner_digest, rules_version, seed) VALUES ($1, $2, $3, $4) RETURNING id, rules_version, seed, moves, revision",
-      [
-        randomUUID(),
-        digest(token),
-        rulesVersion,
-        randomBytes(4).readUInt32BE(),
-      ],
-    );
-    const row = result.rows[0];
-    if (!row) throw new Error("Created voyage is missing.");
-    return reply.code(201).send({ ...snapshot(row, replay(row)), token });
-  });
+  app.post<{ Body: { players?: number } | null }>(
+    "/",
+    {
+      schema: {
+        body: {
+          type: ["object", "null"],
+          additionalProperties: false,
+          properties: {
+            players: { type: "integer", enum: [2, 3] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const token = randomBytes(32).toString("base64url");
+      const guests = Array.from(
+        { length: (request.body?.players ?? 1) - 1 },
+        (_, i) => digest(guestToken(token, i + 1)),
+      );
+      const result = await pool.query<Row>(
+        "INSERT INTO voyages (id, owner_digest, rules_version, seed, guest_digests) VALUES ($1, $2, $3, $4, $5) RETURNING id, rules_version, seed, moves, revision, cardinality(guest_digests) AS guests, 0 AS seat",
+        [
+          randomUUID(),
+          digest(token),
+          rulesVersion,
+          randomBytes(4).readUInt32BE(),
+          guests,
+        ],
+      );
+      const row = result.rows[0];
+      if (!row) throw new Error("Created voyage is missing.");
+      return reply
+        .code(201)
+        .send({ ...snapshot(row, replay(row), token), token });
+    },
+  );
 
   app.get<{ Params: { id: string } }>(
     "/:id",
     { schema: { params } },
     async (request, reply) => {
-      const row = await load(request, reply);
-      return row ? snapshot(row, replay(row)) : reply;
+      const session = await load(request, reply);
+      return session
+        ? snapshot(session.row, replay(session.row), session.token)
+        : reply;
     },
   );
 
@@ -160,8 +208,9 @@ export async function voyageRoutes(
       },
     },
     async (request, reply) => {
-      const row = await load(request, reply);
-      if (!row) return reply;
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row, token } = session;
       const { expectedRevision, moveId } = request.body;
       const conflict = () =>
         reply
@@ -169,18 +218,18 @@ export async function voyageRoutes(
           .send({ error: "Voyage changed. Reload before choosing a move." });
       if (row.revision !== expectedRevision) return conflict();
       const before = replay(row);
-      if (!moves(before).some((move) => move.id === moveId)) {
+      if (!crewChoices(row, before).some((move) => move.id === moveId)) {
         return reply.code(422).send({ error: "This move is unavailable." });
       }
       const next = play(before, moveId);
       // PostgreSQL checks this condition again after waiting for a concurrent writer.
-      const updated = await pool.query<Row>(
-        "UPDATE voyages SET moves = array_append(moves, $1::text) WHERE id = $2 AND revision = $3 RETURNING id, rules_version, seed, moves, revision",
+      const updated = await pool.query<{ revision: number }>(
+        "UPDATE voyages SET moves = array_append(moves, $1::text) WHERE id = $2 AND revision = $3 RETURNING revision",
         [moveId, row.id, expectedRevision],
       );
       const saved = updated.rows[0];
       if (!saved) return conflict();
-      return snapshot(saved, next);
+      return snapshot({ ...row, revision: saved.revision }, next, token);
     },
   );
 }
