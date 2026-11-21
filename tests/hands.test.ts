@@ -27,7 +27,7 @@ await test("version-one fixture preserves the original hands and outcome", () =>
       [0, 0],
     ],
   );
-  assert.throws(() => start(1, 3), /Unsupported/);
+  assert.throws(() => start(1, 4), /Unsupported/);
 });
 
 await test("salvage changes the deck and only the played card is replaced", () => {
@@ -95,7 +95,7 @@ await test("Mara can keep the sounding line on tide five and use it at landfall"
   const fifthTide =
     "locker swim-0 line-0 feed-1-0 lash-2 hull swim-1 float-1 feed-0-1 lash-2 dive swim-2 float-2 feed-0-2 lash-1 hull swim-0 line-0 feed-1-0 lash-2 hull swim-1 float-1"
       .split(" ")
-      .reduce(play, start(1387841383));
+      .reduce(play, start(1387841383, 2));
   assert.deepEqual(fifthTide.deck?.hands[0], ["wrap", "line"]);
   const saved =
     "feed-0-1 lash-2 dive swim-2 float-2 feed-1-2 lash-0 hull swim-0 line-0 feed-2-0 lash-1 dive"
@@ -109,7 +109,7 @@ await test("Mara can keep the sounding line on tide five and use it at landfall"
 });
 
 await test("a voyage draws through its discard pile and replays with the same ten cards", () => {
-  let voyage = start(0);
+  let voyage = start(0, 2);
   const history =
     "canvas swim-1 hook-1 line-0 hook-2 hull swim-1 feed-1-1 lash-0 hook-2 hull swim-2 float-2 lash-0 feed-1-0 dive swim-1 float-1 lash-0 feed-2-2 hull swim-0 float-0 feed-1-1 patch-2 hull swim-0 feed-0-0 lash-1 lash-2 dive swim-0 feed-0-0 line-1 hook-2 hull".split(
       " ",
@@ -128,5 +128,15 @@ await test("a voyage draws through its discard pile and replays with the same te
   }
   assert.ok(reshuffled);
   assert.equal(voyage.phase, "won");
-  assert.deepEqual(history.reduce(play, start(0)), voyage);
+  assert.deepEqual(history.reduce(play, start(0, 2)), voyage);
+  assert.equal(voyage.channelMarked, undefined);
+  assert.equal(voyage.hull, 4);
+  assert.deepEqual(
+    voyage.crew.map((p) => [p.cold, p.food]),
+    [
+      [2, 1],
+      [1, 0],
+      [1, 0],
+    ],
+  );
 });

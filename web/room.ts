@@ -47,6 +47,8 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
       value.phase,
     ) &&
     typeof value.tide === "number" &&
+    (value.channelMarked === undefined ||
+      typeof value.channelMarked === "boolean") &&
     typeof value.hull === "number" &&
     typeof value.guard === "number" &&
     (value.swimmer === null || typeof value.swimmer === "number") &&
@@ -54,7 +56,14 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     (value.event === null ||
       (record(value.event) &&
         typeof value.event.title === "string" &&
-        typeof value.event.description === "string")) &&
+        typeof value.event.description === "string" &&
+        Array.isArray(value.event.landingRoutes) &&
+        value.event.landingRoutes.every(
+          (route: unknown) =>
+            record(route) &&
+            typeof route.name === "string" &&
+            typeof route.detail === "string",
+        ))) &&
     Array.isArray(value.crew) &&
     value.crew.length === names.length &&
     value.crew.every(

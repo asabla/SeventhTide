@@ -10,6 +10,8 @@ import {
 } from "./room.ts";
 import type { RoomSnapshot } from "../server/voyages.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
+import lanterns from "./assets/answering-light.jpg";
+import firstWater from "./assets/first-water.jpg";
 import {
   start,
   rulesVersion,
@@ -168,7 +170,7 @@ function element<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 function usesCrewDeck() {
-  return turn ? turn.rulesVersion === 2 : Boolean(state.deck);
+  return turn ? turn.rulesVersion >= 2 : Boolean(state.deck);
 }
 function buttons(options: Move[]) {
   const group = element("div", "", "choices");
@@ -286,6 +288,16 @@ function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
 
 function render() {
   const s = turn ?? state;
+  const sighted = s.channelMarked !== undefined && s.tide >= 6;
+  const scene = document.querySelector<HTMLImageElement>(".scene img");
+  if (scene && scene.classList.contains("lanterns") !== sighted) {
+    scene.src = sighted ? lanterns : firstWater;
+    scene.alt = sighted
+      ? "An amber lantern hangs from a rescue cutter. A pale lantern floats alone across the reef."
+      : "Two sailors on a timber raft hold a line to a swimmer reaching for a ration tin.";
+    scene.classList.toggle("lanterns", sighted);
+  }
+  select("landing-rules").hidden = s.channelMarked === undefined;
   const localEvent = room ? null : currentEvent(state);
   const forecast = turn?.forecast ?? localEvent?.[1] ?? "";
   const phase = s.phase;
@@ -309,14 +321,16 @@ function render() {
       " Play one card per sailor, in any order. Check for loss after the event.",
     event:
       (turn?.event?.description ?? localEvent?.[2] ?? "") +
-      " Choose who pays. Then apply cold, warmth, and the swimmer’s ration.",
+      " Then apply cold, warmth, and the swimmer’s ration.",
     won: "All three sailors survived the seventh tide.",
     lost: s.log.at(-1) ?? "",
   };
   select("location").textContent =
     phase === "salvage"
       ? "Aboard the sinking ship"
-      : "Adrift in the wreck field";
+      : sighted
+        ? "The answering light"
+        : "Adrift in the wreck field";
   select("step").textContent =
     (phase === "salvage" ? "Prologue" : "Tide " + s.tide + " of 7") +
     "  /  " +
@@ -331,6 +345,8 @@ function render() {
       phase === "salvage"
         ? "Waiting for the host to choose salvage."
         : "Waiting for the host to resolve the tide.";
+    for (const route of turn.event?.landingRoutes ?? [])
+      choices.append(element("h3", route.name), element("p", route.detail));
   }
   const feedback = select("turn-feedback");
   let turnText = "";

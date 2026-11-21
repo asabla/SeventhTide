@@ -78,6 +78,10 @@ main {
   background: linear-gradient(90deg, #101f1ee8, transparent 68%);
 }
 
+.scene img.lanterns {
+  object-position: 50% 44%;
+}
+
 .caption {
   position: absolute;
   bottom: 22px;

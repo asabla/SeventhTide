@@ -12,7 +12,7 @@ export { handPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 2;
+export const rulesVersion = 3;
 
 export type Phase = "salvage" | "board" | "cards" | "event" | "won" | "lost";
 
@@ -33,6 +33,7 @@ type TideEvent = [
 ];
 
 export interface Voyage {
+  channelMarked?: boolean;
   deck?: Deck;
   tide: number;
   phase: Phase;
@@ -125,9 +126,50 @@ const finalTide: TideEvent = [
   1,
 ];
 
+const answeringLight: TideEvent = [
+  "The answering light",
+  "One lantern drifts against the current. Forcing a landing costs 4 hull before brace. Scouting ahead costs the swimmer 2 extra cold.",
+  "The cutter is crossing the reef. Choose your landing route.",
+  4,
+  2,
+];
+
+function canMarkChannel(s: Voyage, card: CardId, sailor: number) {
+  return (
+    card === "line" &&
+    sailor === s.swimmer &&
+    s.tide === 6 &&
+    s.channelMarked === false
+  );
+}
+
 export function currentEvent(voyage: Voyage) {
   const event = voyage.events[voyage.tide - 1];
   if (!event) throw new RangeError("Unknown tide: " + voyage.tide);
+  if (voyage.channelMarked !== undefined && voyage.tide === 6) {
+    const sighting = voyage.channelMarked
+      ? "The swimmer has marked the channel to the rescue cutter."
+      : "Two lanterns appear. The swimmer can play Sounding line this tide to mark a safe channel for landing.";
+    return [
+      event[0],
+      sighting + " " + event[1],
+      event[2],
+      event[3],
+      event[4],
+    ] satisfies TideEvent;
+  }
+  if (voyage.channelMarked !== undefined && voyage.tide === 7) {
+    const route = voyage.channelMarked
+      ? "The marked channel adds no hull damage or cold."
+      : "The crew reaches the reef without a marked channel.";
+    return [
+      event[0],
+      route + " " + event[1],
+      route + " " + event[2],
+      event[3],
+      event[4],
+    ] satisfies TideEvent;
+  }
   return event;
 }
 
@@ -138,7 +180,7 @@ export function crewMember(voyage: Voyage, index: number) {
 }
 
 export function start(seed: number, version: number = rulesVersion): Voyage {
-  if (version !== 1 && version !== rulesVersion)
+  if (version !== 1 && version !== 2 && version !== rulesVersion)
     throw new Error("Unsupported voyage rules version.");
   let bits = seed >>> 0;
   const random = () => {
@@ -146,7 +188,8 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     return bits / 4294967296;
   };
   return {
-    ...(version === 2
+    ...(version === 3 ? { channelMarked: false } : {}),
+    ...(version >= 2
       ? {
           deck: {
             random: (seed ^ 0xa5a5a5a5) >>> 0,
@@ -164,7 +207,10 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     guard: 0,
     crew: names.map((name) => ({ name, cold: 1, food: 0 })),
     salvage: shuffle(salvage, random).slice(0, 2),
-    events: [...shuffle(waters, random), finalTide],
+    events: [
+      ...shuffle(waters, random),
+      version === 3 ? answeringLight : finalTide,
+    ],
     log: ["The ship is going down. Two seats remain on the raft."],
   };
 }
@@ -234,7 +280,11 @@ export function moves(s: Voyage): Move[] {
           card,
           actor: i,
           name: definition.name,
-          detail: effect.text,
+          detail:
+            effect.text +
+            (canMarkChannel(s, card, i)
+              ? " Mark the safe channel for tide seven."
+              : ""),
           id: card + "-" + i,
         };
         if (effect.targetCold) {
@@ -261,6 +311,16 @@ export function moves(s: Voyage): Move[] {
     });
   if (s.phase === "event" && s.swimmer !== null)
     return [
+      ...(s.tide === 7 && s.channelMarked
+        ? [
+            {
+              id: "channel",
+              name: "Follow the marked channel",
+              detail:
+                "Lose 0 hull and take 0 extra cold. The swimmer still gains 2 cold from exposure.",
+            },
+          ]
+        : []),
       {
         id: "hull",
         name: s.tide === 7 ? "Force a landing" : "Let the raft take it",
@@ -271,7 +331,12 @@ export function moves(s: Voyage): Move[] {
       },
       {
         id: "dive",
-        name: s.tide === 7 ? "Follow the swimmer" : "Send the swimmer",
+        name:
+          s.tide === 7
+            ? s.channelMarked === undefined
+              ? "Follow the swimmer"
+              : "Scout the reef"
+            : "Send the swimmer",
         detail:
           crewMember(s, s.swimmer).name +
           " takes " +
@@ -325,6 +390,12 @@ export function play(state: Voyage, moveId: string): Voyage {
       if (effect.targetCold) cold(Number(target), effect.targetCold);
       crewMember(s, i).food += effect.food ?? 0;
       replaceCard(s.deck, i, move.card);
+      if (canMarkChannel(s, move.card, i)) {
+        s.channelMarked = true;
+        s.log.push(
+          crewMember(s, i).name + " marked the safe channel to the cutter.",
+        );
+      }
     } else
       switch (action) {
         case "feed":
@@ -364,7 +435,7 @@ export function play(state: Voyage, moveId: string): Voyage {
   } else if (s.phase === "event" && s.swimmer !== null) {
     if (action === "hull")
       s.hull = Math.max(0, s.hull - Math.max(0, currentEvent(s)[3] - s.guard));
-    else cold(s.swimmer, currentEvent(s)[4]);
+    else if (action === "dive") cold(s.swimmer, currentEvent(s)[4]);
     s.crew.forEach((_, i) => cold(i, i === s.swimmer ? swimmerCold : -1));
     crewMember(s, s.swimmer).food += swimmerRation;
     s.log.push(
