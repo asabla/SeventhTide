@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Pool } from "pg";
 import {
+  currentEvent,
   moves,
   play,
   start,
@@ -25,7 +26,7 @@ function replay(row: Row) {
 }
 
 function snapshot(row: Row, state: Voyage) {
-  const event = state.events[state.tide - 1];
+  const event = currentEvent(state);
   return {
     id: row.id,
     revision: row.revision,
@@ -100,7 +101,7 @@ export async function voyageRoutes(
         .header("WWW-Authenticate", "Bearer")
         .code(401)
         .send({ error: "Voyage token required." });
-      return;
+      return undefined;
     }
     const result = await pool.query<Row>(
       "SELECT id, rules_version, seed, moves, revision FROM voyages WHERE id = $1 AND owner_digest = $2",
@@ -123,6 +124,7 @@ export async function voyageRoutes(
       ],
     );
     const row = result.rows[0];
+    if (!row) throw new Error("Created voyage is missing.");
     return reply.code(201).send({ ...snapshot(row, replay(row)), token });
   });
 
@@ -131,7 +133,7 @@ export async function voyageRoutes(
     { schema: { params } },
     async (request, reply) => {
       const row = await load(request, reply);
-      if (row) return snapshot(row, replay(row));
+      return row ? snapshot(row, replay(row)) : reply;
     },
   );
 
@@ -159,7 +161,7 @@ export async function voyageRoutes(
     },
     async (request, reply) => {
       const row = await load(request, reply);
-      if (!row) return;
+      if (!row) return reply;
       const { expectedRevision, moveId } = request.body;
       const conflict = () =>
         reply
@@ -176,8 +178,9 @@ export async function voyageRoutes(
         "UPDATE voyages SET moves = array_append(moves, $1::text) WHERE id = $2 AND revision = $3 RETURNING id, rules_version, seed, moves, revision",
         [moveId, row.id, expectedRevision],
       );
-      if (!updated.rowCount) return conflict();
-      return snapshot(updated.rows[0], next);
+      const saved = updated.rows[0];
+      if (!saved) return conflict();
+      return snapshot(saved, next);
     },
   );
 }

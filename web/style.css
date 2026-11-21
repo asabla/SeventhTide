@@ -1,25 +1,31 @@
 :root {
   color-scheme: light;
+
   --ink: #172b2b;
   --muted: #4c6159;
   --paper: #f3eedf;
   --line: #bfbba7;
   --rust: #874022;
+
   font-family: "Source Sans 3", system-ui, sans-serif;
   color: var(--ink);
   background: var(--paper);
 }
+
 * {
   box-sizing: border-box;
 }
+
 body {
   margin: 0;
 }
+
 header,
 main {
   max-width: 1160px;
   margin: auto;
 }
+
 header {
   display: flex;
   align-items: center;
@@ -27,30 +33,36 @@ header {
   padding: 16px 5px;
   border-bottom: 1px solid var(--ink);
 }
+
 .brand,
 h1,
 h2,
 h3,
 summary {
-  font-family: "Baskervville", Georgia, serif;
+  font-family: Baskervville, Georgia, serif;
 }
+
 .brand {
   font-weight: bold;
   font-size: 22px;
 }
+
 a {
   color: inherit;
   text-underline-offset: 4px;
 }
+
 main {
   padding-bottom: 32px;
 }
+
 .scene {
   position: relative;
   overflow: hidden;
   background: #233632;
   margin-top: 12px;
 }
+
 .scene img {
   width: 100%;
   height: clamp(175px, 23vw, 260px);
@@ -58,12 +70,14 @@ main {
   object-position: 50% 64%;
   display: block;
 }
-.scene:after {
+
+.scene::after {
   content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, #101f1ee8, transparent 68%);
 }
+
 .caption {
   position: absolute;
   bottom: 22px;
@@ -71,6 +85,7 @@ main {
   color: #fff6dd;
   z-index: 1;
 }
+
 .caption span,
 .label,
 .sidehead span,
@@ -80,38 +95,45 @@ main {
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
+
 h1 {
   font-size: clamp(42px, 6vw, 76px);
   font-weight: 500;
   line-height: 1;
   margin: 5px 0 0;
 }
+
 .table {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(230px, 31%);
   gap: 40px;
   margin: 28px 0;
 }
+
 .play h2 {
   font-size: clamp(29px, 3.6vw, 43px);
   letter-spacing: -0.03em;
   font-weight: 500;
   margin: 4px 0;
 }
+
 .label {
   color: var(--rust);
   margin: 0;
 }
-.play > p:not(.label),
-details p {
+
+details p,
+.play > p:not(.label) {
   line-height: 1.54;
   max-width: 62ch;
   margin: 9px 0 17px;
 }
+
 aside {
   border-left: 1px solid var(--line);
   padding-left: 22px;
 }
+
 .sidehead,
 .crewline,
 .stat {
@@ -120,38 +142,60 @@ aside {
   align-items: baseline;
   gap: 10px;
 }
+
 .sidehead h2 {
   font-size: 24px;
   margin: 0 0 9px;
 }
+
 .sidehead span,
 .meta {
   color: var(--muted);
 }
+
 .crewline,
 .stat {
   border-top: 1px solid var(--line);
   padding: 9px 0;
 }
+
+button strong {
+  font:
+    600 20px Georgia,
+    serif;
+  display: block;
+  margin-bottom: 5px;
+}
+
 .crewline strong {
   font:
     600 19px Georgia,
     serif;
 }
+
+button small {
+  font-size: 14px;
+  line-height: 1.4;
+  display: block;
+}
+
 .crewline small {
   display: block;
   margin-top: 3px;
   color: var(--muted);
 }
+
 .numbers {
   font-size: 14px;
   text-align: right;
 }
+
 .choices {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
   gap: 10px;
 }
+
 button {
   font: inherit;
   color: inherit;
@@ -163,34 +207,31 @@ button {
   padding: 13px;
   box-shadow: 0 2px 0 #cbc4ad;
 }
+
 button:hover {
   border-color: #46695b;
   background: #fffaf0;
 }
+
+summary {
+  font-size: 18px;
+  cursor: pointer;
+}
+
 button:focus-visible,
 summary:focus-visible,
 a:focus-visible {
   outline: 3px solid #9c562e;
   outline-offset: 3px;
 }
-button strong {
-  font:
-    600 20px Georgia,
-    serif;
-  display: block;
-  margin-bottom: 5px;
-}
-button small {
-  font-size: 14px;
-  line-height: 1.4;
-  display: block;
-}
+
 .salvage {
   display: grid;
   grid-template-columns: 64px 1fr;
   align-items: center;
   gap: 12px;
 }
+
 .item {
   display: block;
   width: 64px;
@@ -199,78 +240,94 @@ button small {
   background-size: 300% 100%;
   border-radius: 2px;
 }
+
 .locker {
   background-position: left;
 }
+
 .canvas {
   background-position: center;
 }
+
 .spar {
   background-position: right;
 }
+
 h3 {
   margin: 16px 0 6px;
 }
+
 details {
   border-top: 1px solid var(--line);
   padding: 12px 0;
 }
-summary {
-  font-size: 18px;
-  cursor: pointer;
-}
+
 #entries {
   line-height: 1.6;
 }
+
 #hull {
   margin-bottom: 8px;
 }
+
 .stat strong {
   letter-spacing: 0.04em;
 }
+
 #heading:focus {
   outline: none;
 }
-@media (max-width: 1200px) {
+
+@media (width <= 1200px) {
   header,
   main {
     margin-left: 4vw;
     margin-right: 4vw;
   }
 }
-@media (max-width: 700px) {
+
+@media (width <= 700px) {
   .table {
     grid-template-columns: 1fr;
     gap: 22px;
     margin: 20px 0;
   }
+
   .scene img {
     height: 155px;
   }
+
   .caption {
     bottom: 12px;
     left: 16px;
   }
+
   .caption span {
     font-size: 10px;
   }
+
   .choices {
     grid-template-columns: 1fr;
   }
+
   aside {
     border: 0;
     padding: 0;
   }
+
   .salvage {
     grid-template-columns: 42px 1fr;
   }
+
   .item {
     width: 42px;
     height: 84px;
   }
+
   header {
     padding: 10px 0;
   }
+
   .crewline {
     padding: 6px 0;
   }
@@ -281,6 +338,7 @@ summary {
   inset: 0;
   pointer-events: none;
 }
+
 #sea canvas {
   display: block;
 }

@@ -98,20 +98,38 @@ const waters: TideEvent[] = [
     2,
     1,
   ],
-  [
-    "The answering light",
-    "Two lanterns answer across the water.",
-    "One light moves against the current. The swimmer can sound a safe path, or the crew can force a landing.",
-    3,
-    1,
-  ],
 ];
+
+const finalTide: TideEvent = [
+  "The answering light",
+  "Two lanterns answer across the water.",
+  "One light moves against the current. The swimmer can sound a safe path, or the crew can force a landing.",
+  3,
+  1,
+];
+
+export function currentEvent(voyage: Voyage) {
+  const event = voyage.events[voyage.tide - 1];
+  if (!event) throw new RangeError("Unknown tide: " + voyage.tide);
+  return event;
+}
+
+export function crewMember(voyage: Voyage, index: number) {
+  const member = voyage.crew[index];
+  if (!member) throw new RangeError("Unknown crew member: " + index);
+  return member;
+}
 
 function shuffle<T>(items: T[], random: () => number) {
   const deck = [...items];
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
+    const left = deck[i];
+    const right = deck[j];
+    if (left === undefined || right === undefined)
+      throw new RangeError("Missing card in deck.");
+    deck[i] = right;
+    deck[j] = left;
   }
   return deck;
 }
@@ -131,7 +149,7 @@ export function start(seed: number): Voyage {
     guard: 0,
     crew: names.map((name) => ({ name, cold: 1, food: 0 })),
     salvage: shuffle(salvage, random).slice(0, 2),
-    events: [...shuffle(waters.slice(0, 6), random), waters[6]],
+    events: [...shuffle(waters, random), finalTide],
     log: ["The ship is going down. Two seats remain on the raft."],
   };
 }
@@ -194,16 +212,16 @@ export function moves(s: Voyage): Move[] {
         name: s.tide === 7 ? "Force a landing" : "Let the raft take it",
         detail:
           "Lose " +
-          Math.max(0, s.events[s.tide - 1][3] - s.guard) +
+          Math.max(0, currentEvent(s)[3] - s.guard) +
           " hull after bracing.",
       },
       {
         id: "dive",
         name: s.tide === 7 ? "Follow the swimmer" : "Send the swimmer",
         detail:
-          s.crew[s.swimmer].name +
+          crewMember(s, s.swimmer).name +
           " takes " +
-          s.events[s.tide - 1][4] +
+          currentEvent(s)[4] +
           " extra cold.",
       },
     ];
@@ -216,7 +234,8 @@ export function play(state: Voyage, moveId: string): Voyage {
   const s = structuredClone(state);
   const [action, who, target] = move.id.split("-");
   const cold = (i: number, amount: number) => {
-    s.crew[i].cold = Math.max(0, s.crew[i].cold + amount);
+    const member = crewMember(s, i);
+    member.cold = Math.max(0, member.cold + amount);
   };
   if (s.phase === "salvage") {
     s.hull += action === "spar" ? 1 : -1;
@@ -231,13 +250,19 @@ export function play(state: Voyage, moveId: string): Voyage {
     s.swimmer = Number(who);
     s.acted = [];
     s.guard = 0;
-    s.log.push("Tide " + s.tide + " — " + names[s.swimmer] + " took the line.");
+    s.log.push(
+      "Tide " +
+        s.tide +
+        " — " +
+        crewMember(s, s.swimmer).name +
+        " took the line.",
+    );
     s.phase = "cards";
   } else if (s.phase === "cards" && s.swimmer !== null) {
     const i = Number(who);
     switch (action) {
       case "feed":
-        s.crew[i].food--;
+        crewMember(s, i).food--;
         cold(Number(target), -2);
         break;
       case "sound":
@@ -258,21 +283,18 @@ export function play(state: Voyage, moveId: string): Voyage {
         break;
     }
     s.acted.push(i);
-    s.log.push(names[i] + " played " + move.name + ".");
+    s.log.push(crewMember(s, i).name + " played " + move.name + ".");
     if (s.acted.length === s.crew.length) s.phase = "event";
   } else if (s.phase === "event" && s.swimmer !== null) {
     if (action === "hull")
-      s.hull = Math.max(
-        0,
-        s.hull - Math.max(0, s.events[s.tide - 1][3] - s.guard),
-      );
-    else cold(s.swimmer, s.events[s.tide - 1][4]);
-    s.crew.forEach((p, i) => cold(i, i === s.swimmer ? 2 : -1));
-    s.crew[s.swimmer].food += swimmerRation;
+      s.hull = Math.max(0, s.hull - Math.max(0, currentEvent(s)[3] - s.guard));
+    else cold(s.swimmer, currentEvent(s)[4]);
+    s.crew.forEach((_, i) => cold(i, i === s.swimmer ? 2 : -1));
+    crewMember(s, s.swimmer).food += swimmerRation;
     s.log.push(
       move.name +
         ". " +
-        names[s.swimmer] +
+        crewMember(s, s.swimmer).name +
         " recovered " +
         swimmerRation +
         " ration.",

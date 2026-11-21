@@ -8,8 +8,21 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "noUncheckedSideEffectImports": true,
+    "allowJs": true,
+    "checkJs": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false
   },
-  "include": ["web/**/*.ts", "server/**/*.ts", "packages/**/*.ts"],
+  "include": ["web/**/*", "server/**/*", "packages/**/*", "tests/**/*"],
   "exclude": ["**/node_modules", "**/dist"]
 }

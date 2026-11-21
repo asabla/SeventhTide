@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Pool } from "pg";
 import { start, play, moves, rulesVersion } from "@seventh-tide/rules";
 
@@ -10,7 +10,37 @@ const databaseUrl = process.env.TEST_DATABASE_URL;
 if (!databaseUrl)
   throw new Error("Set TEST_DATABASE_URL to a test PostgreSQL database.");
 
-async function launch(t) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+interface Snapshot extends Record<string, unknown> {
+  id: string;
+  revision: number;
+  choices: { id: string }[];
+}
+
+async function readSnapshot(response: Response): Promise<Snapshot> {
+  const value: unknown = await response.json();
+  assertSnapshot(value);
+  return value;
+}
+
+function assertSnapshot(value: unknown): asserts value is Snapshot {
+  assert.ok(isRecord(value));
+  assert.ok(typeof value.id === "string");
+  assert.ok(
+    typeof value.revision === "number" && Number.isInteger(value.revision),
+  );
+  assert.ok(
+    Array.isArray(value.choices) &&
+      value.choices.every(
+        (choice: unknown) => isRecord(choice) && typeof choice.id === "string",
+      ),
+  );
+}
+
+async function launch(t: TestContext) {
   const child = spawn(process.execPath, ["server/start.ts"], {
     env: {
       ...process.env,
@@ -29,9 +59,9 @@ async function launch(t) {
   const lines = createInterface({ input: child.stdout });
   // Fastify logs its bound port after database migration and HTTP startup.
   for await (const line of lines) {
-    const address = JSON.parse(line).msg?.match(
-      /^Server listening at (http:\/\/\S+)$/,
-    )?.[1];
+    const log: unknown = JSON.parse(line);
+    if (!isRecord(log) || typeof log.msg !== "string") continue;
+    const address = log.msg.match(/^Server listening at (http:\/\/\S+)$/)?.[1];
     if (address) {
       child.stdout.resume();
       return { address, stop };
@@ -40,7 +70,7 @@ async function launch(t) {
   throw new Error("Server exited before it accepted connections.");
 }
 
-test(
+await test(
   "persist moves, reject competing writes, and recover after process restart",
   { timeout: 30000 },
   async (t) => {
@@ -48,8 +78,11 @@ test(
     const base = "/api/voyages";
     const create = await fetch(server.address + base, { method: "POST" });
     assert.equal(create.status, 201);
-    const voyage = await create.json();
+    const voyage = await readSnapshot(create);
     const { token, id } = voyage;
+    assert.ok(typeof token === "string");
+    const [firstChoice] = voyage.choices;
+    assert.ok(firstChoice);
     const pool = new Pool({ connectionString: databaseUrl });
     t.after(async () => {
       try {
@@ -67,9 +100,9 @@ test(
     const read = async () => {
       const response = await fetch(url(), { headers: auth });
       assert.equal(response.status, 200);
-      return response.json();
+      return readSnapshot(response);
     };
-    const post = (moveId, expectedRevision) =>
+    const post = (moveId: string, expectedRevision: number) =>
       fetch(url() + "/moves", {
         method: "POST",
         headers: { ...auth, "Content-Type": "application/json" },
@@ -85,7 +118,7 @@ test(
           headers: { ...other, "Content-Type": "application/json" },
           body: JSON.stringify({
             expectedRevision: 0,
-            moveId: voyage.choices[0].id,
+            moveId: firstChoice.id,
           }),
         })
       ).status,
@@ -96,9 +129,13 @@ test(
     const writes = await Promise.all(
       voyage.choices.map((choice) => post(choice.id, 0)),
     );
-    assert.deepEqual(writes.map((r) => r.status).sort(), [200, 409]);
+    assert.deepEqual(
+      writes.map((r) => r.status).toSorted((a, b) => a - b),
+      [200, 409],
+    );
     const accepted =
-      voyage.choices[writes.findIndex((r) => r.status === 200)].id;
+      voyage.choices[writes.findIndex((r) => r.status === 200)]?.id;
+    assert.ok(accepted);
     assert.equal((await post(accepted, 0)).status, 409);
     assert.equal((await post("swim-1", 1)).status, 200);
     const before = await read();
@@ -106,10 +143,14 @@ test(
     assert.equal(before.token, undefined);
     const {
       rows: [row],
-    } = await pool.query(
-      "SELECT seed, rules_version, moves, revision FROM voyages WHERE id=$1",
-      [id],
-    );
+    } = await pool.query<{
+      seed: string;
+      rules_version: number;
+      moves: string[];
+    }>("SELECT seed, rules_version, moves, revision FROM voyages WHERE id=$1", [
+      id,
+    ]);
+    assert.ok(row);
     assert.equal(row.rules_version, rulesVersion);
     assert.deepEqual(row.moves, [accepted, "swim-1"]);
     const expected = row.moves.reduce(play, start(Number(row.seed)));
@@ -119,8 +160,10 @@ test(
     await server.stop();
     server = await launch(t);
     assert.deepEqual(await read(), before);
-    const continued = await post(before.choices[0].id, before.revision);
+    const [nextChoice] = before.choices;
+    assert.ok(nextChoice);
+    const continued = await post(nextChoice.id, before.revision);
     assert.equal(continued.status, 200);
-    assert.equal((await continued.json()).revision, 3);
+    assert.equal((await readSnapshot(continued)).revision, 3);
   },
 );

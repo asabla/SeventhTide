@@ -14,15 +14,23 @@ npm start
 
 Open http://127.0.0.1:4173. Fastify serves the built game from `web/dist/`. Use `HOST=0.0.0.0 npm start` when a cloud environment's private preview needs an external binding. Set `PORT` to use a different port. For client development, `npm run dev` starts Vite with live updates. Saves belong to the browser origin, so the development and production ports have separate saves.
 
+## Code quality
+
+Run `npm run check` before committing. It checks formatting, type-aware code lint, CSS, HTML, TypeScript, unit tests with coverage, and the production build. Run `npm run format` to apply formatting. Use `npm run lint` or `npm run typecheck` for a focused check.
+
+Oxlint rejects unsafe use of `any`, unhandled promises, import cycles, and unused lint suppressions. TypeScript checks both source and tests, including indexed reads, optional properties, unused parameters, and missing returns. Stylelint checks CSS. HTML Validate checks markup structure and built-in accessibility rules. Prettier checks supported source, configuration, and documentation files. The gate excludes generated bundles and installed packages.
+
+The rule tests must cover at least 95% of lines, 90% of branches, and 95% of functions in the shared rules they load. CI runs `npm run check:ci`, which also runs the PostgreSQL integration suite. To run the CI gate locally, set `TEST_DATABASE_URL` to a test database.
+
 ## Technology decisions
 
-| Layer | Choice and responsibility |
-| --- | --- |
-| Client | TypeScript, Phaser 4, HTML, and CSS. Phaser draws the sea scene. HTML provides card controls, text, focus, and touch interaction. The client loads the engine separately so a player can use the controls while the scene loads. |
-| Rules | A shared TypeScript package. A seed and a list of legal moves reproduce the voyage. Solo play runs the rules on the device. The voyage API runs the same rules before it records a move. |
-| Build | npm workspaces, a committed lockfile, strict TypeScript, Vite, and the Node test runner. The Linux CI workflow uses the same check command as development. |
-| Online service | Node.js and Fastify serve the game, expose `GET /api/health`, and provide an HTTP API for durable voyages in PostgreSQL. WebSockets are the selected transport for future room updates. |
-| Distribution | Serve the web build to desktop and phone browsers first. Use Tauri 2 for future installable builds. Native packaging and signing will have their own build jobs. |
+| Layer          | Choice and responsibility                                                                                                                                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Client         | TypeScript, Phaser 4, HTML, and CSS. Phaser draws the sea scene. HTML provides card controls, text, focus, and touch interaction. The client loads the engine separately so a player can use the controls while the scene loads. |
+| Rules          | A shared TypeScript package. A seed and a list of legal moves reproduce the voyage. Solo play runs the rules on the device. The voyage API runs the same rules before it records a move.                                         |
+| Build          | npm workspaces, a committed lockfile, strict TypeScript, Vite, and the Node test runner. The Linux CI workflow uses the same check command as development.                                                                       |
+| Online service | Node.js and Fastify serve the game, expose `GET /api/health`, and provide an HTTP API for durable voyages in PostgreSQL. WebSockets are the selected transport for future room updates.                                          |
+| Distribution   | Serve the web build to desktop and phone browsers first. Use Tauri 2 for future installable builds. Native packaging and signing will have their own build jobs.                                                                 |
 
 Phaser supplies the 2D rendering and scene tools the illustrated table needs. Using TypeScript on both sides lets a rule change apply to solo and co-op together. The client can use generated paintings, sprite sheets, and rendered views of 3D models as ordinary game art. Keep source art and generation prompts in `art/` and ship optimized images from `web/assets/`.
 
@@ -47,10 +55,10 @@ DATABASE_URL=postgres://seventh_tide:local-development@127.0.0.1:55432/seventh_t
 
 The database uses a named volume. Use `docker compose stop db` to stop it between sessions. In a cloud environment, supply the connection URL for the attached database.
 
-| Request | Result |
-| --- | --- |
-| `POST /api/voyages` | Creates a voyage at revision zero. Returns its ID, current state, legal choices, and an owner token. |
-| `GET /api/voyages/{id}` | Replays the recorded moves and returns the current state and choices. |
+| Request                        | Result                                                                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /api/voyages`            | Creates a voyage at revision zero. Returns its ID, current state, legal choices, and an owner token.                                                   |
+| `GET /api/voyages/{id}`        | Replays the recorded moves and returns the current state and choices.                                                                                  |
 | `POST /api/voyages/{id}/moves` | Accepts a JSON body such as `{"expectedRevision":0,"moveId":"locker"}`. Select a move ID from the current choices. Returns the new state and revision. |
 
 For reads and moves, send the token in the `Authorization: Bearer <token>` header. The server stores its digest. The holder controls the entire voyage. Individual player seats and invitations come in the room layer.

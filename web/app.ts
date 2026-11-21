@@ -1,7 +1,9 @@
+import { parseSavedRun, type SavedRun } from "./saved-run.ts";
 import {
   start,
   play,
   moves,
+  currentEvent,
   jobs,
   maxHull,
   coldLimit,
@@ -13,18 +15,19 @@ function select(id: string): HTMLElement {
   if (!node) throw new Error("Missing interface element: " + id);
   return node;
 }
-interface SavedRun {
-  seed: number;
-  history: string[];
-}
 const saveKey = "seventh-tide-v1";
 function newRun(): SavedRun {
-  return { seed: crypto.getRandomValues(new Uint32Array(1))[0], history: [] };
+  return {
+    seed: new DataView(
+      crypto.getRandomValues(new Uint8Array(4)).buffer,
+    ).getUint32(0),
+    history: [],
+  };
 }
 let run: SavedRun, state: Voyage;
 try {
   const saved = localStorage.getItem(saveKey);
-  run = saved ? JSON.parse(saved) : newRun();
+  run = saved ? parseSavedRun(saved) : newRun();
   state = run.history.reduce(play, start(run.seed));
 } catch {
   run = newRun();
@@ -77,14 +80,14 @@ function buttons(options: Move[]) {
     const copy = element("span");
     copy.append(element("strong", move.name), element("small", move.detail));
     btn.append(copy);
-    btn.onclick = () => act(move.id);
+    btn.addEventListener("click", () => act(move.id));
     group.append(btn);
   }
   return group;
 }
 function render() {
   const s = state;
-  const event = s.events[s.tide - 1];
+  const event = currentEvent(s);
   const phase = s.phase;
   const heads = {
     salvage: "What can you save?",
