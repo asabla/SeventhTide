@@ -5,21 +5,33 @@ import {
   jobs,
   maxHull,
   coldLimit,
-} from "./rules/voyage.js";
-const select = (id) => document.getElementById(id);
+  type Voyage,
+  type Move,
+} from "@seventh-tide/rules";
+function select(id: string): HTMLElement {
+  const node = document.getElementById(id);
+  if (!node) throw new Error("Missing interface element: " + id);
+  return node;
+}
+interface SavedRun {
+  seed: number;
+  history: string[];
+}
 const saveKey = "seventh-tide-v1";
-function newRun() {
+function newRun(): SavedRun {
   return { seed: crypto.getRandomValues(new Uint32Array(1))[0], history: [] };
 }
-let run, state;
+let run: SavedRun, state: Voyage;
 try {
-  run = JSON.parse(localStorage.getItem(saveKey)) ?? newRun();
+  const saved = localStorage.getItem(saveKey);
+  run = saved ? JSON.parse(saved) : newRun();
   state = run.history.reduce(play, start(run.seed));
 } catch {
   run = newRun();
   state = start(run.seed);
 }
-function act(id) {
+let paintSea: (() => void) | undefined;
+function act(id: string) {
   if (id === "again") {
     run = newRun();
     state = start(run.seed);
@@ -33,6 +45,7 @@ function act(id) {
     /* Play continues in memory. */
   }
   render();
+  paintSea?.();
   select("heading").focus();
 }
 const phaseName = {
@@ -43,13 +56,17 @@ const phaseName = {
   won: "Landfall",
   lost: "Voyage lost",
 };
-function element(tag, text, className) {
+function element<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  text?: string,
+  className?: string,
+) {
   const el = document.createElement(tag);
   if (text) el.textContent = text;
   if (className) el.className = className;
   return el;
 }
-function buttons(options) {
+function buttons(options: Move[]) {
   const group = element("div", "", "choices");
   for (const move of options) {
     const btn = element("button");
@@ -90,7 +107,7 @@ function render() {
       event[2] +
       " Choose who pays. Then apply cold, warmth, and the swimmer’s ration.",
     won: "All three sailors survived the seventh tide.",
-    lost: s.log.at(-1),
+    lost: s.log.at(-1) ?? "",
   };
   select("location").textContent =
     phase === "salvage"
@@ -162,3 +179,10 @@ function render() {
   );
 }
 render();
+
+// The crew controls are ready before the presentation engine finishes loading.
+void import("./sea.ts")
+  .then(({ mountSea }) => {
+    paintSea = mountSea(select("sea"), () => state);
+  })
+  .catch((error: unknown) => console.warn("Sea scene unavailable", error));

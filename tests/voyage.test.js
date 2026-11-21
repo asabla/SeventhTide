@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { start, play, moves } from "../web/rules/voyage.js";
+import { start, play, moves } from "@seventh-tide/rules";
 
 function board(seed = 17) {
   const s = start(seed);

@@ -1,3 +1,33 @@
+export type Phase = "salvage" | "board" | "cards" | "event" | "won" | "lost";
+
+export interface Move {
+  id: string;
+  name: string;
+  detail: string;
+  actor?: number;
+}
+
+type TideEvent = [
+  title: string,
+  forecast: string,
+  description: string,
+  hullDamage: number,
+  cold: number,
+];
+
+export interface Voyage {
+  tide: number;
+  phase: Phase;
+  hull: number;
+  swimmer: number | null;
+  acted: number[];
+  guard: number;
+  crew: { name: string; cold: number; food: number }[];
+  salvage: Move[];
+  events: TideEvent[];
+  log: string[];
+}
+
 export const names = ["Mara", "Ivo", "Nell"];
 export const jobs = ["Boatswain", "Shipwright", "Lookout"];
 export const maxHull = 5;
@@ -23,7 +53,7 @@ const salvage = [
   },
 ];
 
-const waters = [
+const waters: TideEvent[] = [
   [
     "The split seam",
     "Water beads along a seam.",
@@ -75,7 +105,7 @@ const waters = [
   ],
 ];
 
-function shuffle(items, random) {
+function shuffle<T>(items: T[], random: () => number) {
   const deck = [...items];
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -84,7 +114,7 @@ function shuffle(items, random) {
   return deck;
 }
 
-export function start(seed) {
+export function start(seed: number): Voyage {
   let bits = seed >>> 0;
   const random = () => {
     bits = (Math.imul(bits, 1664525) + 1013904223) >>> 0;
@@ -104,7 +134,7 @@ export function start(seed) {
   };
 }
 
-export function moves(s) {
+export function moves(s: Voyage): Move[] {
   if (s.phase === "salvage") return s.salvage;
   if (s.phase === "board")
     return s.crew.map((p, i) => ({
@@ -155,7 +185,7 @@ export function moves(s) {
         });
       return hand;
     });
-  if (s.phase === "event")
+  if (s.phase === "event" && s.swimmer !== null)
     return [
       {
         id: "hull",
@@ -178,12 +208,12 @@ export function moves(s) {
   return [];
 }
 
-export function play(state, moveId) {
+export function play(state: Voyage, moveId: string): Voyage {
   const move = moves(state).find((option) => option.id === moveId);
   if (!move) throw new Error("This move is unavailable.");
   const s = structuredClone(state);
   const [action, who, target] = move.id.split("-");
-  const cold = (i, amount) => {
+  const cold = (i: number, amount: number) => {
     s.crew[i].cold = Math.max(0, s.crew[i].cold + amount);
   };
   if (s.phase === "salvage") {
@@ -201,8 +231,8 @@ export function play(state, moveId) {
     s.guard = 0;
     s.log.push("Tide " + s.tide + " — " + names[s.swimmer] + " took the line.");
     s.phase = "cards";
-  } else if (s.phase === "cards") {
-    const i = move.actor;
+  } else if (s.phase === "cards" && s.swimmer !== null) {
+    const i = Number(who);
     switch (action) {
       case "feed":
         s.crew[i].food--;
@@ -228,7 +258,7 @@ export function play(state, moveId) {
     s.acted.push(i);
     s.log.push(names[i] + " played " + move.name + ".");
     if (s.acted.length === s.crew.length) s.phase = "event";
-  } else {
+  } else if (s.phase === "event" && s.swimmer !== null) {
     if (action === "hull")
       s.hull = Math.max(
         0,

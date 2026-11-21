@@ -1,37 +1,41 @@
 # Seventh Tide
 
-A browser playtest for one voyage with three crew, two seats, and seven tides. One person can operate all three sailors. Friends in the same room can each choose a sailor and take turns on one shared screen.
+Seventh Tide is a cooperative maritime horror card game for browsers and phones, with a solo mode and seven tides per voyage. The current build supports solo and shared-screen play.
 
-## Run the playtest
+## Build and run
 
-Use Node.js 22 or later, npm, and Python 3. The prototype uses standard browser APIs and has no package dependencies.
+Use the Node.js version in `.nvmrc` and npm. Run these commands from the repository root in a local or Codex cloud checkout.
 
 ```sh
-npm test
+npm ci
+npm run check
 npm start
 ```
 
-Open http://127.0.0.1:4173. Progress is saved in the current browser after each choice. Finish the voyage to start a fresh draw. To preview the game in a managed cloud workspace, serve the same web directory through the environment's private port preview if it has one:
+Open http://127.0.0.1:4173. Fastify serves the built game from `web/dist/`. Use `HOST=0.0.0.0 npm start` when a cloud environment's private preview needs an external binding. Set `PORT` to use a different port. For client development, `npm run dev` starts Vite with live updates. Saves belong to the browser origin, so the development and production ports have separate saves.
 
-```sh
-python3 -m http.server 4173 --bind 0.0.0.0 --directory web
-```
+## Technology decisions
 
-This serves the client. Each browser runs its own voyage. A shared online voyage will require a server that owns the game state.
+| Layer | Choice and responsibility |
+| --- | --- |
+| Client | TypeScript, Phaser 4, HTML, and CSS. Phaser draws the sea scene. HTML provides card controls, text, focus, and touch interaction. The client loads the engine separately so a player can use the controls while the scene loads. |
+| Rules | A shared TypeScript package. A seed and a list of legal moves reproduce the voyage. Solo play runs the rules on the device. The online server will run the same rules for a shared voyage. |
+| Build | npm workspaces, a committed lockfile, strict TypeScript, Vite, and the Node test runner. The Linux CI workflow uses the same check command as development. |
+| Online service | Node.js and Fastify. The first server serves the game and exposes `GET /api/health`. WebSockets are the selected transport for online play. PostgreSQL is the selected store for voyages and accepted moves. Room handling and database integration are upcoming work. |
+| Distribution | Serve the web build to desktop and phone browsers first. Use Tauri 2 for future installable builds. Native packaging and signing will have their own build jobs. |
 
-## First playtest
+Phaser supplies the 2D rendering and scene tools the illustrated table needs. Using TypeScript on both sides lets a rule change apply to solo and co-op together. The client can use generated paintings, sprite sheets, and rendered views of 3D models as ordinary game art. Keep source art and generation prompts in `art/` and ship optimized images from `web/assets/`.
 
-Choose one of two salvage cards, assign the swimmer, and play one card per sailor in any order. Resolve the revealed event. At the end of each tide, the swimmer recovers one sealed ration and gains two cold. Each seated sailor sheds one cold. Spending a personal ration takes the owner's next available card action and removes two cold from any sailor. Keep all three crew below five cold and the hull above zero at each tide's end.
+[Phaser documentation](https://phaser.io/oss/docs) · [Vite production builds](https://vite.dev/guide/build) · [Fastify plugins](https://fastify.dev/ecosystem/) · [Tauri platform support](https://v2.tauri.app/start/)
 
-The immediate experiment is whether owning the recovered ration makes someone volunteer. Watch who asks to swim, what they ask for in return, and whether the ration later goes to them or someone else. In solo play, record whether the same seat rotation solves every tide. Use the ship's log during the debrief. Hydration, hunger, and hidden roles are future experiments. The current rules and values are provisional.
+## Repository layout
 
-## Development in Codex
+- `web/` contains the game client and the Phaser sea scene.
+- `packages/rules/` owns the voyage state, legal actions, and tide resolution. It has no dependency on the browser, renderer, or server.
+- `server/` contains the Fastify service entry point.
+- `tests/` covers card order, swimmer rewards, replay, and both voyage outcomes.
+- `art/` contains original illustrations and their production notes.
 
-Use the Git checkout as the source of code and art for each cloud task. Select the project repository and revision when starting a task. Run the tests before and after a rule change. The prototype runs without a package install, external fonts, an API key, or access to a separate art service.
+## Next foundation change
 
-- `web/rules/voyage.js` contains the rules. A seed and the sequence of legal choices reproduce a voyage.
-- `web/app.js` presents the board and saves the current run. The first slice uses plain JavaScript modules. A future client or game server can call the rules without a browser.
-- `art/` holds the original illustrations and generation prompts. `web/assets/` holds the smaller runtime images.
-- `tests/` checks the swimmer's reward, phase boundaries, replay, and end conditions.
-
-For the next multiplayer slice, have two browsers join the same voyage and allow a returning player to reclaim their sailor. Keep the current shared-screen game as a way to test rules and art locally.
+Add durable voyage storage to the server. Record the rules version, seed, and ordered moves. Accept a move only for the expected voyage revision. Commit the move and the new revision together, then rebuild the same voyage after a server restart. This gives rooms, player ownership, and reconnects a single source of truth.

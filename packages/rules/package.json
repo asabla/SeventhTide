@@ -1,0 +1,6 @@
+{
+  "name": "@seventh-tide/rules",
+  "private": true,
+  "type": "module",
+  "exports": "./voyage.ts"
+}

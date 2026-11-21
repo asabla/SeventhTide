@@ -1,0 +1,9 @@
+{
+  "name": "@seventh-tide/client",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@seventh-tide/rules": "*",
+    "phaser": "4.2.1"
+  }
+}

@@ -275,3 +275,12 @@ summary {
     padding: 6px 0;
   }
 }
+
+#sea {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#sea canvas {
+  display: block;
+}
