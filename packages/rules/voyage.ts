@@ -1,3 +1,5 @@
+export const rulesVersion = 1;
+
 export type Phase = "salvage" | "board" | "cards" | "event" | "won" | "lost";
 
 export interface Move {

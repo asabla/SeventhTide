@@ -4,6 +4,8 @@
   "type": "module",
   "dependencies": {
     "@fastify/static": "10.1.12",
-    "fastify": "5.12.8"
+    "@seventh-tide/rules": "*",
+    "fastify": "5.12.8",
+    "pg": "8.23.1"
   }
 }

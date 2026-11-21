@@ -1,3 +1,4 @@
+import { voyageRoutes } from "./voyages.ts";
 import fastify from "fastify";
 import staticFiles from "@fastify/static";
 import { access } from "node:fs/promises";
@@ -7,6 +8,12 @@ const client = new URL("../web/dist/", import.meta.url);
 await access(new URL("index.html", client));
 const app = fastify({ logger: true });
 app.get("/api/health", async () => ({ status: "ok" }));
+if (process.env.DATABASE_URL) {
+  await app.register(voyageRoutes, {
+    prefix: "/api/voyages",
+    databaseUrl: process.env.DATABASE_URL,
+  });
+}
 await app.register(staticFiles, { root: fileURLToPath(client) });
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => void app.close());
