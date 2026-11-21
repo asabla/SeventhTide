@@ -2,8 +2,14 @@
 
 Use direct, formal language. Use ASD-STE100 Simplified Technical English for technical explanations. Use emojis and time estimates only when requested.
 
-Develop from the project checkout in the selected Codex cloud environment. Use the README commands to test and serve the game. Use the built-in Browser for browser interaction and verification. Use Playwright only if the user explicitly requests it.
+## Working in this repository
 
-Keep game rules independent of the interface. Build on the production stack documented in the README. Keep solo and online play on the same rules package. Store original generated art and its prompt in art/ and use a smaller export in web/assets/.
+Use the project checkout in the selected Codex cloud environment for development. Use the local checkout for verification and play with friends. See the [README](README.md) for the stack, build commands, and database setup.
 
-Run `npm run check` for code changes. When a test PostgreSQL database is available, set `TEST_DATABASE_URL` and run `npm run check:ci` for the full gate. Use `npm run format` to apply the repository formatter.
+- Implement game decisions in `packages/rules/`. Both solo play and the voyage API use this package. The client displays legal choices and their costs.
+- Keep card text and controls in HTML. Use Phaser for the sea scene. Store original generated art and its prompt in `art/` and use a smaller export in `web/assets/`.
+- For browser interaction and verification, use the built-in Browser. Use Playwright only when the user explicitly requests it.
+
+## Verification
+
+Run `npm run check` for code changes. When a test PostgreSQL database is available, set `TEST_DATABASE_URL` and run `npm run check:ci` for the full gate. Use `npm run format` to apply the repository formatter. The [quality guide](README.md#code-quality) describes what each command covers.
