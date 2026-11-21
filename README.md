@@ -2,15 +2,32 @@
 
 Seventh Tide is a cooperative maritime horror card game for browsers and phones, with a solo mode and seven tides per voyage. The current build supports solo and shared-screen play.
 
-## Build and run
+## Set up the development tools
 
-Use the Node.js version in `.nvmrc` and npm. Run these commands from the repository root in a local or Codex cloud checkout.
+Install mise on the development machine or cloud image. On macOS with Homebrew, run `brew install mise`. For other systems, follow the [mise installation guide](https://mise.jdx.dev/installing-mise.html).
+
+Review `mise.toml`, then run these commands from the repository root.
 
 ```sh
-npm ci
-npm run check
-npm start
+mise trust
+mise install
+mise run setup
 ```
+
+mise reads the Node.js version from `.nvmrc`, the same file used by CI. Node.js includes npm. The setup task runs `npm ci` to install the compiler, linters, formatter, and game dependencies from `package-lock.json`. Run `mise run setup` again when the lockfile changes.
+
+If npm reports an unreviewed dependency install script, setup and CI stop. Review the script before you record an approval or denial in the root `package.json`. We deny install scripts for Vite's optional macOS watcher, `fsevents`, because it ships its native binary.
+
+## Build and run
+
+Use these commands to check and start the game in a local terminal or a cloud checkout.
+
+```sh
+mise exec -- npm run check
+mise exec -- npm start
+```
+
+For the plain `npm` commands below, activate mise in your shell or prefix each command with `mise exec --`. See the [mise shell setup guide](https://mise.jdx.dev/shell-setup.html).
 
 Open http://127.0.0.1:4173. Fastify serves the built game from `web/dist/`. Use `HOST=0.0.0.0 npm start` when a cloud environment's private preview needs an external binding. Set `PORT` to use a different port. For client development, `npm run dev` starts Vite with live updates. Saves belong to the browser origin, so the development and production ports have separate saves.
 
@@ -46,7 +63,7 @@ Phaser supplies the 2D rendering and scene tools the illustrated table needs. Us
 
 ## Durable voyages
 
-The browser currently saves solo voyages on the device. To enable the server's voyage API, set `DATABASE_URL` to a PostgreSQL connection URL. On startup the server applies pending migrations in a transaction. The database user needs permission to create tables. For local development, run the following after the build.
+The browser currently saves solo voyages on the device. To enable the server's voyage API, set `DATABASE_URL` to a PostgreSQL connection URL. On startup the server applies pending migrations in a transaction. The database user needs permission to create tables. For a local database, install Docker with the Compose plugin and start the Docker engine. Then run the following after the build.
 
 ```sh
 docker compose up -d --wait db

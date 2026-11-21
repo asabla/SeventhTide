@@ -10,6 +10,9 @@
   "engines": {
     "node": ">=24.22.3"
   },
+  "allowScripts": {
+    "fsevents": false
+  },
   "scripts": {
     "dev": "vite web",
     "start": "node server/start.ts",

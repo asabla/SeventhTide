@@ -1,0 +1,6 @@
+[settings]
+idiomatic_version_file_enable_tools = ["node"]
+
+[tasks.setup]
+description = "Install workspace dependencies with the Node version in .nvmrc"
+run = "npm ci"
