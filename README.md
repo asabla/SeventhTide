@@ -16,6 +16,8 @@ mise run setup
 
 mise reads the Node.js version from `.nvmrc`, the same file used by CI. Node.js includes npm. The setup task runs `npm ci` to install the compiler, linters, formatter, and game dependencies from `package-lock.json`. Run `mise run setup` again when the lockfile changes.
 
+If npm reports an unreviewed dependency install script, setup and CI stop. Review the script before you record an approval or denial in the root `package.json`. We deny install scripts for Vite's optional macOS watcher, `fsevents`, because it ships its native binary.
+
 ## Build and run
 
 Use these commands to check and start the game in a local terminal or a cloud checkout.
