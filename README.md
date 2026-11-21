@@ -69,6 +69,12 @@ Phaser supplies the 2D rendering and scene tools the illustrated table needs. Us
 - `tests/` covers card order, swimmer rewards, replay, and both voyage outcomes.
 - `art/` contains original illustrations and their production notes.
 
+## Crew hands
+
+On new voyages, the first salvage adds two copies of a card to the shared ten-card deck. The ration locker adds Pass the Tin, spare timber adds Emergency Patch, and dry canvas adds Canvas Sling. Each sailor draws two cards before boarding. During boarding, open a card to compare its raft and water effects. Each device shows the hands of the sailors it controls.
+
+Play a held card to discard it and draw its replacement. Basic actions and ration sharing take the sailor’s turn and keep both cards for later. When the draw pile is empty, the crew reshuffles the discard pile. Existing solo saves and stored rooms finish with their original rules.
+
 ## Play with friends
 
 Start the server with PostgreSQL using the commands below. For friends on the same Wi-Fi, set `HOST=0.0.0.0` and open the game using the host computer’s LAN address on **all** devices, including the host. An invite created on `localhost` or `127.0.0.1` points back to the device that opens it. For remote play, use a shared HTTPS address.

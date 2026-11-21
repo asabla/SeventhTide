@@ -64,6 +64,19 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
         typeof p.cold === "number" &&
         typeof p.food === "number",
     ) &&
+    Array.isArray(value.hands) &&
+    value.hands.length === names.length &&
+    value.hands.every(
+      (hand: unknown) =>
+        Array.isArray(hand) &&
+        hand.every(
+          (card: unknown) =>
+            record(card) &&
+            typeof card.name === "string" &&
+            typeof card.water === "string" &&
+            typeof card.raft === "string",
+        ),
+    ) &&
     Array.isArray(value.choices) &&
     value.choices.every(
       (p: unknown) =>

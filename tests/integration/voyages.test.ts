@@ -252,7 +252,14 @@ for (const players of [2, 3]) {
       assert.ok(salvage);
       assert.equal((await playCard(ivo, salvage.id, 0)).status, 422);
       assert.equal((await playCard(host, salvage.id, 0)).status, 200);
-      assert.deepEqual((await read(ivo)).offerSeats, [1]);
+      const boarding = await read(ivo);
+      assert.deepEqual(boarding.offerSeats, [1]);
+      assert.ok(Array.isArray(boarding.hands));
+      assert.deepEqual(
+        boarding.hands.map((h: unknown) => (Array.isArray(h) ? h.length : -1)),
+        [0, 2, 0],
+      );
+      assert.equal(boarding.deck, undefined);
       assert.equal((await offer(ivo, 0, true)).status, 422);
       const offers = await Promise.all([
         offer(ivo, 1, true),
@@ -291,17 +298,17 @@ for (const players of [2, 3]) {
       const onRaft = (await read(host)).choices.map((c) => c.id);
       assert.equal(onRaft.includes("lash-2"), players === 2);
       assert.equal(
-        (await read(ivo)).choices.every(
-          (c) =>
-            c.id.startsWith("feed-1-") ||
-            c.id === "sound-1" ||
-            c.id === "float-1",
-        ),
+        (await read(ivo)).choices.every((c) => c.id.split("-")[1] === "1"),
         true,
       );
+      const held = (await read(ivo)).choices.find(
+        (c) => c.id !== "float-1" && !c.id.startsWith("feed-"),
+      );
+      assert.ok(held);
+      assert.equal((await playCard(host, held.id, 2)).status, 422);
       const cards = [
         [host, "lash-0"],
-        [ivo, "float-1"],
+        [ivo, held.id],
       ] as const;
       const results = await Promise.all(
         cards.map(([token, card]) => playCard(token, card, 2)),
@@ -324,7 +331,7 @@ for (const players of [2, 3]) {
   );
 }
 
-await test("two seats complete all seven tides and the host rejoins mid-voyage", async (t) => {
+await test("a stored version-one room can rejoin and complete all seven tides", async (t) => {
   const server = await launch(t);
   const base = server.address + "/api/voyages";
   const room = await readSnapshot(
@@ -343,12 +350,15 @@ await test("two seats complete all seven tides and the host rejoins mid-voyage",
     }
   });
   const seed = 111;
-  await pool.query("UPDATE voyages SET seed=$1 WHERE id=$2", [seed, room.id]);
+  await pool.query("UPDATE voyages SET seed=$1, rules_version=1 WHERE id=$2", [
+    seed,
+    room.id,
+  ]);
   assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
   const host = room.token;
   const guest: unknown = room.invites[0];
   assert.ok(typeof guest === "string");
-  let expected = start(seed);
+  let expected = start(seed, 1);
   let revision = 0;
   async function act(id: string, token: string) {
     const response = await fetch(base + "/" + room.id + "/moves", {

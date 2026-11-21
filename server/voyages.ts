@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Pool } from "pg";
 import {
   currentEvent,
+  handPreview,
   moves,
   play,
   start,
@@ -24,9 +25,7 @@ interface Row {
 }
 
 function replay(row: Row) {
-  if (row.rules_version !== rulesVersion)
-    throw new Error("Unsupported voyage rules version.");
-  return row.moves.reduce(play, start(Number(row.seed)));
+  return row.moves.reduce(play, start(Number(row.seed), row.rules_version));
 }
 
 function guestToken(owner: string, seat: number) {
@@ -62,6 +61,9 @@ function snapshot(row: Row, state: Voyage, token: string) {
     tide: state.tide,
     hull: state.hull,
     crew: state.crew,
+    hands: state.crew.map((_, i) =>
+      controls(row, i) ? handPreview(state.deck, i) : [],
+    ),
     swimmer: state.swimmer,
     acted: state.acted,
     guard: state.guard,
