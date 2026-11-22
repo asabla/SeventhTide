@@ -24,7 +24,7 @@ body.voyage {
   gap: clamp(2px, 1vw, 14px);
 }
 
-.mast-actions > :where(.mast-tool) {
+:where(.mast-actions, #signal-station) > .mast-tool {
   min-height: 44px;
   padding: 2px 4px;
   border: 0;
@@ -33,7 +33,8 @@ body.voyage {
   color: #e9cea1;
 }
 
-.mast-actions > :where(.mast-tool:hover, .mast-tool:focus-visible) {
+:where(.mast-actions, #signal-station)
+  > .mast-tool:where(:hover, :focus-visible) {
   background: radial-gradient(ellipse at 20% 50%, #b1845033, transparent 72%);
   color: #fff1ca;
 }
@@ -288,15 +289,58 @@ body.voyage {
   font: 0.75rem var(--sans);
 }
 
+[data-signal="warmth"],
+:where(#signal-station) {
+  --signal-cloth: #935645;
+  --signal-shadow: #5b332e;
+}
+
+[data-signal="brace"] {
+  --signal-cloth: #a77a3d;
+  --signal-shadow: #624522;
+}
+
+[data-signal="ration"] {
+  --signal-cloth: #4f7667;
+  --signal-shadow: #2a493e;
+}
+
+#signal-station {
+  position: relative;
+  flex: none;
+}
+
+#signal-flag {
+  list-style: none;
+}
+
+#signal-flag::-webkit-details-marker {
+  display: none;
+}
+
+.signal-flag-cloth {
+  fill: var(--signal-cloth);
+}
+
 .crew-signal-label:not(:empty) {
+  position: relative;
   display: block;
-  width: fit-content;
-  margin: 4px 0 2px;
-  padding: 2px 5px;
-  border-left: 2px solid #896239;
-  background: #87603322;
-  color: #523322;
-  font: 700 0.74rem/1.2 var(--sans);
+  margin-top: 3px;
+  padding-left: 12px;
+  color: #593d2e;
+  font:
+    italic 700 0.79rem/1.2 Georgia,
+    serif;
+}
+
+:where(.crew-signal-label:not(:empty), #compact-signals li)::before {
+  content: "";
+  position: absolute;
+  inset: 0.2em auto auto 0;
+  width: 8px;
+  height: 0.7em;
+  background: var(--signal-cloth);
+  clip-path: polygon(0 0, 100% 0, 76% 50%, 100% 100%, 0 100%);
 }
 
 .signal-announcement {
@@ -309,67 +353,79 @@ body.voyage {
   white-space: nowrap;
 }
 
-.signal-options:not([hidden]) {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 9px;
-}
-
-.signal-options > :where(.signal-tag) {
-  position: relative;
-  min-height: 36px;
-  padding: 4px 14px 5px 7px;
-  border: 1px solid #967454;
-  border-left: 3px solid #775435;
-  border-radius: 2px 4px 4px 2px;
-  background:
-    linear-gradient(105deg, #7e562b32, transparent 58%),
-    var(--grain) repeat,
-    #dbbf8e;
-  color: #32291d;
-  box-shadow: 1px 2px 3px #3c261745;
-  font: 700 0.8rem/1.2 var(--sans);
-}
-
-.signal-options > :where(.signal-tag:hover) {
-  background-color: #f0d5a2;
-}
-
-.signal-options > :where(.signal-tag[aria-pressed="true"]) {
-  border-color: #24382f;
-  border-left-color: #a48655;
-  background: linear-gradient(135deg, #435245, #273b32);
-  color: #ffe4ae;
-  box-shadow:
-    inset 0 0 0 1px #e8c18635,
-    1px 2px 3px #3c26177a;
-}
-
-#log-signal-tabs .signal-tag:last-of-type {
-  grid-column: 1 / -1;
-}
-
-.signal-tag-clear {
+#signal-options {
   position: absolute;
-  inset: 3px 4px auto auto;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-end: 0;
+  width: min(230px, calc(100vw - 40px));
+  padding: 9px 12px 10px;
+  border: 1px solid #92734e;
+  border-radius: 4px;
+  background: #19251e url("./assets/wet-tray.webp") center / 100% 100% no-repeat;
+  box-shadow: 2px 7px 14px #10130ee0;
+}
+
+#signal-options > :where(.signal-pennant) {
+  position: relative;
+  display: block;
+  isolation: isolate;
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 34px 7px 22px;
+  border: 0;
+  background: transparent;
+  color: #fff0cb;
+  font:
+    700 0.92rem Georgia,
+    serif;
+  text-shadow: 0 1px 2px #1a120e;
+}
+
+.signal-pennant::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 2px 0;
+  background:
+    repeating-linear-gradient(85deg, #150f1523 0 1px, transparent 1px 4px),
+    linear-gradient(120deg, var(--signal-cloth), var(--signal-shadow) 90%);
+  clip-path: polygon(0 0, 100% 0, 91% 50%, 100% 100%, 0 100%);
+}
+
+.signal-pennant::after {
+  content: "";
+  position: absolute;
+  inset: 4px auto 4px 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: #ddbd80;
+}
+
+.signal-pennant:is(:hover, :focus-visible, [aria-pressed="true"])::before {
+  filter: brightness(1.18);
+}
+
+.signal-pennant-clear {
+  position: absolute;
+  inset: 50% 24px auto auto;
+  translate: 0 -50%;
   visibility: hidden;
   font:
-    700 0.9rem/1 Georgia,
+    700 1rem Georgia,
     serif;
 }
 
-.signal-tag[aria-pressed="true"] .signal-tag-clear {
+.signal-pennant[aria-pressed="true"] .signal-pennant-clear {
   visibility: visible;
 }
 
 #signal-status {
-  grid-column: 1 / -1;
+  color: #ffe6aa;
   font: 650 0.79rem/1.3 var(--sans);
 }
 
-#signal-status:empty {
-  display: none;
+#signal-status:not(:empty) {
+  margin: 6px 3px 0;
 }
 
 #invite-links label {
@@ -1076,26 +1132,43 @@ a.crew-return {
 
   .raft-status-line {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 7px;
   }
 
-  #compact-signal-tabs .signal-options {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: 6px;
+  .raft-readout {
+    flex: 1;
+    min-width: 0;
   }
 
-  #compact-signal-tabs .signal-tag {
-    min-height: 44px;
+  #compact-signal-anchor:empty,
+  #compact-signal-anchor:has(#signal-station[hidden]) {
+    display: none;
+  }
+
+  #signal-flag {
+    justify-content: center;
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  #signal-flag svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  #signal-flag span {
+    display: none;
   }
 
   #compact-signals:not([hidden]) {
     display: flex;
     align-items: center;
     gap: 5px;
-    min-height: 24px;
-    margin: 3px 0 0;
+    min-height: 18px;
+    margin: 1px 0 0;
     padding: 0;
     overflow-x: auto;
     list-style: "";
@@ -1103,20 +1176,22 @@ a.crew-return {
   }
 
   #compact-signals li {
+    position: relative;
     flex: none;
-    padding: 2px 5px;
-    border-left: 2px solid #a78551;
+    padding: 1px 6px 1px 16px;
+    border-radius: 2px;
     background: #ddc194;
     color: #36291c;
     font: 650 0.75rem/1.25 var(--sans);
   }
 
-  #compact-signal-tabs #signal-status {
-    color: #ffe6aa;
+  #compact-signals li::before {
+    inset: 0.48em auto auto 5px;
   }
 
   #play-count {
     flex: none;
+    white-space: nowrap;
     border-left: 1px solid #c0af7a80;
     padding-left: 7px;
     color: #f0d4a6;
