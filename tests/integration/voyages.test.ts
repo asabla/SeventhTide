@@ -382,12 +382,27 @@ for (const players of [2, 3]) {
       assert.ok(retry);
       assert.equal((await playCard(retry[0], retry[1], 3)).status, 200);
       assert.equal((await playCard(third, "lash-2", 4)).status, 200);
-      assert.equal((await read(ivo)).phase, "event");
+      const event = await read(ivo);
+      assert.equal(event.phase, "event");
+      assert.ok(Array.isArray(event.plays));
+      assert.equal(event.plays.length, 3);
+      assert.ok(
+        event.plays.some(
+          (move: unknown) =>
+            isRecord(move) && move.actor === 1 && move.id === held.id,
+        ),
+      );
+      assert.equal(event.tideResult, null);
       assert.equal((await playCard(ivo, "hull", 5)).status, 422);
       assert.equal((await playCard(host, "hull", 5)).status, 200);
       const after = await read(ivo);
       assert.equal(after.revision, 6);
-      assert.deepEqual(after.log, (await read(host)).log);
+      const hostAfter = await read(host);
+      assert.deepEqual(after.log, hostAfter.log);
+      assert.deepEqual(after.plays, hostAfter.plays);
+      assert.deepEqual(after.tideResult, hostAfter.tideResult);
+      assert.ok(isRecord(after.tideResult));
+      assert.equal(after.tideResult.tide, 1);
     },
   );
 }

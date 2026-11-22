@@ -37,6 +37,57 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function sailor(value: unknown) {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value < names.length
+  );
+}
+
+function isCrewPlay(value: unknown) {
+  return (
+    record(value) &&
+    sailor(value.actor) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    (value.card === undefined || typeof value.card === "string") &&
+    typeof value.markedChannel === "boolean" &&
+    Array.isArray(value.changes) &&
+    value.changes.every(
+      (change: unknown) =>
+        record(change) &&
+        typeof change.amount === "number" &&
+        (change.sailor === null
+          ? change.resource === "hull" || change.resource === "brace"
+          : sailor(change.sailor) &&
+            (change.resource === "cold" || change.resource === "ration")),
+    )
+  );
+}
+
+function isTideResult(value: unknown) {
+  return (
+    record(value) &&
+    typeof value.tide === "number" &&
+    typeof value.event === "string" &&
+    typeof value.choice === "string" &&
+    sailor(value.swimmer) &&
+    typeof value.ration === "number" &&
+    Array.isArray(value.exposure) &&
+    value.exposure.length === names.length &&
+    value.exposure.every((cold: unknown) => typeof cold === "number") &&
+    record(value.route) &&
+    (value.route.kind === "channel" ||
+      (value.route.kind === "dive" && typeof value.route.cold === "number") ||
+      (value.route.kind === "hull" &&
+        typeof value.route.incoming === "number" &&
+        typeof value.route.blocked === "number" &&
+        typeof value.route.lost === "number"))
+  );
+}
+
 function isSnapshot(value: unknown): value is RoomSnapshot {
   return (
     record(value) &&
@@ -52,7 +103,11 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     typeof value.hull === "number" &&
     typeof value.guard === "number" &&
     (value.swimmer === null || typeof value.swimmer === "number") &&
+    Array.isArray(value.plays) &&
+    value.plays.every(isCrewPlay) &&
+    (value.tideResult === null || isTideResult(value.tideResult)) &&
     (value.forecast === null || typeof value.forecast === "string") &&
+    (value.forecastTitle === null || typeof value.forecastTitle === "string") &&
     (value.event === null ||
       (record(value.event) &&
         typeof value.event.title === "string" &&

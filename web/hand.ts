@@ -7,6 +7,7 @@ import {
   type Voyage,
 } from "@seventh-tide/rules";
 import { equipmentImage } from "./equipment-art.ts";
+import { cardDrag, equipmentCard } from "./cards.ts";
 
 function required(id: string) {
   const node = document.getElementById(id);
@@ -45,13 +46,7 @@ const destination = dropSurface;
 const playedFace = required("played-face");
 type Card = { button: HTMLButtonElement; move: Move; image: string };
 let selected: Card | null = null;
-let drag: {
-  card: Card;
-  id: number;
-  x: number;
-  y: number;
-  moved: boolean;
-} | null = null;
+const drag = cardDrag(area);
 
 function selectCard(card: Card) {
   selected?.button.setAttribute("aria-pressed", "false");
@@ -62,23 +57,11 @@ function selectCard(card: Card) {
   receipt.textContent = card.move.name + " · " + card.move.detail;
 }
 
-function endDrag() {
-  if (!drag) return;
-  const { card, id } = drag;
-  drag = null;
-  area.classList.remove("over");
-  card.button.classList.remove("dragging");
-  card.button.style.removeProperty("translate");
-  card.button.style.removeProperty("scale");
-  card.button.style.removeProperty("transform-origin");
-  if (card.button.hasPointerCapture(id)) card.button.releasePointerCapture(id);
-}
-
 function placeCard() {
   const card = selected;
   if (!card || destination.disabled) return;
   const origin = card.button.getBoundingClientRect();
-  endDrag();
+  drag.cancel();
   selected = null;
   destination.disabled = true;
   study = play(study, card.move.id);
@@ -114,73 +97,6 @@ function placeCard() {
   reset.focus({ preventScroll: true });
 }
 
-// Measure to the nearest edge so that entering anywhere in the tray gives the same size.
-function distanceToTray(x: number, y: number, box: DOMRect) {
-  return Math.hypot(
-    Math.max(box.left - x, 0, x - box.right),
-    Math.max(box.top - y, 0, y - box.bottom),
-  );
-}
-
-function cancelPointer(event: PointerEvent) {
-  if (drag?.id === event.pointerId) endDrag();
-}
-
-function connectCard(card: Card) {
-  const button = card.button;
-  button.addEventListener("pointerdown", (event) => {
-    if (!event.isPrimary || event.button !== 0 || drag) return;
-    selectCard(card);
-    button.setPointerCapture(event.pointerId);
-    drag = {
-      card,
-      id: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      moved: false,
-    };
-  });
-  button.addEventListener("pointermove", (event) => {
-    if (!drag || drag.id !== event.pointerId) return;
-    const dx = event.clientX - drag.x;
-    const dy = event.clientY - drag.y;
-    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
-    if (!drag.moved) {
-      drag.moved = true;
-      button.classList.add("dragging");
-      const bounds = button.getBoundingClientRect();
-      button.style.transformOrigin =
-        drag.x - bounds.left + "px " + (drag.y - bounds.top) + "px";
-    }
-    const tray = area.getBoundingClientRect();
-    const distance = distanceToTray(event.clientX, event.clientY, tray);
-    const startDistance = Math.max(1, distanceToTray(drag.x, drag.y, tray));
-    const progress = 1 - Math.min(1, distance / startDistance);
-    button.style.scale = String(1 - 0.22 * progress);
-    button.style.translate = dx + "px " + dy + "px";
-    area.classList.toggle("over", distance === 0);
-  });
-  button.addEventListener("pointerup", (event) => {
-    if (!drag || drag.id !== event.pointerId) return;
-    if (
-      drag.moved &&
-      distanceToTray(
-        event.clientX,
-        event.clientY,
-        area.getBoundingClientRect(),
-      ) === 0
-    )
-      placeCard();
-    else endDrag();
-  });
-  button.addEventListener("pointercancel", cancelPointer);
-  button.addEventListener("lostpointercapture", cancelPointer);
-  button.addEventListener("click", (event) => {
-    if (button.disabled) return;
-    selectCard(card);
-    if (event.detail === 0) destination.focus();
-  });
-}
 function renderHand() {
   const water = document.querySelector('input[value="water"]:checked') !== null;
   // Each seed deals the two illustrated cards named in the selector.
@@ -188,7 +104,7 @@ function renderHand() {
   crewMember(boarding, 1).cold = 2;
   study = play(boarding, water ? "swim-0" : "swim-1");
   showTotals(study);
-  endDrag();
+  drag.cancel();
   receipt.textContent =
     "Drag a card here, or select a card and then this space.";
   selected = null;
@@ -202,40 +118,13 @@ function renderHand() {
     if (move.actor !== 0 || !move.card) continue;
     const image = equipmentImage(move.card, water);
     if (!image) throw new Error("Missing study illustration for " + move.name);
-    const [actionText, benefitText, ...costText] =
-      move.detail.split(/(?<=\.)\s+/);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "card";
-    button.setAttribute("aria-pressed", "false");
-    const name = document.createElement("strong");
-    name.textContent = move.name;
-    const art = new Image();
-    art.src = image;
-    art.alt = "";
-    art.draggable = false;
-    const action = document.createElement("span");
-    action.className = "action";
-    action.textContent = actionText ?? "";
-    const effect = document.createElement("span");
-    effect.className = "effect";
-    effect.textContent = benefitText ?? "";
-    const cost = document.createElement("span");
-    cost.className = "cost";
-    cost.textContent = costText.length
-      ? "Cost · " + costText.join(" ")
-      : "Cost · Card only";
-    button.append(name, art, action, effect, cost);
-    const flecks = document.createElement("span");
-    flecks.className = "salt";
-    flecks.setAttribute("aria-hidden", "true");
-    flecks.append(
-      document.createElement("i"),
-      document.createElement("i"),
-      document.createElement("i"),
+    const button = equipmentCard(move.name, move.detail, image);
+    drag.connect(
+      button,
+      () => selectCard({ button, move, image }),
+      placeCard,
+      () => destination.focus(),
     );
-    button.append(flecks);
-    connectCard({ button, move, image });
     cards.append(button);
   }
 }
@@ -244,10 +133,6 @@ for (const position of document.querySelectorAll('input[name="position"]')) {
 }
 dealSelect.addEventListener("change", renderHand);
 destination.addEventListener("click", placeCard);
-window.addEventListener("blur", endDrag);
-window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") endDrag();
-});
 reset.addEventListener("click", () => {
   renderHand();
   cards.querySelector("button")?.focus({ preventScroll: true });

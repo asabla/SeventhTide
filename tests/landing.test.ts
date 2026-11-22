@@ -20,6 +20,7 @@ await test("only the tide-six swimmer can mark the channel, and it takes their c
   );
   const marked = play(swimming, "line-2");
   assert.equal(marked.channelMarked, true);
+  assert.equal(marked.plays[0]?.markedChannel, true);
   assert.match(currentEvent(marked)[1], /has marked/);
   assert.equal(marked.guard, 1);
   assert.equal(marked.crew[2]?.cold, 3);
@@ -38,6 +39,7 @@ await test("only the tide-six swimmer can mark the channel, and it takes their c
   assert.equal(play(landing, "dive").phase, "lost");
   const ashore = play(landing, "channel");
   assert.equal(ashore.phase, "won");
+  assert.deepEqual(ashore.tideResult?.route, { kind: "channel" });
   assert.equal(ashore.hull, landing.hull);
   assert.equal(ashore.crew[0]?.cold, 3);
   assert.equal(ashore.crew[1]?.cold, 4);
