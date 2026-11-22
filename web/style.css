@@ -587,21 +587,6 @@ body.voyage {
   margin-top: 12px;
 }
 
-.crew-return {
-  display: block;
-  width: fit-content;
-  margin: 15px auto 0;
-}
-
-a.crew-return {
-  padding: 7px 10px;
-  border: 1px solid #7f6a4a;
-  border-radius: 3px;
-  background: #e7d6ad;
-  color: var(--ink);
-  font: 650 1rem/1.3 var(--sans);
-}
-
 .resume-room:not([hidden]) {
   display: block;
   margin-bottom: 7px;
@@ -1405,7 +1390,8 @@ a.crew-return {
   gap: 8px;
 }
 
-.waiting-controls > :where(button) {
+.waiting-controls > :where(button),
+.crew-return {
   min-height: 44px;
   padding: 6px 13px;
   border: 1px solid #b59462;
@@ -1416,8 +1402,20 @@ a.crew-return {
     serif;
 }
 
-.waiting-controls > :where(button:hover, button:focus-visible) {
+.waiting-controls > :where(button:hover, button:focus-visible),
+.crew-return:where(:hover, :focus-visible) {
   background: #614b30;
+}
+
+.crew-return {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin: 15px auto 0;
+  padding-inline: 18px;
+  border-radius: 3px;
+  text-decoration: none;
 }
 
 #crew-assist[data-waiting] {
