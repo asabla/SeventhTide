@@ -111,7 +111,7 @@ body.voyage {
 }
 
 :where(.voyage) button:where(:not(.card, .drop-surface)),
-.voyage details > summary {
+:where(.voyage details) > summary {
   cursor: pointer;
 }
 
@@ -157,7 +157,7 @@ body.voyage {
   display: none;
 }
 
-.voyage-board[data-phase="cards"] #turn-feedback {
+.voyage-board[data-playing] #turn-feedback {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -222,12 +222,11 @@ body.voyage {
   gap: 10px;
 }
 
-.choices > button > span,
-:where(.choices > button) small {
+.action-copy {
   display: block;
 }
 
-:where(.choices > button) strong {
+:where(.action-copy) strong {
   display: block;
   margin-bottom: 4px;
   font:
@@ -235,7 +234,8 @@ body.voyage {
     serif;
 }
 
-:where(.choices > button) small {
+:where(.action-copy) small {
+  display: block;
   font-size: 0.89rem;
 }
 
@@ -445,17 +445,9 @@ body.voyage {
   vertical-align: 0.12em;
 }
 
-.hand-controls,
 .equipment-targets {
   margin: 0 auto 8px;
   width: fit-content;
-}
-
-.hand-controls:not([hidden]) {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
 }
 
 .equipment-targets:empty {
@@ -500,6 +492,78 @@ body.voyage {
 
 .basic-actions .choices {
   margin-top: 8px;
+}
+
+.mode-panel:not([hidden]) {
+  display: grid;
+  gap: 14px;
+  margin: 18px auto;
+  width: min(100%, 390px);
+}
+
+.mode-panel button :where(strong, small) {
+  display: block;
+}
+
+.mode-panel button strong {
+  font:
+    700 1.2rem Georgia,
+    serif;
+  margin-bottom: 4px;
+}
+
+#crew-assist {
+  max-width: 620px;
+  margin: 12px auto;
+  padding: 10px 14px;
+  border: 1px solid #9b8057;
+  border-radius: 4px;
+  background: #101714f0;
+}
+
+.mode-panel details {
+  overflow: hidden;
+  border: 1px solid #9b8057;
+  border-radius: 4px;
+  background: #101714f0;
+}
+
+.mode-panel summary {
+  padding: 11px 12px;
+  color: var(--ink);
+  background: #e7d6ad;
+  font:
+    700 1.2rem Georgia,
+    serif;
+}
+
+#crew-assist summary {
+  color: #edca92;
+}
+
+.mode-panel #room-controls {
+  padding: 6px 12px 12px;
+}
+
+.mode-panel p,
+#crew-assist p {
+  margin: 6px 0;
+  font: 0.92rem/1.3 var(--sans);
+}
+
+.route-preview {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.route-preview li {
+  padding: 8px 12px;
+  border: 1px solid #9b8057;
+  border-radius: 4px;
+  background: #101714ed;
 }
 
 #tide-result {

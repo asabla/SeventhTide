@@ -26,6 +26,11 @@ export interface CardOrigin {
   y: number;
 }
 
+interface CrewView {
+  seat: number;
+  players: number;
+}
+
 function signed(value: number) {
   return value > 0 ? "+" + value : String(value).replace("-", "−");
 }
@@ -42,7 +47,12 @@ function atTable(s: TableState) {
   return s.phase === "cards" || s.phase === "event";
 }
 
-function playSlots(s: TableState, previous?: TableState, origin?: CardOrigin) {
+function playSlots(
+  s: TableState,
+  view: CrewView,
+  previous?: TableState,
+  origin?: CardOrigin,
+) {
   const table = select("crew-table");
   table.hidden = !atTable(s);
   if (table.hidden) return;
@@ -55,13 +65,25 @@ function playSlots(s: TableState, previous?: TableState, origin?: CardOrigin) {
   slots.replaceChildren(
     ...s.crew.map((sailor, i) => {
       const slot = element("li", "", "crew-slot");
+      const bot = i >= view.players;
+      const role = i === view.seat ? " · You" : bot ? " · Bot" : "";
       slot.append(
-        element("strong", sailor.name),
+        element("strong", sailor.name + role),
         element("small", i === s.swimmer ? "In the water" : "On the raft"),
       );
       const play = s.plays.find(({ actor }) => actor === i);
       if (!play) {
-        slot.append(element("p", "Waiting to play", "empty-slot"));
+        slot.append(
+          element(
+            "p",
+            bot
+              ? "Plays after players"
+              : i === view.seat
+                ? "Your move"
+                : "Waiting to play",
+            "empty-slot",
+          ),
+        );
         return slot;
       }
       const card = element("div", "", "played-card");
@@ -176,10 +198,11 @@ function routeBeats({ route }: TideResult, swimmer: string | undefined) {
 
 export function renderTable(
   s: TableState,
+  view: CrewView,
   previous?: TableState,
   origin?: CardOrigin,
 ) {
-  playSlots(s, previous, origin);
+  playSlots(s, view, previous, origin);
   tideResult(s, previous);
   const status = select("raft-status");
   status.hidden = s.phase === "salvage";

@@ -112,8 +112,8 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
       (record(value.event) &&
         typeof value.event.title === "string" &&
         typeof value.event.description === "string" &&
-        Array.isArray(value.event.landingRoutes) &&
-        value.event.landingRoutes.every(
+        Array.isArray(value.event.routes) &&
+        value.event.routes.every(
           (route: unknown) =>
             record(route) &&
             typeof route.name === "string" &&
@@ -157,6 +157,10 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     value.volunteers.every((i: unknown) => typeof i === "number") &&
     Array.isArray(value.offerSeats) &&
     value.offerSeats.every((i: unknown) => typeof i === "number") &&
+    Array.isArray(value.assistSeats) &&
+    value.assistSeats.every(sailor) &&
+    Array.isArray(value.channelScouts) &&
+    value.channelScouts.every(sailor) &&
     typeof value.seat === "number" &&
     typeof value.players === "number" &&
     Array.isArray(value.invites) &&
@@ -215,6 +219,7 @@ export class TurnConflict extends Error {}
 
 export type RoomAction =
   | { moveId: string; expectedOfferRevision?: number }
+  | { assistSailor: number }
   | { sailor: number; offer: boolean };
 
 export async function readTurn(

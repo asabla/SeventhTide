@@ -34,7 +34,7 @@
         <p id="forecast" hidden></p>
       </section>
       <p id="raft-status" hidden></p>
-      <aside class="log" aria-labelledby="log-heading">
+      <aside class="log" id="ship-log" aria-labelledby="log-heading">
         <h2 id="log-heading">Ship’s log</h2>
         <dl>
           <div>
@@ -56,13 +56,6 @@
           </thead>
           <tbody id="crew"></tbody>
         </table>
-        <div
-          class="hand-controls"
-          id="hand-controls"
-          role="group"
-          aria-label="Choose a sailor’s hand"
-          hidden
-        ></div>
         <details id="log">
           <summary>Voyage entries</summary>
           <ol id="entries"></ol>
@@ -90,18 +83,25 @@
             or the raft reaches 0 hull after the tide resolves.
           </p>
         </details>
-        <details id="room-panel">
-          <summary id="room-label">Play on separate devices</summary>
-          <div id="room-controls">
-            <p>Each device controls its own sailors.</p>
-            <button id="host-two" type="button">Host for 2 players</button>
-            <button id="host-three" type="button">Host for 3 players</button>
-          </div>
-        </details>
       </aside>
       <section class="table voyage-table" aria-label="Raft table">
         <p id="room-status" role="status"></p>
         <p id="instruction"></p>
+        <div id="mode-panel" class="mode-panel" hidden>
+          <details id="room-panel">
+            <summary id="room-label">Play with friends</summary>
+            <div id="room-controls">
+              <p>Share a private link with each friend.</p>
+              <button id="host-two" type="button">Invite one friend</button>
+              <p>Nell plays as a bot.</p>
+              <button id="host-three" type="button">Invite two friends</button>
+            </div>
+          </details>
+          <button id="start-solo" type="button">
+            <strong>Play solo</strong>
+            <small>You play Mara. Two bots join your crew.</small>
+          </button>
+        </div>
         <section
           id="crew-table"
           class="play-area"
@@ -123,6 +123,14 @@
         <p id="turn-feedback" role="status"></p>
         <div id="tide-result" aria-live="polite" hidden></div>
         <div id="choices"></div>
+        <details id="crew-assist" hidden>
+          <summary id="assist-label">Help a waiting sailor</summary>
+          <p id="assist-help">
+            A bot can take one turn for a friend. Their seat stays open for the
+            next tide.
+          </p>
+          <div id="assist-actions" class="choices"></div>
+        </details>
       </section>
     </main>
     <script type="module" src="./app.ts"></script>

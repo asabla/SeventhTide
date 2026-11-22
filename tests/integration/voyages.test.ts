@@ -12,6 +12,7 @@ import {
   currentEvent,
   crewMember,
 } from "@seventh-tide/rules";
+import { playWithBots, seatMoves } from "@seventh-tide/rules/crew";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 if (!databaseUrl)
@@ -223,7 +224,7 @@ await test(
     assert.deepEqual(row.moves, [accepted, "swim-1"]);
     const expected = row.moves.reduce(play, start(Number(row.seed)));
     assert.deepEqual(before.crew, expected.crew);
-    assert.deepEqual(before.choices, moves(expected));
+    assert.deepEqual(before.choices, seatMoves(expected, 0, 1));
 
     await server.stop();
     server = await launch(t);
@@ -232,7 +233,20 @@ await test(
     assert.ok(nextChoice);
     const continued = await post(nextChoice.id, before.revision);
     assert.equal(continued.status, 200);
-    assert.equal((await readSnapshot(continued)).revision, 3);
+    const next = await readSnapshot(continued);
+    assert.equal(next.revision, 5);
+    const advanced = playWithBots(expected, nextChoice.id, 1);
+    assert.equal(next.phase, "event");
+    assert.deepEqual(next.plays, advanced.state.plays);
+    assert.deepEqual(
+      (
+        await pool.query<{ moves: string[] }>(
+          "SELECT moves FROM voyages WHERE id = $1",
+          [id],
+        )
+      ).rows[0]?.moves,
+      [...row.moves, ...advanced.history],
+    );
   },
 );
 
@@ -338,7 +352,12 @@ for (const players of [2, 3]) {
         (await readSnapshot(await offer(ivo, 1, true))).offerRevision,
         2,
       );
-      assert.equal((await playCard(host, "swim-2", 1)).status, 422);
+      assert.equal(
+        offered.choices.some(({ id }) => id === "swim-2"),
+        players === 2,
+      );
+      if (players === 3)
+        assert.equal((await playCard(host, "swim-2", 1)).status, 422);
       assert.deepEqual(
         (await readSnapshot(await offer(host, 0, false))).volunteers,
         [1],
@@ -357,14 +376,19 @@ for (const players of [2, 3]) {
       assert.equal((await playCard(host, "float-1", 2)).status, 422);
       assert.equal((await playCard(ivo, "lash-2", 2)).status, 422);
       const onRaft = (await read(host)).choices.map((c) => c.id);
-      assert.equal(onRaft.includes("lash-2"), players === 2);
+      assert.equal(onRaft.includes("lash-2"), false);
+      assert.deepEqual(
+        (await read(host)).assistSeats,
+        players === 2 ? [1] : [1, 2],
+      );
       assert.equal(
         (await read(ivo)).choices.every((c) => c.id.split("-")[1] === "1"),
         true,
       );
-      const held = (await read(ivo)).choices.find(
-        (c) => c.id !== "float-1" && !c.id.startsWith("feed-"),
-      );
+      const hand = (await read(ivo)).choices;
+      const held =
+        hand.find((c) => c.id !== "float-1" && !c.id.startsWith("feed-")) ??
+        hand[0];
       assert.ok(held);
       assert.equal((await playCard(host, held.id, 2)).status, 422);
       const cards = [
@@ -381,9 +405,13 @@ for (const players of [2, 3]) {
       const retry = cards[results.findIndex((r) => r.status === 409)];
       assert.ok(retry);
       assert.equal((await playCard(retry[0], retry[1], 3)).status, 200);
-      assert.equal((await playCard(third, "lash-2", 4)).status, 200);
+      if (players === 3)
+        assert.equal((await playCard(third, "lash-2", 4)).status, 200);
+      else assert.equal((await playCard(host, "lash-2", 4)).status, 409);
       const event = await read(ivo);
       assert.equal(event.phase, "event");
+      assert.ok(isRecord(event.event) && Array.isArray(event.event.routes));
+      assert.equal(event.event.routes.length, 2);
       assert.ok(Array.isArray(event.plays));
       assert.equal(event.plays.length, 3);
       assert.ok(
@@ -414,7 +442,7 @@ await test("a stored version-one room can rejoin and complete all seven tides", 
     await fetch(base, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players: 2 }),
+      body: JSON.stringify({ players: 3 }),
     }),
   );
   const pool = new Pool({ connectionString: databaseUrl });
@@ -433,7 +461,8 @@ await test("a stored version-one room can rejoin and complete all seven tides", 
   assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
   const host = room.token;
   const guest: unknown = room.invites[0];
-  assert.ok(typeof guest === "string");
+  const third: unknown = room.invites[1];
+  assert.ok(typeof guest === "string" && typeof third === "string");
   let expected = start(seed, 1);
   let revision = 0;
   async function act(id: string, token: string) {
@@ -467,7 +496,8 @@ await test("a stored version-one room can rejoin and complete all seven tides", 
       assert.equal(restored.tide, tide);
     }
     const swimmer = (tide - 1) % 3;
-    const seat = (index: number) => (index === 1 ? guest : host);
+    const seat = (index: number) =>
+      index === 1 ? guest : index === 2 ? third : host;
     await act("swim-" + swimmer, host);
     await act("sound-" + swimmer, seat(swimmer));
     const mates = [0, 1, 2].filter((i) => i !== swimmer);
@@ -491,4 +521,102 @@ await test("a stored version-one room can rejoin and complete all seven tides", 
     );
   }
   assert.equal(expected.phase, "won");
+});
+
+await test("assistance and a returning friend cannot both play the same turn", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 2 }),
+    }),
+  );
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const guest: unknown = room.invites[0];
+  assert.ok(typeof guest === "string");
+  const host = room.token;
+  const url = base + "/" + room.id;
+  const response = (
+    token: string,
+    payload: { moveId?: string; assistSailor?: number },
+  ) =>
+    fetch(url + "/moves", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ expectedRevision: 3, ...payload }),
+    });
+  const read = (token: string) =>
+    fetch(url, { headers: { Authorization: "Bearer " + token } }).then(
+      readSnapshot,
+    );
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id = $1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  const seed = 318;
+  const history = ["locker", "swim-0", "line-0"];
+  await pool.query("UPDATE voyages SET seed=$1, moves=$2 WHERE id=$3", [
+    seed,
+    history,
+    room.id,
+  ]);
+  assert.deepEqual((await read(host)).assistSeats, [1]);
+  assert.deepEqual((await read(guest)).assistSeats, []);
+  assert.equal((await response(guest, { assistSailor: 1 })).status, 422);
+  assert.equal((await response(host, { assistSailor: 2 })).status, 422);
+  assert.equal(
+    (await response(host, { assistSailor: 1, moveId: "hook-1" })).status,
+    400,
+  );
+  const attempts = await Promise.all([
+    response(host, { assistSailor: 1 }),
+    response(guest, { moveId: "hook-1" }),
+  ]);
+  assert.deepEqual(
+    attempts.map((r) => r.status).toSorted((a, b) => a - b),
+    [200, 409],
+  );
+  const next = await read(guest);
+  assert.equal(next.revision, 5);
+  assert.equal(next.phase, "event");
+  assert.deepEqual(next.acted, [0, 1, 2]);
+  const { rows } = await pool.query<{ moves: string[] }>(
+    "SELECT moves FROM voyages WHERE id = $1",
+    [room.id],
+  );
+  const recorded = rows[0]?.moves;
+  assert.ok(recorded);
+  assert.equal(recorded.length, 5);
+  assert.deepEqual(next.crew, recorded.reduce(play, start(seed)).crew);
+
+  // An older two-player room can stop here before its host plays the third hand.
+  await pool.query("UPDATE voyages SET moves=$1 WHERE id=$2", [
+    [...history, "hook-1"],
+    room.id,
+  ]);
+  const recovered = await read(host);
+  assert.equal(recovered.phase, "cards");
+  assert.deepEqual(recovered.assistSeats, [2]);
+  const continued = await fetch(url + "/moves", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + host,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      expectedRevision: recovered.revision,
+      assistSailor: 2,
+    }),
+  });
+  assert.equal(continued.status, 200);
+  assert.equal((await readSnapshot(continued)).phase, "event");
 });
