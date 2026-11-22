@@ -8,7 +8,7 @@ const approach =
   );
 
 await test("only the tide-six swimmer can mark the channel, and it takes their card action", () => {
-  const board = approach.reduce(play, start(4203543429));
+  const board = approach.reduce(play, start(4203543429, 3));
   assert.equal(board.tide, 6);
   assert.match(currentEvent(board)[1], /Two lanterns/);
   const aboard = play(play(board, "swim-0"), "line-2");
@@ -44,7 +44,7 @@ await test("only the tide-six swimmer can mark the channel, and it takes their c
 });
 
 await test("a crew that never holds a sounding line can scout the reef and land", () => {
-  let s = start(1796699749);
+  let s = start(1796699749, 3);
   const history =
     "spar swim-0 float-0 lash-1 lash-2 hull swim-1 float-1 feed-0-1 lash-2 dive swim-2 float-2 feed-1-2 lash-0 hull swim-0 float-0 feed-2-0 lash-1 hull swim-1 float-1 feed-0-1 lash-2 dive swim-2 float-2 feed-1-2 lash-0 dive swim-0 float-0 feed-2-0 lash-1".split(
       " ",

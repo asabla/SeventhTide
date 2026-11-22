@@ -1,5 +1,6 @@
+import { isRulesVersion, type RulesVersion } from "@seventh-tide/rules";
 export interface SavedRun {
-  rulesVersion?: 1 | 2 | 3;
+  rulesVersion?: RulesVersion;
   seed: number;
   history: string[];
 }
@@ -23,11 +24,7 @@ export function parseSavedRun(saved: string): SavedRun {
   }
   const run: SavedRun = { seed: value.seed, history: value.history };
   if ("rulesVersion" in value) {
-    if (
-      value.rulesVersion !== 1 &&
-      value.rulesVersion !== 2 &&
-      value.rulesVersion !== 3
-    )
+    if (!isRulesVersion(value.rulesVersion))
       throw new Error("Invalid saved voyage.");
     run.rulesVersion = value.rulesVersion;
   }
