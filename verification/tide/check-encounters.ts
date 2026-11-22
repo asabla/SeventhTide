@@ -16,9 +16,10 @@ const routeTags = {
   decoy: "Decoy",
   chain: "Chain",
   channel: "Channel",
+  pry: "Pry",
 } as const;
-type Route = TideResult["route"]["kind"];
-const routeIds: Route[] = ["hull", "dive", "decoy", "chain", "channel"];
+type Route = keyof typeof routeTags;
+const routeIds: Route[] = ["hull", "dive", "decoy", "chain", "channel", "pry"];
 
 const outcomes = {
   lost: "VoyageLost",
@@ -38,6 +39,8 @@ function waterAt(state: Voyage) {
       return "SecondWake";
     case "The bell buoy":
       return "BellBuoy";
+    case "Something under the raft":
+      return "RaftGrip";
     case "The answering light":
       return "Landing";
     default:
@@ -61,6 +64,17 @@ function checkRoutes(call: BendCall, state: Voyage, context: string) {
     state.rulesVersion ?? 1,
     tag(ring),
     state.tide === 7 && state.channelMarked === true,
+    state.plays.some(
+      ({ card, actor }) =>
+        card === "line" &&
+        call("sets_tool", tag("SoundingLine"), actor === state.swimmer) ===
+          true,
+    ),
+    state.plays.some(
+      ({ card, actor }) =>
+        card === "hook" &&
+        call("sets_tool", tag("Boathook"), actor === state.swimmer) === true,
+    ),
   );
   const expected = routeIds.filter(
     (id) => call("allowed", tag(routeTags[id]), routes) === true,
@@ -88,11 +102,13 @@ function checkResolution(
   const [first, second] = raft;
   assert.ok(first !== undefined && second !== undefined, context);
   const [, , , incoming, diveCold] = water;
+  const grip = waterAt(state) === "RaftGrip";
+  const kind: TideResult["route"]["kind"] = grip && id === "hull" ? "cut" : id;
   if (state.channelMarked !== undefined && state.tide === 7)
     assert.deepEqual([incoming, diveCold], [4, 2], context);
   const effect = call(
     "effects",
-    tag(routeTags[id]),
+    tag(kind === "cut" ? "Cut" : routeTags[id]),
     state.guard,
     incoming,
     diveCold,
@@ -110,7 +126,7 @@ function checkResolution(
 
   const after = play(state, id);
   const result = after.tideResult;
-  assert.ok(result && result.route.kind === id, context);
+  assert.ok(result && result.route.kind === kind, context);
   assert.ok(
     after.phase === "lost" || after.phase === "won" || after.phase === "board",
     context,
@@ -142,6 +158,20 @@ function checkResolution(
       context,
     );
   }
+  if (grip) {
+    const previous = crewMember(state, swimmer);
+    const cold = crewMember(after, swimmer).cold;
+    const fatal = cold >= 5 ? " (fatal)" : "";
+    const hull =
+      kind === "cut"
+        ? `Hull ${state.hull} → ${after.hull}${after.hull === 0 ? " (raft breaks)" : ""}.`
+        : "No hull damage.";
+    assert.equal(
+      moves(state).find((move) => move.id === id)?.detail,
+      `${hull}\n${previous.name} ${previous.cold} → ${cold}/5 cold${fatal}.`,
+      context,
+    );
+  }
   assert.equal(result.swimmer, swimmer, context);
   assert.equal(result.tide, state.tide, context);
   assert.equal(result.exposure[swimmer], effect.exposure, context);
@@ -157,8 +187,9 @@ function checkResolution(
       Math.min(incoming, state.guard),
       context,
     );
-    assert.equal(result.route.lost, state.hull - after.hull, context);
   }
+  if (result.route.kind === "hull" || result.route.kind === "cut")
+    assert.equal(result.route.lost, state.hull - after.hull, context);
   for (const sailor of raft) {
     assert.equal(
       result.exposure[sailor],
@@ -223,6 +254,24 @@ export function checkEncounters(call: BendCall) {
       water: "BellBuoy",
     },
   ];
+  for (const [name, history] of [
+    ["line first", "swim-0 line-0 hook-1 lash-2"],
+    ["hook first", "swim-0 hook-1 line-0 lash-2"],
+    ["no line", "swim-0 float-0 hook-1 lash-2"],
+    ["no hook", "swim-0 line-0 lash-1 lash-2"],
+    ["wrong roles", "swim-1 line-0 hook-1 lash-2"],
+    ["no tools", "swim-0 float-0 lash-1 lash-2"],
+  ])
+    fixtures.push({
+      name: "raft grip / " + name,
+      state: replay(96, 8, "spar " + history),
+      water: "RaftGrip",
+    });
+  fixtures.push({
+    name: "split seam / archived",
+    state: replay(96, 7, "spar swim-0 line-0 hook-1 lash-2"),
+    water: "OpenWater",
+  });
   // Exercise each other event and both landing cases at the resource boundaries.
   for (let tide = 1; tide <= quietWake.events.length; tide++) {
     const state = { ...quietWake, tide };

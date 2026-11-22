@@ -332,6 +332,71 @@ await test("guests can recommend, change, and withdraw routes until the host set
   assert.deepEqual((await read(host)).routeRecommendations, [null, null, null]);
 });
 
+await test("friends see the tools set by each seat and the host commits the unlocked route", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 2 }),
+    }),
+  );
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const host = room.token;
+  const guest: unknown = room.invites[0];
+  assert.ok(typeof guest === "string");
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  await pool.query("UPDATE voyages SET seed=96, moves=$1 WHERE id=$2", [
+    ["spar", "swim-0"],
+    room.id,
+  ]);
+  const url = base + "/" + room.id;
+  const read = (token: string) =>
+    fetch(url, { headers: { Authorization: "Bearer " + token } }).then(
+      readSnapshot,
+    );
+  const move = (token: string, expectedRevision: number, moveId: string) =>
+    fetch(url + "/moves", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ expectedRevision, moveId }),
+    });
+  assert.deepEqual((await read(host)).underRaft, { line: false, hook: false });
+  const hook = await readSnapshot(await move(guest, 2, "hook-1"));
+  assert.deepEqual(hook.underRaft, { line: false, hook: true });
+  assert.deepEqual((await read(host)).underRaft, hook.underRaft);
+
+  const ready = await readSnapshot(await move(host, hook.revision, "line-0"));
+  assert.equal(ready.phase, "event");
+  assert.deepEqual(ready.underRaft, { line: true, hook: true });
+  const friend = await read(guest);
+  assert.deepEqual(friend.choices, []);
+  assert.deepEqual(friend.event, ready.event);
+  assert.ok(isRecord(friend.event) && Array.isArray(friend.event.routes));
+  const firstRoute: unknown = friend.event.routes[0];
+  assert.ok(isRecord(firstRoute));
+  assert.equal(firstRoute.id, "pry");
+  assert.equal((await move(guest, friend.revision, "pry")).status, 422);
+
+  const after = await readSnapshot(await move(host, ready.revision, "pry"));
+  assert.equal(after.phase, "board");
+  assert.equal(after.hull, ready.hull);
+  assert.equal(after.underRaft, undefined);
+  assert.ok(isRecord(after.tideResult));
+  assert.deepEqual(after.tideResult.route, { kind: "pry" });
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
