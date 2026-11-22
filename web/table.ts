@@ -134,15 +134,19 @@ function tideResult(s: TableState, previous?: TableState) {
   const panel = select("tide-result");
   const detail = select("tide-result-detail");
   const result = s.tideResult;
-  panel.hidden =
-    !result || (s.phase !== "board" && s.phase !== "won" && s.phase !== "lost");
-  if (!result || panel.hidden) {
+  const archive = select("last-tide");
+  const finished = s.phase === "won" || s.phase === "lost";
+  archive.hidden = !result || finished;
+  panel.hidden = !result || !finished;
+  const target = finished ? detail : archive;
+  if (!result) {
+    archive.replaceChildren();
     detail.replaceChildren();
     return;
   }
-  if (panel.dataset.tide === String(result.tide) && detail.childElementCount)
+  if (target.dataset.tide === String(result.tide) && target.childElementCount)
     return;
-  panel.dataset.tide = String(result.tide);
+  target.dataset.tide = String(result.tide);
   panel.classList.toggle(
     "reveal-result",
     Boolean(previous && previous.tideResult?.tide !== result.tide),
@@ -167,14 +171,14 @@ function tideResult(s: TableState, previous?: TableState) {
   });
   details.append(exposure);
 
-  if (s.phase === "board") {
+  if (!finished) {
     const receipt = element("details", "", "tide-receipt");
     receipt.append(
       element("summary", `Tide ${result.tide} · ${result.choice}`),
       element("p", result.event),
       details,
     );
-    detail.replaceChildren(receipt);
+    archive.replaceChildren(receipt);
   } else {
     const loss = s.phase === "lost" ? lossDetails(s) : [];
     detail.replaceChildren(

@@ -16,7 +16,7 @@ import { deckTool, equipmentArt } from "./equipment-art.ts";
 import { element, select } from "./dom.ts";
 import { renderTable, type CardOrigin, type TableState } from "./table.ts";
 import { playCue, soundToggle } from "./sound.ts";
-import { cardDrag, equipmentCard } from "./cards.ts";
+import { cardDrag, cardFace, equipmentCard } from "./cards.ts";
 import {
   start,
   rulesVersion,
@@ -160,7 +160,7 @@ function playSelection() {
     act(first.id, button);
     return;
   }
-  const options = element("div", "", "choices");
+  const options = element("div", "", "ration-crew");
   for (const move of variants) {
     const name = move.name
       .split(" · ")
@@ -168,6 +168,10 @@ function playSelection() {
       ?.replace(/^Share with /, "");
     const target = element("button", name);
     target.type = "button";
+    const seat = (turn ?? state).crew.findIndex(
+      (sailor) => sailor.name === name,
+    );
+    if (seat >= 0) target.prepend(crewPortrait(seat));
     target.addEventListener("click", () => act(move.id, button));
     options.append(target);
   }
@@ -400,12 +404,26 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
   const sailor = s.crew[actor];
   if (!sailor || !actorOptions.length) return section;
   const water = actor === s.swimmer;
+  const targets = element("div", "", "equipment-targets");
+  function connectCard(
+    button: HTMLButtonElement,
+    name: string,
+    variants: Move[],
+  ) {
+    drag.connect(
+      button,
+      () => selectMove(button, name, variants, targets),
+      playSelection,
+      (event) => {
+        if (event.detail === 0) placeCard.focus();
+      },
+    );
+  }
   if (usesCrewDeck()) {
     const held = turn ? turn.hands[actor] : handPreview(state.deck, actor);
     const deck = element("div", "", "equipment-cards");
     deck.setAttribute("role", "group");
     deck.setAttribute("aria-label", "Your cards");
-    const targets = element("div", "", "equipment-targets");
     for (const card of held ?? []) {
       const variants = actorOptions.filter(
         (move) => move.card && move.card === card.id,
@@ -416,14 +434,7 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
         equipmentArt(card.id, water),
       );
       if (variants.length) {
-        drag.connect(
-          button,
-          () => selectMove(button, card.name, variants, targets),
-          playSelection,
-          (event) => {
-            if (event.detail === 0) placeCard.focus();
-          },
-        );
+        connectCard(button, card.name, variants);
       } else {
         button.disabled = true;
         button.append(element("span", "Requires 1 ration", "card-lock"));
@@ -436,7 +447,30 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
     );
     if (actions) deckSide.prepend(actions);
     section.append(targets, deck);
-  } else section.append(buttons(actorOptions));
+  } else {
+    const cards = element("div", "", "action-hand");
+    cards.setAttribute("role", "group");
+    cards.setAttribute("aria-label", "Your crew action cards");
+    const shares = actorOptions.filter(({ id }) => id.startsWith("feed-"));
+    for (const move of actorOptions) {
+      const share = move.id.startsWith("feed-");
+      if (share && move !== shares[0]) continue;
+      const name = share && shares.length > 1 ? "Share a ration" : move.name;
+      const face = cardFace("button", name, deckTool(move.id));
+      face.type = "button";
+      face.setAttribute("aria-pressed", "false");
+      face.append(
+        element(
+          "span",
+          share ? "Spend 1 ration. One sailor sheds 2 cold." : move.detail,
+          "effect",
+        ),
+      );
+      connectCard(face, name, share ? shares : [move]);
+      cards.append(face);
+    }
+    section.append(targets, cards);
+  }
   return section;
 }
 
@@ -628,7 +662,9 @@ function boarding(s: Pick<Voyage, "crew">) {
   const players = turn?.players ?? 1;
   s.crew.forEach((sailor, i) => {
     const seat = element("section", "", "boarding-seat");
-    const role = i === mySeat ? "You" : i >= players ? "Bot" : jobs[i];
+    const role = [jobs[i], i === mySeat ? "You" : i >= players ? "Bot" : ""]
+      .filter(Boolean)
+      .join(" · ");
     const offered = element("span", "Volunteered", "volunteer-mark");
     offered.hidden = true;
     const projected = sailor.cold + swimmerCold;
@@ -639,6 +675,7 @@ function boarding(s: Pick<Voyage, "crew">) {
     );
     reading.setAttribute("aria-hidden", "true");
     cold.append(
+      element("span", "Cold", "cold-label"),
       reading,
       element(
         "span",
@@ -660,9 +697,9 @@ function boarding(s: Pick<Voyage, "crew">) {
 
     const controls = element("div", "", "boarding-controls");
     if (mySeat === 0) {
-      const assign = element("button", "Pass the line", "assign-swimmer");
+      const assign = element("button", "Send " + sailor.name, "assign-swimmer");
       assign.type = "button";
-      assign.setAttribute("aria-label", "Pass the line to " + sailor.name);
+      assign.setAttribute("aria-label", "Send " + sailor.name + " swimming");
       assign.addEventListener("click", () => act("swim-" + i));
       controls.append(assign);
     }
@@ -683,35 +720,31 @@ function boarding(s: Pick<Voyage, "crew">) {
   board.append(
     element(
       "p",
-      `Cold now → after exposure. The swimmer recovers ${swimmerRation} ration.`,
+      `The swimmer takes ${swimmerCold} cold and recovers ${swimmerRation} ration.`,
       "boarding-scale",
     ),
     crew,
   );
   const cards = turn ? turn.hands[mySeat] : handPreview(state.deck, mySeat);
   if (cards?.length) {
-    const equipment = element("details", "", "boarding-equipment");
-    const summary = element("summary", "Check your equipment");
-    for (const card of cards) {
-      const art = equipmentArt(card.id, true);
-      if (art) summary.append(art);
-    }
+    const equipment = element("section", "", "boarding-equipment");
+    equipment.setAttribute("aria-label", "Your hand");
     const faces = element("div", "", "boarding-equipment-faces");
     for (const card of cards) {
-      const face = element("section");
+      const face = cardFace("div", card.name, equipmentArt(card.id, false));
       const effects = element("dl");
       for (const [location, detail] of [
-        ["In the water", card.water],
         ["On the raft", card.raft],
+        ["In the water", card.water],
       ] as const) {
         const effect = element("div");
         effect.append(element("dt", location), element("dd", detail));
         effects.append(effect);
       }
-      face.append(element("h3", card.name), effects);
+      face.append(effects);
       faces.append(face);
     }
-    equipment.append(summary, faces);
+    equipment.append(element("h2", "Your hand"), faces);
     board.append(equipment);
   }
   return board;
@@ -846,13 +879,15 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("heading")
     .closest("main")
     ?.toggleAttribute("data-table", s.phase !== "won" && s.phase !== "lost");
-  const showHand = s.phase === "cards" && options.length > 0 && usesCrewDeck();
-  tray.hidden = !showHand || !options.some(({ card }) => card);
-  table.toggleAttribute("data-hand", showHand);
+  const showHand = s.phase === "cards" && options.length > 0;
+  tray.hidden =
+    !showHand || (usesCrewDeck() && !options.some(({ card }) => card));
+  table.toggleAttribute("data-hand", showHand && usesCrewDeck());
   table.toggleAttribute("data-boarding", s.phase === "board");
-  deckSide.hidden = !showHand;
-  if (showHand && played.parentElement !== deckSide) deckSide.append(played);
-  else if (!showHand && played.previousElementSibling !== assist)
+  deckSide.hidden = !showHand || !usesCrewDeck();
+  if (!deckSide.hidden && played.parentElement !== deckSide)
+    deckSide.append(played);
+  else if (deckSide.hidden && played.previousElementSibling !== assist)
     assist.after(played);
   const seeLights = landing && !(phase === "event" && (wake || buoy));
   const seaWake = seeLights ? undefined : wake;
@@ -898,7 +933,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("deck-rules").hidden = !usesCrewDeck();
   const heads = {
     salvage: "What can you save?",
-    board: "Who takes the line?",
+    board: "Who will swim?",
     cards: turn?.forecastTitle ?? localEvent?.[0] ?? "Play the crew’s hand",
     event: turn?.event?.title ?? localEvent?.[0] ?? "",
     won: "Three souls ashore",
