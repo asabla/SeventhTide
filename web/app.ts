@@ -20,6 +20,7 @@ import { cardDrag, equipmentCard } from "./cards.ts";
 import {
   start,
   rulesVersion,
+  bellBuoy,
   secondWake,
   handPreview,
   salvagePreview,
@@ -61,6 +62,10 @@ try {
 let paintSea: (() => void) | undefined;
 function wakeIn(voyage: Voyage | RoomSnapshot) {
   return "events" in voyage ? secondWake(voyage) : voyage.wake;
+}
+
+function buoyIn(voyage: Voyage | RoomSnapshot) {
+  return "events" in voyage ? bellBuoy(voyage) : voyage.buoy;
 }
 const roomId = new URLSearchParams(location.search).get("room");
 const room = roomId ? readRoom(roomId) : null;
@@ -548,13 +553,27 @@ function routeChart(routes: readonly TideRoute[], canChoose: boolean) {
   return chart;
 }
 
-function wakeDecision(routes: readonly TideRoute[], canChoose: boolean) {
+function encounterDecision(
+  routes: readonly TideRoute[],
+  canChoose: boolean,
+  buoy: ReturnType<typeof bellBuoy>,
+) {
   const scene = element("section", "", "wake-decision");
-  scene.setAttribute("aria-label", "Respond to the second wake");
+  scene.setAttribute(
+    "aria-label",
+    buoy ? "Respond to the bell buoy" : "Respond to the second wake",
+  );
   for (const { id, name, detail } of routes) {
     const choice = canChoose && id ? element("button") : element("div");
     choice.className = "wake-response";
-    const art = equipmentArt(id === "decoy" ? "bell" : "line", id === "dive");
+    const card = buoy
+      ? id === "chain"
+        ? "bell"
+        : "hatch"
+      : id === "decoy"
+        ? "bell"
+        : "line";
+    const art = equipmentArt(card, id === "dive" || id === "chain");
     if (art) choice.append(art);
     choice.append(element("strong", name), element("span", detail));
     if (choice instanceof HTMLButtonElement && id) {
@@ -564,6 +583,15 @@ function wakeDecision(routes: readonly TideRoute[], canChoose: boolean) {
     scene.append(choice);
   }
   return scene;
+}
+
+function buoyCadence(buoy: NonNullable<ReturnType<typeof bellBuoy>>) {
+  const clue = element("ol", "", "buoy-cadence");
+  clue.setAttribute("aria-label", "The order of the sounds");
+  const knocks = element("li", "Two chain knocks", "chain-knocks");
+  const bell = element("li", "Bell rings", "buoy-ring");
+  clue.append(...(buoy === "chain" ? [knocks, bell] : [bell, knocks]));
+  return clue;
 }
 
 function crewPortrait(seat: number) {
@@ -777,6 +805,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   }
   const s = turn ?? state;
   const wake = wakeIn(s);
+  const buoy = buoyIn(s);
   const seat = turn?.seat ?? 0;
   const players = turn?.players ?? 1;
   const options = turn?.choices ?? seatMoves(state, seat, players);
@@ -806,15 +835,21 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     assist.after(played);
   const sighted = s.channelMarked !== undefined && s.tide >= 6;
   const scene = select("scene");
-  scene.hidden = !sighted && !wake;
+  scene.hidden = !sighted && !wake && !buoy;
   scene.dataset.wake = wake ?? "";
+  scene.dataset.buoy = buoy ?? "";
   scene.toggleAttribute("data-reveal", Boolean(wake && s.phase === "event"));
-  select("landing-art").hidden = Boolean(wake);
+  select("landing-art").hidden = Boolean(wake || buoy);
   select("wake-art").hidden = !wake;
+  select("buoy-art").hidden = !buoy;
   table.toggleAttribute("data-routes", s.phase === "event");
-  table.toggleAttribute("data-encounter", Boolean(wake && s.phase === "event"));
+  table.toggleAttribute(
+    "data-encounter",
+    Boolean((wake || buoy) && s.phase === "event"),
+  );
   select("landing-rules").hidden = s.channelMarked === undefined;
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
+  select("buoy-rules").hidden = (s.rulesVersion ?? 1) < 7;
   const localEvent = room ? null : currentEvent(state);
   const phase = s.phase;
   const eventDescription = turn?.event?.description ?? localEvent?.[2] ?? "";
@@ -843,7 +878,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
       "The ship is sinking. Take one salvage card for the crew before you board the raft.",
     board: "",
     cards: "",
-    event: wake ? "" : "Choose a route.",
+    event: wake || buoy ? "" : "Choose a route.",
     won: "All three sailors survived the seventh tide.",
     lost: s.log.at(-1) ?? "",
   };
@@ -916,9 +951,10 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     if (!keepHand) choiceArea.append(renderHand(s, seat, options));
   } else if (phase === "event") {
     const routes = options.length ? options : (turn?.event?.routes ?? []);
+    if (buoy) choiceArea.append(buoyCadence(buoy));
     choiceArea.append(
-      wake
-        ? wakeDecision(routes, options.length > 0)
+      wake || buoy
+        ? encounterDecision(routes, options.length > 0, buoy)
         : routeChart(routes, options.length > 0),
     );
   } else if (options.length) choiceArea.append(buttons(options));
@@ -981,7 +1017,9 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   if (previous) {
     const result =
       s.tideResult?.tide !== previous.tideResult?.tide ? s.tideResult : null;
-    if (wake === "drawn-off" && wakeIn(previous) !== "drawn-off")
+    if (buoy && phase === "event" && previous.phase !== "event")
+      playCue(buoy === "chain" ? "buoy-chain" : "buoy-echo");
+    else if (wake === "drawn-off" && wakeIn(previous) !== "drawn-off")
       playCue("wake-bell");
     else if (
       wake === "following" &&
@@ -1125,6 +1163,9 @@ for (const [button, id] of [
 
 soundToggle(select("sound-toggle"), select("sound-state"), () => {
   const s = turn ?? state;
+  const buoy = buoyIn(s);
+  if (s.phase === "event" && buoy)
+    return buoy === "chain" ? "buoy-chain" : "buoy-echo";
   const wake = wakeIn(s);
   return wake === "drawn-off" ? "wake-bell" : wake ? "wake" : "brace";
 });
@@ -1187,7 +1228,12 @@ void import("./sea.ts")
   .then(({ mountSea }) => {
     paintSea = mountSea(select("sea"), () => {
       const s = turn ?? state;
-      return { tide: s.tide, channelMarked: s.channelMarked, wake: wakeIn(s) };
+      return {
+        tide: s.tide,
+        channelMarked: s.channelMarked,
+        wake: wakeIn(s),
+        buoy: buoyIn(s),
+      };
     });
   })
   .catch((error: unknown) => console.warn("Sea scene unavailable", error));

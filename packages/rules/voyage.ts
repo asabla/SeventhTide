@@ -12,8 +12,8 @@ export { handPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 6;
-export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6;
+export const rulesVersion = 7;
+export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -65,6 +65,7 @@ export interface TideResult {
     | { kind: "hull"; incoming: number; blocked: number; lost: number }
     | { kind: "dive"; cold: number }
     | { kind: "decoy" }
+    | { kind: "chain"; cold: number }
     | { kind: "channel" };
   exposure: number[];
   ration: number;
@@ -96,6 +97,7 @@ export const swimmerRation = 1;
 export const swimmerCold = 2;
 const shelteredCold = swimmerCold - 1;
 const secondWakeTitle = "The second wake";
+const bellBuoyTitle = "The bell buoy";
 export const wreckBellWakeEffect = "Draw the wake away.";
 
 const salvage = [
@@ -133,7 +135,7 @@ const waters: TideEvent[] = [
     2,
   ],
   [
-    "The bell buoy",
+    bellBuoyTitle,
     "A bell rings under the raft.",
     "Its chain catches a loose timber.",
     1,
@@ -200,6 +202,21 @@ export function secondWake(s: Voyage): "drawn-off" | "following" | undefined {
     : "following";
 }
 
+export function bellBuoy(s: Voyage): "chain" | "echo" | undefined {
+  if (
+    (s.rulesVersion ?? 1) < 7 ||
+    s.events[s.tide - 1]?.[0] !== bellBuoyTitle ||
+    (s.phase !== "board" && s.phase !== "cards" && s.phase !== "event")
+  )
+    return undefined;
+  return s.phase !== "board" && s.guard > 0 ? "chain" : "echo";
+}
+
+function chainCost(s: Voyage) {
+  const braced = bellBuoy(s) === "chain";
+  return { cold: braced ? 1 : 2, ration: swimmerRation + Number(braced) };
+}
+
 export function currentEvent(voyage: Voyage) {
   let event = voyage.events[voyage.tide - 1];
   if (!event) throw new RangeError("Unknown tide: " + voyage.tide);
@@ -213,6 +230,19 @@ export function currentEvent(voyage: Voyage) {
       wake === "drawn-off"
         ? "The wake veers toward the bell’s echo. The line goes slack."
         : "The line jerks taut. A shadow passes under the swimmer.",
+      event[3],
+      event[4],
+    ];
+  const buoy = bellBuoy(voyage);
+  if (buoy)
+    event = [
+      bellBuoyTitle,
+      buoy === "chain"
+        ? "The raft holds. Feel for the chain’s knocks before the bell."
+        : "A bell rings under the raft. Brace to feel the chain through the timbers.",
+      buoy === "chain"
+        ? "The chain knocks before the bell. The buoy rolls against the swell."
+        : "The bell calls first. The echo is drawing the swimmer deeper.",
       event[3],
       event[4],
     ];
@@ -387,6 +417,25 @@ export function moves(s: Voyage): Move[] {
       return hand;
     });
   if (s.phase === "event" && s.swimmer !== null) {
+    const buoy = bellBuoy(s);
+    if (buoy) {
+      const { cold, ration } = chainCost(s);
+      const swimmer = crewMember(s, s.swimmer).name;
+      const hullLoss = Math.max(0, currentEvent(s)[3] - s.guard);
+      const hullCost = hullLoss ? `Lose ${hullLoss} hull.` : "No hull damage.";
+      return [
+        {
+          id: "hull",
+          name: "Break away",
+          detail: `${hullCost} ${swimmer} takes ${swimmerCold} cold and recovers ${swimmerRation} ration.`,
+        },
+        {
+          id: "chain",
+          name: "Follow the chain",
+          detail: `${swimmer} takes ${swimmerCold + cold} cold and recovers ${ration} ${ration === 1 ? "ration" : "rations"}.`,
+        },
+      ];
+    }
     const wake = secondWake(s);
     return [
       ...(wake === "drawn-off"
@@ -560,6 +609,7 @@ export function play(state: Voyage, moveId: string): Voyage {
   } else if (s.phase === "event" && s.swimmer !== null) {
     const [event, , , incoming, extraCold] = currentEvent(s);
     let route: TideResult["route"] = { kind: "channel" };
+    let ration = swimmerRation;
     if (action === "hull") {
       const blocked = Math.min(incoming, s.guard);
       s.hull = Math.max(0, s.hull - (incoming - blocked));
@@ -569,6 +619,11 @@ export function play(state: Voyage, moveId: string): Voyage {
       route = { kind: "dive", cold: extraCold };
     } else if (action === "decoy") {
       route = { kind: "decoy" };
+    } else if (action === "chain") {
+      const cost = chainCost(s);
+      cold(s.swimmer, cost.cold);
+      ration = cost.ration;
+      route = { kind: "chain", cold: cost.cold };
     }
     const swimmerExposure =
       route.kind === "decoy" ? shelteredCold : swimmerCold;
@@ -577,7 +632,7 @@ export function play(state: Voyage, moveId: string): Voyage {
       cold(i, i === s.swimmer ? swimmerExposure : -1);
       return sailor.cold - before;
     });
-    crewMember(s, s.swimmer).food += swimmerRation;
+    crewMember(s, s.swimmer).food += ration;
     s.tideResult = {
       tide: s.tide,
       event,
@@ -585,15 +640,15 @@ export function play(state: Voyage, moveId: string): Voyage {
       swimmer: s.swimmer,
       route,
       exposure,
-      ration: swimmerRation,
+      ration,
     };
     s.log.push(
       move.name +
         ". " +
         crewMember(s, s.swimmer).name +
         " recovered " +
-        swimmerRation +
-        " ration.",
+        ration +
+        (ration === 1 ? " ration." : " rations."),
     );
     const lost = s.crew.filter((p) => p.cold >= coldLimit);
     if (!s.hull || lost.length) {

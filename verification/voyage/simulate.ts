@@ -160,6 +160,7 @@ const profilesReport = profiles.map((profile) => {
     coldLoss: 0,
     marked: 0,
     wakeDecoys: 0,
+    buoyChains: 0,
     assisted: 0,
     longest: 0,
   };
@@ -177,6 +178,7 @@ const profilesReport = profiles.map((profile) => {
       counts.assisted += assisted;
       counts.marked += Number(state.channelMarked);
       if (history.includes("decoy")) counts.wakeDecoys++;
+      if (history.includes("chain")) counts.buoyChains++;
       const outcome =
         state.phase === "won"
           ? "won"

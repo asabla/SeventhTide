@@ -145,6 +145,75 @@ await test("the Second Wake route is public after the bell and only the host can
   assert.deepEqual((await read(guest)).tideResult, next.tideResult);
 });
 
+await test("the crew hears the same buoy cadence and the host settles the chain route", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 2 }),
+    }),
+  );
+  const host = room.token;
+  assert.ok(typeof host === "string" && Array.isArray(room.invites));
+  const guest: unknown = room.invites[0];
+  assert.ok(typeof guest === "string");
+  const url = base + "/" + room.id;
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  const history = ["locker", "swim-1", "mitts-0", "float-1", "lash-2"];
+  await pool.query("UPDATE voyages SET seed=256, moves=$1 WHERE id=$2", [
+    history,
+    room.id,
+  ]);
+  const read = (token: string) =>
+    fetch(url, { headers: { Authorization: "Bearer " + token } }).then(
+      readSnapshot,
+    );
+  const views = await Promise.all([read(host), read(guest)]);
+  for (const view of views) {
+    assert.equal(view.phase, "event");
+    assert.equal(view.buoy, "chain");
+    assert.ok(isRecord(view.event) && Array.isArray(view.event.routes));
+    assert.ok(
+      view.event.routes.some(
+        (route: unknown) =>
+          isRecord(route) &&
+          route.id === "chain" &&
+          route.name === "Follow the chain",
+      ),
+    );
+  }
+  assert.deepEqual(views[1].choices, []);
+  const follow = (token: string) =>
+    fetch(url + "/moves", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({
+        expectedRevision: history.length,
+        moveId: "chain",
+      }),
+    });
+  assert.equal((await follow(guest)).status, 422);
+  const next = await readSnapshot(await follow(host));
+  assert.equal(next.phase, "board");
+  assert.equal(next.buoy, undefined);
+  assert.ok(isRecord(next.tideResult));
+  assert.deepEqual(next.tideResult.route, { kind: "chain", cold: 1 });
+  assert.equal(next.tideResult.ration, 2);
+  assert.deepEqual((await read(guest)).tideResult, next.tideResult);
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

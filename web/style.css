@@ -111,7 +111,8 @@ body.voyage {
   object-position: 50% 44%;
 }
 
-.voyage .scene[data-wake]:not([data-wake=""]) {
+.voyage
+  .scene:is([data-wake]:not([data-wake=""]), [data-buoy]:not([data-buoy=""])) {
   height: min(60vh, 460px);
   mask-image: linear-gradient(black 49%, transparent 100%);
 }
@@ -120,7 +121,16 @@ body.voyage {
   object-position: 62% 54%;
 }
 
-.scene:is([data-wake="following"], [data-wake="drawn-off"])
+#buoy-art {
+  object-position: 60% 51%;
+}
+
+.scene:is(
+    [data-wake="following"],
+    [data-wake="drawn-off"],
+    [data-buoy="chain"],
+    [data-buoy="echo"]
+  )
   + .voyage-board
   .forecast {
   max-width: min(100%, 500px);
@@ -1575,9 +1585,70 @@ a.crew-return {
   filter: brightness(1.16);
 }
 
+.buoy-cadence {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 6px 12px;
+  list-style: "";
+  color: #f2d6a6;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #101712ec 14% 86%,
+    transparent
+  );
+  font:
+    italic 600 0.95rem/1.3 Georgia,
+    serif;
+  text-align: center;
+}
+
+.buoy-cadence li + li::before {
+  content: "→";
+  margin-right: 12px;
+  color: #bc9b67;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .wake-decision {
     animation: tide-beat 400ms ease-out;
+  }
+
+  .chain-knocks {
+    animation: buoy-knocks 380ms ease-out;
+  }
+
+  .buoy-ring {
+    animation: buoy-flash 580ms ease-out;
+  }
+
+  .buoy-cadence li:nth-child(2) {
+    animation-delay: 550ms;
+  }
+}
+
+@keyframes buoy-knocks {
+  12%,
+  62% {
+    color: #fff1cd;
+    text-shadow: 0 0 9px #e1a557;
+  }
+
+  39%,
+  100% {
+    text-shadow: none;
+  }
+}
+
+@keyframes buoy-flash {
+  from {
+    color: #fff1cd;
+    text-shadow: 0 0 12px #dea83e;
   }
 }
 
@@ -1725,11 +1796,20 @@ a.crew-return {
 }
 
 @media (width <= 700px) {
-  .voyage .scene[data-wake]:not([data-wake=""]) {
+  .voyage
+    .scene:is(
+      [data-wake]:not([data-wake=""]),
+      [data-buoy]:not([data-buoy=""])
+    ) {
     height: min(70vh, 430px);
   }
 
-  .scene:is([data-wake="following"], [data-wake="drawn-off"])
+  .scene:is(
+      [data-wake="following"],
+      [data-wake="drawn-off"],
+      [data-buoy="chain"],
+      [data-buoy="echo"]
+    )
     + .voyage-board
     .forecast {
     margin-bottom: clamp(44px, 13vw, 78px);

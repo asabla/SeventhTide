@@ -155,7 +155,7 @@ function tideResult(s: TableState, previous?: TableState) {
     element("strong", "Exposure and recovery"),
     element(
       "span",
-      `${swimmer} ${signed(result.exposure[result.swimmer] ?? 0)} cold, +${result.ration} ration`,
+      `${swimmer} ${signed(result.exposure[result.swimmer] ?? 0)} cold, +${result.ration} ${result.ration === 1 ? "ration" : "rations"}`,
     ),
   );
   result.exposure.forEach((amount, i) => {
@@ -225,7 +225,10 @@ function lossDetails(s: TableState) {
     : [summary];
 }
 
-function routeBeats({ route }: TideResult, swimmer: string | undefined) {
+function routeBeats(
+  { route, ration }: TideResult,
+  swimmer: string | undefined,
+) {
   if (route.kind === "hull")
     return [
       element("li", `${route.incoming} incoming hull damage`),
@@ -234,6 +237,13 @@ function routeBeats({ route }: TideResult, swimmer: string | undefined) {
     ];
   if (route.kind === "dive")
     return [element("li", `${swimmer} +${route.cold} cold from the event`)];
+  if (route.kind === "chain")
+    return [
+      element(
+        "li",
+        `${ration > 1 ? "The chain held" : "The echo drew the swimmer deeper"} · ${swimmer} +${route.cold} cold`,
+      ),
+    ];
   if (route.kind === "decoy")
     return [element("li", "The echo drew the wake away · 0 hull damage")];
   return [

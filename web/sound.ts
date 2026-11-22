@@ -1,4 +1,11 @@
-type Cue = "rope" | "brace" | "channel" | "wake" | "wake-bell";
+type Cue =
+  | "rope"
+  | "brace"
+  | "channel"
+  | "wake"
+  | "wake-bell"
+  | "buoy-chain"
+  | "buoy-echo";
 
 let audio: AudioContext | undefined;
 let output: GainNode | undefined;
@@ -36,6 +43,23 @@ export function playCue(cue: Cue) {
   if (!enabled || !audio || audio.state !== "running") return;
   const ctx = audio;
   const now = ctx.currentTime;
+  if (cue === "buoy-chain" || cue === "buoy-echo") {
+    const chainFirst = cue === "buoy-chain";
+    const chain = now + (chainFirst ? 0 : 0.55);
+    const bell = now + (chainFirst ? 0.55 : 0);
+    for (const beat of [chain, chain + 0.19])
+      noise(ctx, beat, {
+        duration: 0.16,
+        attack: 0.007,
+        volume: 0.35,
+        pitch: [550, 180],
+        resonance: 2.2,
+      });
+    tone(ctx, bell, 205, 0.68, 0.09);
+    tone(ctx, bell, chainFirst ? 342 : 319, 0.48, 0.065);
+    tone(ctx, bell, 527, 0.23, 0.035);
+    return;
+  }
   if (cue === "channel") {
     tone(ctx, now, 392, 0.34);
     tone(ctx, now + 0.14, 587, 0.48);
