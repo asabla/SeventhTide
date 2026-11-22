@@ -22,6 +22,7 @@ import {
   rulesVersion,
   bellBuoy,
   secondWake,
+  reefPursuit,
   underRaft,
   lockerFind,
   handPreview,
@@ -68,6 +69,10 @@ function wakeIn(voyage: Voyage | RoomSnapshot) {
 
 function buoyIn(voyage: Voyage | RoomSnapshot) {
   return "events" in voyage ? bellBuoy(voyage) : voyage.buoy;
+}
+
+function pursuitIn(voyage: Voyage | RoomSnapshot) {
+  return "events" in voyage ? reefPursuit(voyage) : voyage.reefPursuit;
 }
 
 function landingAt({ tide, channelMarked }: Voyage | RoomSnapshot) {
@@ -730,7 +735,10 @@ function encounterDecision(
     const art =
       encounter === "locker"
         ? deckTool(id === "haul-locker" ? "haul" : "float")
-        : equipmentArt(card, id === "dive" || id === "chain");
+        : equipmentArt(
+            id === "echo-crossing" ? "bell" : card,
+            id === "dive" || id === "chain",
+          );
     const choice = routeOption(route, "encounter-response", canChoose, art);
     if (id === "channel" || id === "pry")
       choice.setAttribute("data-marked", "");
@@ -1052,6 +1060,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const buoy = buoyIn(s);
   const grip = "events" in s ? underRaft(s) : s.underRaft;
   const find = "events" in s ? lockerFind(s) : s.lockerFind;
+  const pursuit = pursuitIn(s);
   const landing = landingAt(s);
   const phase = s.phase;
   const phaseRope = select("phase-rope");
@@ -1112,6 +1121,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const seaWake = seeLights ? undefined : wake;
   const seaBuoy = seeLights ? undefined : buoy;
   const seaGrip = Boolean(!seeLights && grip && phase !== "board");
+  const showReef = Boolean(seeLights && landing === "reef");
+  const seaPursuit = showReef && pursuit === "following" && phase !== "won";
   const encounter = find
     ? "locker"
     : landing === "reef"
@@ -1130,6 +1141,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   scene.toggleAttribute("data-grip", seaGrip);
   scene.toggleAttribute("data-locker", Boolean(find));
   scene.dataset.landing = seeLights ? landing : "";
+  scene.toggleAttribute("data-reef-pursuit", seaPursuit);
   scene.dataset.landfall = phase === "won" || phase === "lost" ? phase : "";
   scene.toggleAttribute(
     "data-channel-marked",
@@ -1137,7 +1149,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   );
   scene.toggleAttribute("data-reveal", Boolean(seaWake && phase === "event"));
   select("approach-art").hidden = !(seeLights && landing === "approach");
-  select("landing-art").hidden = !(seeLights && landing === "reef");
+  select("landing-art").hidden = !showReef || seaPursuit;
+  select("pursuit-art").hidden = !seaPursuit;
   select("wake-art").hidden = !seaWake;
   select("buoy-art").hidden = !seaBuoy;
   select("grip-art").hidden = !seaGrip;
@@ -1152,6 +1165,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   select("buoy-rules").hidden = (s.rulesVersion ?? 1) < 7;
   select("grip-rules").hidden = (s.rulesVersion ?? 1) < 8;
+  select("pursuit-rules").hidden = (s.rulesVersion ?? 1) < 10;
   select("locker-rules").hidden = (s.rulesVersion ?? 1) < 9;
   const localEvent = room ? null : currentEvent(state);
   const eventDescription = turn?.event?.description ?? localEvent?.[2] ?? "";
@@ -1325,6 +1339,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     if (buoy && phase === "event" && previous.phase !== "event")
       playCue(buoy === "chain" ? "buoy-chain" : "buoy-echo");
     else if (wake === "drawn-off" && wakeIn(previous) !== "drawn-off")
+      playCue("wake-bell");
+    else if (pursuit === "drawn-off" && pursuitIn(previous) !== "drawn-off")
       playCue("wake-bell");
     else if (
       wake === "following" &&

@@ -105,6 +105,8 @@ function tidePlays(
     }
     if (play.markedChannel)
       face.append(element("small", "Channel marked", "channel-mark"));
+    if (play.luredCreature)
+      face.append(element("small", "Creature drawn off", "channel-mark"));
 
     if (sameTide) {
       slot.classList.add("card-arrival");
@@ -257,6 +259,13 @@ function routeBeats(
     return [element("li", `The timber went with it · ${route.lost} hull lost`)];
   if (route.kind === "pry")
     return [element("li", "The grip broke · 0 hull damage, 0 extra cold")];
+  if (route.kind === "echo-crossing")
+    return [
+      element(
+        "li",
+        `The bell drew it off · ${route.lost} hull lost on the reef`,
+      ),
+    ];
   if (route.kind === "leave-locker")
     return [element("li", "The locker drifted away · No extra cold")];
   if (route.kind === "haul-locker") {

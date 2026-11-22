@@ -4,6 +4,7 @@ import {
   lockerFind,
   moves,
   play,
+  reefPursuit,
   secondWake,
   swimmerCold,
   underRaft,
@@ -87,12 +88,17 @@ export function recoveryGain(state: Voyage, move: Move) {
   );
 }
 
-function conditionScore(state: Voyage, exposure: boolean) {
-  if (state.phase === "won") return 1_000;
+function conditionScore(
+  state: Voyage,
+  exposure: boolean,
+  compareRescues = false,
+) {
+  if (state.phase === "won" && !compareRescues) return 1_000;
   if (state.phase === "lost") return -1_000;
   const swimmerExposure =
     swimmerCold - Number(secondWake(state) === "drawn-off");
   return (
+    (state.phase === "won" ? 1_000 : 0) +
     state.hull * 7 +
     (state.hull === 0 ? -35 : 0) +
     (state.channelMarked ? 7 : 0) +
@@ -114,11 +120,12 @@ function conditionScore(state: Voyage, exposure: boolean) {
 }
 
 function routeScore(event: Voyage) {
+  const compareRescues = reefPursuit(event) !== undefined;
   return Math.max(
     ...moves(event).map(({ id }) => {
       const next = play(event, id);
       return (
-        conditionScore(next, false) +
+        conditionScore(next, false, compareRescues) +
         (next.phase === "recover"
           ? Math.max(...moves(next).map((move) => recoveryGain(next, move)))
           : 0)
@@ -136,6 +143,7 @@ export function botMove(state: Voyage, sailor: number): Move | undefined {
     )[0];
   if (state.phase !== "cards") return undefined;
   const grip = underRaft(state);
+  const checkLastPlay = grip || reefPursuit(state) === "following";
   const incoming = grip ? 0 : currentEvent(state)[3];
   let best: Move | undefined;
   let bestScore = -Infinity;
@@ -144,7 +152,7 @@ export function botMove(state: Voyage, sailor: number): Move | undefined {
     const score =
       next.phase === "event"
         ? routeScore(next)
-        : grip && next.acted.length === next.crew.length - 1
+        : checkLastPlay && next.acted.length === next.crew.length - 1
           ? Math.max(...moves(next).map(({ id }) => routeScore(play(next, id))))
           : conditionScore(next, true) + Math.min(incoming, next.guard) * 4;
     if (score > bestScore) {

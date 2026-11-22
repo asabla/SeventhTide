@@ -223,3 +223,36 @@ def Laws.reserve_covers_haul(later):
 
 def Laws.recovery_voyage_budget():
   {==}
+
+def Laws.cutting_the_timber_leaves_the_creature_following(since):
+  {==}
+
+def Laws.hauling_the_swimmer_leaves_the_creature_following(since):
+  {==}
+
+def Laws.prying_breaks_pursuit(since):
+  {==}
+
+def Laws.archived_grip_never_starts_pursuit(route):
+  {==}
+
+def Laws.reef_bell_opens_crossing_alongside_other_routes(since, marked):
+  {==}
+
+def Laws.reef_bell_in_water_does_not_open_crossing(version, marked):
+  {==}
+
+def Laws.quiet_reef_keeps_the_original_routes(version, ring, marked):
+  {==}
+
+def Laws.archived_reef_never_opens_echo_crossing():
+  {==}
+
+def Laws.echo_crossing_costs_one_hull_and_normal_exposure(brace, incoming, extra):
+  {==}
+
+def Laws.reef_lure_uses_the_bells_action():
+  {==}
+
+def Laws.ordinary_raft_bell_adds_brace():
+  {==}

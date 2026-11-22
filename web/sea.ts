@@ -2,6 +2,7 @@ import { CANVAS, Game, Scene } from "phaser";
 import seaUrl from "./assets/first-water.jpg";
 import lanternsUrl from "./assets/answering-light.jpg";
 import reefUrl from "./assets/answering-light-reef.webp";
+import pursuitUrl from "./assets/creature-at-landfall.webp";
 import wakeUrl from "./assets/second-wake.webp";
 import buoyUrl from "./assets/bell-buoy.webp";
 import gripUrl from "./assets/under-raft.webp";
@@ -13,6 +14,7 @@ const framing = {
   locker: [0.64, 0.53],
   wake: [0.62, 0.54],
   reef: [0.57, 0.39],
+  pursuit: [0.57, 0.55],
   approach: [0.5, 0.43],
   "wreck-field": [0.5, 0.64],
 } as const;
@@ -27,6 +29,7 @@ export function mountSea(frame: HTMLElement, parent: HTMLElement) {
       this.load.image("wreck-field", seaUrl);
       this.load.image("approach", lanternsUrl);
       this.load.image("reef", reefUrl);
+      this.load.image("pursuit", pursuitUrl);
       this.load.image("wake", wakeUrl);
       this.load.image("buoy", buoyUrl);
       this.load.image("grip", gripUrl);
@@ -65,7 +68,9 @@ export function mountSea(frame: HTMLElement, parent: HTMLElement) {
           : wake
             ? "wake"
             : landing === "reef"
-              ? "reef"
+              ? frame.hasAttribute("data-reef-pursuit")
+                ? "pursuit"
+                : "reef"
               : landing === "approach"
                 ? "approach"
                 : "wreck-field";
