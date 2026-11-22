@@ -150,3 +150,37 @@ def Laws.rescue_stops_play():
 
 def Laws.start_budget():
   {==}
+
+def Laws.line_is_set_from_the_water():
+  {==}
+
+def Laws.line_on_raft_does_not_set():
+  {==}
+
+def Laws.hook_is_set_from_raft():
+  {==}
+
+def Laws.hook_in_water_does_not_set():
+  {==}
+
+def Laws.both_tools_open_pry_and_keep_fallbacks(since):
+  {==}
+
+def Laws.legacy_crew_cannot_pry():
+  {==}
+
+def Laws.prying_only_costs_normal_exposure(brace, incoming, extra):
+  {==}
+
+def Laws.a_cut_timber_costs_one_hull_despite_brace(brace, incoming, extra):
+  {==}
+
+def Laws.missing_line_closes_pry(version, hook):
+  {==}
+
+def Laws.missing_hook_closes_pry(version, line):
+  match line:
+    case True{}:
+      {==}
+    case False{}:
+      {==}

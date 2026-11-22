@@ -5,6 +5,7 @@ import {
   play,
   secondWake,
   swimmerCold,
+  underRaft,
   type Move,
   type Voyage,
 } from "./voyage.ts";
@@ -71,21 +72,26 @@ function conditionScore(state: Voyage, exposure: boolean) {
   );
 }
 
+function routeScore(event: Voyage) {
+  return Math.max(
+    ...moves(event).map(({ id }) => conditionScore(play(event, id), false)),
+  );
+}
+
 export function botMove(state: Voyage, sailor: number): Move | undefined {
   if (state.phase !== "cards") return undefined;
-  const incoming = currentEvent(state)[3];
+  const grip = underRaft(state);
+  const incoming = grip ? 0 : currentEvent(state)[3];
   let best: Move | undefined;
   let bestScore = -Infinity;
   for (const move of seatMoves(state, sailor, state.crew.length)) {
     const next = play(state, move.id);
     const score =
       next.phase === "event"
-        ? Math.max(
-            ...moves(next).map(({ id }) =>
-              conditionScore(play(next, id), false),
-            ),
-          )
-        : conditionScore(next, true) + Math.min(incoming, next.guard) * 4;
+        ? routeScore(next)
+        : grip && next.acted.length === next.crew.length - 1
+          ? Math.max(...moves(next).map(({ id }) => routeScore(play(next, id))))
+          : conditionScore(next, true) + Math.min(incoming, next.guard) * 4;
     if (score > bestScore) {
       best = move;
       bestScore = score;

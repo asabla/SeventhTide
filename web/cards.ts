@@ -1,4 +1,8 @@
-import { wreckBellWakeEffect } from "@seventh-tide/rules";
+import {
+  gripHookEffect,
+  gripLineEffect,
+  wreckBellWakeEffect,
+} from "@seventh-tide/rules";
 import { element } from "./dom.ts";
 
 export function cardFace<K extends "button" | "div">(
@@ -22,7 +26,10 @@ export function cardImage(src: string) {
 
 function isEffect(line: string) {
   return (
-    line === wreckBellWakeEffect || line.startsWith("Mark the safe channel")
+    line === wreckBellWakeEffect ||
+    line === gripLineEffect ||
+    line === gripHookEffect ||
+    line.startsWith("Mark the safe channel")
   );
 }
 

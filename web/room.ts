@@ -81,6 +81,8 @@ function isTideResult(value: unknown) {
     value.exposure.every((cold: unknown) => typeof cold === "number") &&
     record(value.route) &&
     (value.route.kind === "channel" ||
+      value.route.kind === "pry" ||
+      (value.route.kind === "cut" && typeof value.route.lost === "number") ||
       value.route.kind === "decoy" ||
       (value.route.kind === "chain" && typeof value.route.cold === "number") ||
       (value.route.kind === "dive" && typeof value.route.cold === "number") ||
@@ -126,6 +128,10 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     (value.buoy === undefined ||
       value.buoy === "chain" ||
       value.buoy === "echo") &&
+    (value.underRaft === undefined ||
+      (record(value.underRaft) &&
+        typeof value.underRaft.line === "boolean" &&
+        typeof value.underRaft.hook === "boolean")) &&
     typeof value.hull === "number" &&
     typeof value.guard === "number" &&
     (value.swimmer === null || typeof value.swimmer === "number") &&

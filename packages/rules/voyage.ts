@@ -12,8 +12,8 @@ export { handPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 7;
-export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export const rulesVersion = 8;
+export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -63,9 +63,11 @@ export interface TideResult {
   swimmer: number;
   route:
     | { kind: "hull"; incoming: number; blocked: number; lost: number }
+    | { kind: "cut"; lost: number }
     | { kind: "dive"; cold: number }
     | { kind: "decoy" }
     | { kind: "chain"; cold: number }
+    | { kind: "pry" }
     | { kind: "channel" };
   exposure: number[];
   ration: number;
@@ -98,9 +100,12 @@ export const swimmerCold = 2;
 const shelteredCold = swimmerCold - 1;
 const secondWakeTitle = "The second wake";
 const bellBuoyTitle = "The bell buoy";
+const splitSeamTitle = "The split seam";
 const cutterSighting =
   "The cutter’s lamp holds steady. A second light moves against the swell.";
 export const wreckBellWakeEffect = "Draw the wake away.";
+export const gripLineEffect = "Set the line.";
+export const gripHookEffect = "Set the hook.";
 
 const salvage = [
   {
@@ -123,7 +128,7 @@ const salvage = [
 
 const waters: TideEvent[] = [
   [
-    "The split seam",
+    splitSeamTitle,
     "Water beads along a seam.",
     "The lowest timber splits.",
     2,
@@ -164,6 +169,14 @@ const waters: TideEvent[] = [
     2,
     1,
   ],
+];
+
+const raftGrip: TideEvent = [
+  "Something under the raft",
+  "A hand curls around the timbers. Rig both tools to pry it loose.",
+  "Its grip tightens. The timbers begin to part.",
+  1,
+  2,
 ];
 
 const finalTide: TideEvent = [
@@ -214,6 +227,24 @@ export function bellBuoy(s: Voyage): "chain" | "echo" | undefined {
   return s.phase !== "board" && s.guard > 0 ? "chain" : "echo";
 }
 
+export function underRaft(s: Voyage) {
+  if (
+    (s.rulesVersion ?? 1) < 8 ||
+    s.events[s.tide - 1]?.[0] !== raftGrip[0] ||
+    (s.phase !== "board" && s.phase !== "cards" && s.phase !== "event")
+  )
+    return undefined;
+  const plays = s.phase === "board" ? [] : s.plays;
+  return {
+    line: plays.some(
+      ({ card, actor }) => card === "line" && actor === s.swimmer,
+    ),
+    hook: plays.some(
+      ({ card, actor }) => card === "hook" && actor !== s.swimmer,
+    ),
+  };
+}
+
 function chainCost(s: Voyage) {
   const braced = bellBuoy(s) === "chain";
   return { cold: braced ? 1 : 2, ration: swimmerRation + Number(braced) };
@@ -248,15 +279,24 @@ export function currentEvent(voyage: Voyage) {
       event[3],
       event[4],
     ];
+  const grip = underRaft(voyage);
+  if (grip) {
+    event = [...raftGrip];
+    if (voyage.phase === "board")
+      event[1] = "The timbers creak beneath the swell.";
+    if (grip.line && grip.hook)
+      event[2] = "The line is taut. The hook is under its fingers.";
+  }
   if (voyage.channelMarked !== undefined && voyage.tide === 6) {
     const line = "The swimmer can mark the channel with Sounding line.";
     const sighting = voyage.channelMarked
       ? "The swimmer has marked the channel to the rescue cutter."
       : cutterSighting + " " + line;
+    const combined = voyage.channelMarked ? "Channel marked." : line;
     return [
       event[0],
-      voyage.phase !== "board" && (wake || buoy)
-        ? event[1] + " " + (voyage.channelMarked ? "Channel marked." : line)
+      (voyage.phase !== "board" && (wake || buoy)) || grip
+        ? event[1] + " " + combined
         : sighting,
       event[2],
       event[3],
@@ -318,7 +358,9 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     crew: names.map((name) => ({ name, cold: 1, food: 0 })),
     salvage: shuffle(salvage, random).slice(0, 2),
     events: [
-      ...shuffle(waters, random),
+      ...shuffle(waters, random).map((event) =>
+        version >= 8 && event[0] === splitSeamTitle ? raftGrip : event,
+      ),
       version >= 3 ? answeringLight : finalTide,
     ],
     log: ["The ship is going down. Two seats remain on the raft."],
@@ -357,6 +399,37 @@ function landingMoves(s: Voyage, swimmer: number): Move[] {
   ];
 }
 
+function gripMoves(
+  s: Voyage,
+  swimmer: number,
+  { line, hook }: NonNullable<ReturnType<typeof underRaft>>,
+): Move[] {
+  const [, , , timber, extraCold] = raftGrip;
+  const sailor = crewMember(s, swimmer);
+  const exposure = (extra = 0) => {
+    const cold = sailor.cold + swimmerCold + extra;
+    return `${sailor.name} ${sailor.cold} → ${cold}/${coldLimit} cold${cold >= coldLimit ? " (fatal)" : ""}.`;
+  };
+  const holds = "No hull damage.\n";
+  const hull = Math.max(0, s.hull - timber);
+  const cut = `Hull ${s.hull} → ${hull}${hull === 0 ? " (raft breaks)" : ""}.\n`;
+  return [
+    ...(line && hook
+      ? [{ id: "pry", name: "Pry it loose", detail: holds + exposure() }]
+      : []),
+    {
+      id: "hull",
+      name: "Cut a timber",
+      detail: cut + exposure(),
+    },
+    {
+      id: "dive",
+      name: "Haul the swimmer through",
+      detail: holds + exposure(extraCold),
+    },
+  ];
+}
+
 export function moves(s: Voyage): Move[] {
   if (s.phase === "salvage")
     return s.deck
@@ -375,6 +448,7 @@ export function moves(s: Voyage): Move[] {
       name: p.name,
       detail: "Take the line. Recover a ration when the tide ends.",
     }));
+  const grip = underRaft(s);
   if (s.phase === "cards")
     return s.crew.flatMap((p, i) => {
       if (s.acted.includes(i)) return [];
@@ -430,7 +504,12 @@ export function moves(s: Voyage): Move[] {
               : "") +
             (card === "bell" && i !== s.swimmer && secondWake(s) === "following"
               ? " " + wreckBellWakeEffect
-              : ""),
+              : "") +
+            (grip && card === "line" && i === s.swimmer
+              ? " " + gripLineEffect
+              : grip && card === "hook" && i !== s.swimmer
+                ? " " + gripHookEffect
+                : ""),
           id: card + "-" + i,
         };
         if (effect.targetCold) {
@@ -458,6 +537,7 @@ export function moves(s: Voyage): Move[] {
   if (s.phase === "event" && s.swimmer !== null) {
     if (s.tide === 7 && s.channelMarked !== undefined)
       return landingMoves(s, s.swimmer);
+    if (grip) return gripMoves(s, s.swimmer, grip);
     const buoy = bellBuoy(s);
     if (buoy) {
       const { cold, ration } = chainCost(s);
@@ -639,7 +719,10 @@ export function play(state: Voyage, moveId: string): Voyage {
     const [event, , , incoming, extraCold] = currentEvent(s);
     let route: TideResult["route"] = { kind: "channel" };
     let ration = swimmerRation;
-    if (action === "hull") {
+    if (action === "hull" && underRaft(s)) {
+      s.hull = Math.max(0, s.hull - incoming);
+      route = { kind: "cut", lost: state.hull - s.hull };
+    } else if (action === "hull") {
       const blocked = Math.min(incoming, s.guard);
       s.hull = Math.max(0, s.hull - (incoming - blocked));
       route = { kind: "hull", incoming, blocked, lost: state.hull - s.hull };
@@ -648,6 +731,8 @@ export function play(state: Voyage, moveId: string): Voyage {
       route = { kind: "dive", cold: extraCold };
     } else if (action === "decoy") {
       route = { kind: "decoy" };
+    } else if (action === "pry") {
+      route = { kind: "pry" };
     } else if (action === "chain") {
       const cost = chainCost(s);
       cold(s.swimmer, cost.cold);

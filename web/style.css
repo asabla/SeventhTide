@@ -186,6 +186,7 @@ body.voyage {
   .scene:is(
     [data-wake]:not([data-wake=""]),
     [data-buoy]:not([data-buoy=""]),
+    [data-grip],
     [data-landing]:not([data-landing=""])
   ) {
   height: min(60vh, 460px);
@@ -198,6 +199,10 @@ body.voyage {
 
 #buoy-art {
   object-position: 60% 51%;
+}
+
+#grip-art {
+  object-position: 61% 52%;
 }
 
 #approach-art {
@@ -217,6 +222,10 @@ body.voyage {
   + .voyage-board
   .forecast {
   max-width: min(100%, 500px);
+}
+
+.scene[data-grip] + .voyage-board .forecast {
+  max-width: min(100%, 565px);
 }
 
 .scene[data-landing]:not([data-landing=""]) + .voyage-board .forecast {
@@ -1689,6 +1698,10 @@ body.voyage {
     serif;
 }
 
+.encounter-decision[data-encounter="grip"] .route-cost {
+  white-space: pre-line;
+}
+
 .encounter-decision
   > button.encounter-response:is(:hover, :focus-visible, [aria-pressed="true"])
   img {
@@ -1696,7 +1709,7 @@ body.voyage {
   filter: brightness(1.16);
 }
 
-.encounter-decision[data-encounter="reef"]
+.encounter-decision:is([data-encounter="reef"], [data-encounter="grip"])
   .encounter-response[data-marked]
   img {
   border-color: #efd097;
@@ -1780,6 +1793,59 @@ body.voyage {
   content: "→";
   margin-right: 12px;
   color: #bc9b67;
+}
+
+#grip-tools:not([hidden]) {
+  display: flex;
+  justify-content: center;
+  gap: clamp(10px, 3vw, 28px);
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 12px;
+  padding: 6px 14px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #101813ef 12% 88%,
+    transparent
+  );
+}
+
+.grip-tool {
+  display: grid;
+  grid-template-areas: "tool name" "tool role";
+  grid-template-columns: 38px auto;
+  align-items: center;
+  column-gap: 8px;
+  color: #f1dfbd;
+}
+
+#grip-tools img {
+  grid-area: tool;
+  width: 38px;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid #af9160;
+  border-radius: 50%;
+  filter: saturate(0.5);
+}
+
+#grip-tools [data-set] img {
+  border-color: #efd097;
+  box-shadow: 0 0 12px #b37e4f95;
+  filter: none;
+}
+
+#grip-tools strong {
+  align-self: end;
+  font:
+    700 0.93rem/1.2 Georgia,
+    serif;
+}
+
+#grip-tools small {
+  align-self: start;
+  font: 0.81rem/1.2 var(--sans);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1945,6 +2011,7 @@ body.voyage {
     grid-template:
       "connection connection" auto
       "instruction instruction" auto
+      "tools tools" auto
       "notice notice" auto
       "feedback feedback" auto
       "play side" auto / minmax(0, 1fr) clamp(186px, 18vw, 224px);
@@ -1959,6 +2026,10 @@ body.voyage {
 
   .voyage-table[data-hand] > #instruction {
     grid-area: instruction;
+  }
+
+  .voyage-table[data-hand] > #grip-tools {
+    grid-area: tools;
   }
 
   .voyage-table[data-hand] > #seat-notice {
@@ -2007,7 +2078,8 @@ body.voyage {
   .voyage
     .scene:is(
       [data-wake]:not([data-wake=""]),
-      [data-buoy]:not([data-buoy=""])
+      [data-buoy]:not([data-buoy=""]),
+      [data-grip]
     ) {
     height: min(70vh, 430px);
   }
@@ -2016,7 +2088,8 @@ body.voyage {
       [data-wake="following"],
       [data-wake="drawn-off"],
       [data-buoy="chain"],
-      [data-buoy="echo"]
+      [data-buoy="echo"],
+      [data-grip]
     )
     + .voyage-board
     .forecast {

@@ -251,6 +251,10 @@ function routeBeats(
     ];
   if (route.kind === "decoy")
     return [element("li", "The echo drew the wake away · 0 hull damage")];
+  if (route.kind === "cut")
+    return [element("li", `The timber went with it · ${route.lost} hull lost`)];
+  if (route.kind === "pry")
+    return [element("li", "The grip broke · 0 hull damage, 0 extra cold")];
   return [
     element(
       "li",

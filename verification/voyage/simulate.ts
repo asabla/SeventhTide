@@ -161,6 +161,7 @@ const profilesReport = profiles.map((profile) => {
     marked: 0,
     wakeDecoys: 0,
     buoyChains: 0,
+    raftPries: 0,
     assisted: 0,
     longest: 0,
   };
@@ -179,6 +180,7 @@ const profilesReport = profiles.map((profile) => {
       counts.marked += Number(state.channelMarked);
       if (history.includes("decoy")) counts.wakeDecoys++;
       if (history.includes("chain")) counts.buoyChains++;
+      if (history.includes("pry")) counts.raftPries++;
       const outcome =
         state.phase === "won"
           ? "won"

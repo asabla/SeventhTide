@@ -22,6 +22,7 @@ import {
   rulesVersion,
   bellBuoy,
   secondWake,
+  underRaft,
   handPreview,
   salvagePreview,
   play,
@@ -607,7 +608,7 @@ function routeOption(
     "",
     className,
   );
-  const cost = element("span", detail);
+  const cost = element("span", detail, "route-cost");
   if (art) option.append(art);
   option.append(element("strong", name), cost);
   if (id && option instanceof HTMLButtonElement) {
@@ -687,7 +688,7 @@ function routeChart(routes: readonly TideRoute[], canChoose: boolean) {
 function encounterDecision(
   routes: readonly TideRoute[],
   canChoose: boolean,
-  encounter: "wake" | "buoy" | "reef",
+  encounter: "wake" | "buoy" | "reef" | "grip",
 ) {
   const scene = element("section", "", "encounter-decision");
   scene.dataset.encounter = encounter;
@@ -697,6 +698,7 @@ function encounterDecision(
       wake: "Respond to the second wake",
       buoy: "Respond to the bell buoy",
       reef: "Choose the landing route",
+      grip: "Break the grip on the raft",
     }[encounter],
   );
   for (const route of routes) {
@@ -712,15 +714,44 @@ function encounterDecision(
           ? id === "chain"
             ? "bell"
             : "hatch"
-          : id === "decoy"
-            ? "bell"
-            : "line";
+          : encounter === "grip"
+            ? id === "pry"
+              ? "hook"
+              : id === "hull"
+                ? "hatch"
+                : "line"
+            : id === "decoy"
+              ? "bell"
+              : "line";
     const art = equipmentArt(card, id === "dive" || id === "chain");
     const choice = routeOption(route, "encounter-response", canChoose, art);
-    if (id === "channel") choice.setAttribute("data-marked", "");
+    if (id === "channel" || id === "pry")
+      choice.setAttribute("data-marked", "");
     scene.append(choice);
   }
   return scene;
+}
+
+function renderGrip(grip: ReturnType<typeof underRaft>, show: boolean) {
+  const tools = select("grip-tools");
+  tools.hidden = !grip || !show;
+  if (tools.hidden || !grip) return;
+  const toolsToSet = [
+    { card: "line", name: "Sounding line", role: "Swimmer", set: grip.line },
+    { card: "hook", name: "Boathook", role: "On the raft", set: grip.hook },
+  ] as const;
+  for (const { card, name, role, set } of toolsToSet) {
+    const tool = select(`grip-${card}`);
+    if (!tool.firstChild) {
+      const art = equipmentArt(card, card === "line");
+      if (art) tool.append(art);
+      tool.append(element("strong", name), element("small"));
+    }
+    tool.toggleAttribute("data-set", set);
+    const status = tool.querySelector("small");
+    const label = set ? role + " · Set" : role;
+    if (status && status.textContent !== label) status.textContent = label;
+  }
 }
 
 function buoyCadence(buoy: NonNullable<ReturnType<typeof bellBuoy>>) {
@@ -943,6 +974,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const s = turn ?? state;
   const wake = wakeIn(s);
   const buoy = buoyIn(s);
+  const grip = "events" in s ? underRaft(s) : s.underRaft;
   const landing = landingAt(s);
   const phase = s.phase;
   const phaseRope = select("phase-rope");
@@ -990,15 +1022,25 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     deckSide.append(played);
   else if (deckSide.hidden && played.previousElementSibling !== assist)
     assist.after(played);
-  const seeLights = landing && !(phase === "event" && (wake || buoy));
+  const seeLights = landing && !(phase === "event" && (wake || buoy || grip));
   const seaWake = seeLights ? undefined : wake;
   const seaBuoy = seeLights ? undefined : buoy;
+  const seaGrip = Boolean(!seeLights && grip && phase !== "board");
   const encounter =
-    landing === "reef" ? "reef" : buoy ? "buoy" : wake ? "wake" : undefined;
+    landing === "reef"
+      ? "reef"
+      : grip
+        ? "grip"
+        : buoy
+          ? "buoy"
+          : wake
+            ? "wake"
+            : undefined;
   const scene = select("scene");
-  scene.hidden = !seeLights && !seaWake && !seaBuoy;
+  scene.hidden = !seeLights && !seaWake && !seaBuoy && !seaGrip;
   scene.dataset.wake = seaWake ?? "";
   scene.dataset.buoy = seaBuoy ?? "";
+  scene.toggleAttribute("data-grip", seaGrip);
   scene.dataset.landing = seeLights ? landing : "";
   scene.dataset.landfall = phase === "won" || phase === "lost" ? phase : "";
   scene.toggleAttribute(
@@ -1010,6 +1052,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("landing-art").hidden = !(seeLights && landing === "reef");
   select("wake-art").hidden = !seaWake;
   select("buoy-art").hidden = !seaBuoy;
+  select("grip-art").hidden = !seaGrip;
+  renderGrip(grip, phase === "cards");
   table.toggleAttribute("data-routes", phase === "event");
   table.toggleAttribute(
     "data-encounter",
@@ -1018,6 +1062,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("landing-rules").hidden = s.channelMarked === undefined;
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   select("buoy-rules").hidden = (s.rulesVersion ?? 1) < 7;
+  select("grip-rules").hidden = (s.rulesVersion ?? 1) < 8;
   const localEvent = room ? null : currentEvent(state);
   const eventDescription = turn?.event?.description ?? localEvent?.[2] ?? "";
   const choosingRoute = phase === "event";
