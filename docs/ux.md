@@ -15,7 +15,7 @@ Start from the latest design the user approved. Open the matching state in the r
 
 Give the tool rail its own space beside the hand. Use crew portraits when the player chooses who receives a ration. Carry the same tool marker into the public play. When a host has played and a friend is still waiting to act, ask the host whether to wait or let a bot cover that turn.
 
-Give a featured encounter the center of the raft during resolution. Put its response choices ahead of the record of played cards. Guests see the choices and their costs while the host decides. During boarding, let the host choose a swimmer from the crew portrait cards. Show the player’s equipment below the crew. Keep the latest tide recap in Voyage entries.
+Give a featured encounter the center of the raft during resolution. Put its response choices ahead of the record of played cards. Guests see the choices and their costs while the host decides. During boarding, let the host choose a swimmer from the crew portrait cards. Show the player’s equipment below the crew. Keep the latest tide recap in Voyage entries and mark the current phase with a knot on the header rope.
 
 Reuse the closest approved surface before making a new one. Inspect illustrations at the actual rendered size against the nearby card art. A new asset must read clearly in its crop and depict the action it represents.
 
