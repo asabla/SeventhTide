@@ -1,4 +1,5 @@
 import { names } from "@seventh-tide/rules";
+import { isCrewSignal, type CrewSignal } from "../shared/crew-signals.ts";
 import type { RoomSnapshot } from "../server/voyages.ts";
 
 export interface Room {
@@ -95,6 +96,11 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     typeof value.revision === "number" &&
     typeof value.crewLaunched === "boolean" &&
     typeof value.crewRevision === "number" &&
+    Array.isArray(value.signals) &&
+    value.signals.length === names.length &&
+    value.signals.every(
+      (signal: unknown) => signal === null || isCrewSignal(signal),
+    ) &&
     Array.isArray(value.joinedSeats) &&
     value.joinedSeats.every(sailor) &&
     (value.assistedTide === null || typeof value.assistedTide === "number") &&
@@ -231,31 +237,34 @@ export type RoomAction =
 
 export async function readTurn(
   room: Room,
-  action?: "seat" | "launch" | (RoomAction & { expectedRevision: number }),
+  action?:
+    | "seat"
+    | "launch"
+    | (RoomAction & { expectedRevision: number })
+    | { tide: number; signal: CrewSignal | null },
 ): Promise<RoomSnapshot> {
   const path = "/api/voyages/" + encodeURIComponent(room.id);
   const move = typeof action === "object" ? action : undefined;
   const volunteer = move && "offer" in move;
-  const endpoint =
-    typeof action === "string"
-      ? action
-      : move
-        ? volunteer
-          ? "volunteers"
-          : "moves"
-        : "";
+  const signaling = move && "signal" in move;
+  let endpoint = "";
+  if (typeof action === "string") endpoint = action;
+  else if (move)
+    endpoint = signaling ? "signal" : volunteer ? "volunteers" : "moves";
   const headers: Record<string, string> = {
     Authorization: "Bearer " + room.token,
   };
   if (move) headers["Content-Type"] = "application/json";
   const response = await fetch(endpoint ? path + "/" + endpoint : path, {
-    method: move && !volunteer ? "POST" : endpoint ? "PUT" : "GET",
+    method: endpoint === "moves" ? "POST" : endpoint ? "PUT" : "GET",
     headers,
     ...(move ? { body: JSON.stringify(move) } : {}),
   });
   if (response.status === 409 || response.status === 422)
     throw new TurnConflict(
-      "The crew made another choice. Check the latest turn and choose again.",
+      signaling
+        ? "The tide changed. Check the crew signals and try again."
+        : "The crew made another choice. Check the latest turn and choose again.",
     );
   if (response.status === 401 || response.status === 404)
     throw new Error(

@@ -17,6 +17,7 @@ import {
   playWithBots,
   seatMoves,
 } from "@seventh-tide/rules/crew";
+import { crewSignals, type CrewSignal } from "../shared/crew-signals.ts";
 import { migrate } from "./storage.ts";
 
 interface Row {
@@ -31,6 +32,7 @@ interface Row {
   joined_mask: number;
   crew_revision: number;
   assisted_tides: Record<number, number>;
+  crew_signals: Partial<Record<number, CrewSignal>>;
   guests: number;
   seat: number;
 }
@@ -72,6 +74,11 @@ function snapshot(row: Row, state: Voyage, token: string) {
       (i) => (row.joined_mask & (1 << i)) !== 0,
     ),
     crewRevision: row.crew_revision,
+    signals: state.crew.map((_, i) =>
+      state.phase === "cards" || state.phase === "event"
+        ? (row.crew_signals[i] ?? null)
+        : null,
+    ),
     assistedTide: row.assisted_tides[row.seat] ?? null,
     coveredSeats: state.crew.flatMap((_, i) =>
       row.assisted_tides[i] === state.tide ? [i] : [],
@@ -127,11 +134,17 @@ const params = {
   properties: { id: { type: "string", format: "uuid" } },
 };
 
+const crewColumns =
+  "crew_launched, joined_mask, crew_revision, assisted_tides, crew_signals";
 const roomColumns = `id, rules_version, seed, moves, revision, volunteer_mask, offer_revision,
-  crew_launched, joined_mask, crew_revision, assisted_tides, cardinality(guest_digests) AS guests`;
+  ${crewColumns}, cardinality(guest_digests) AS guests`;
 type CrewState = Pick<
   Row,
-  "crew_launched" | "joined_mask" | "crew_revision" | "assisted_tides"
+  | "crew_launched"
+  | "joined_mask"
+  | "crew_revision"
+  | "assisted_tides"
+  | "crew_signals"
 >;
 
 function digest(token: string) {
@@ -293,6 +306,51 @@ export async function voyageRoutes(
 
   app.put<{
     Params: { id: string };
+    Body: { tide: number; signal: CrewSignal | null };
+  }>(
+    "/:id/signal",
+    {
+      schema: {
+        params,
+        body: {
+          type: "object",
+          required: ["tide", "signal"],
+          additionalProperties: false,
+          properties: {
+            tide: { type: "integer", minimum: 1, maximum: 7 },
+            signal: {
+              anyOf: [{ type: "string", enum: crewSignals }, { type: "null" }],
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row, token } = session;
+      const { tide, signal } = request.body;
+      const state = replay(row);
+      if (state.tide !== tide || state.phase !== "cards")
+        return reply
+          .code(409)
+          .send({ error: "Signals are open during card play." });
+      const result = await pool.query<Row>(
+        `UPDATE voyages SET
+          crew_signals = CASE WHEN $4::text IS NULL THEN crew_signals - $3::text
+            ELSE crew_signals || jsonb_build_object($3::text, $4::text) END,
+          crew_revision = crew_revision + CASE WHEN crew_signals ->> $3::text IS DISTINCT FROM $4::text THEN 1 ELSE 0 END
+          WHERE id = $1 AND revision = $2 RETURNING ${roomColumns}, $3::integer AS seat`,
+        [row.id, row.revision, row.seat, signal],
+      );
+      const saved = result.rows[0];
+      if (!saved) return reply.code(409).send({ error: "The tide changed." });
+      return snapshot(saved, state, token);
+    },
+  );
+
+  app.put<{
+    Params: { id: string };
     Body: { expectedRevision: number; sailor: number; offer: boolean };
   }>(
     "/:id/volunteers",
@@ -332,7 +390,7 @@ export async function voyageRoutes(
         `UPDATE voyages SET volunteer_mask = CASE WHEN $3 THEN volunteer_mask | $4 ELSE volunteer_mask & ~$4 END,
           offer_revision = offer_revision + CASE WHEN ((volunteer_mask & $4) <> 0) = $3 THEN 0 ELSE 1 END
         WHERE id = $1 AND revision = $2
-        RETURNING volunteer_mask, offer_revision, crew_launched, joined_mask, crew_revision, assisted_tides`,
+        RETURNING volunteer_mask, offer_revision, ${crewColumns}`,
         [row.id, expectedRevision, offer, 1 << sailor],
       );
       const saved = update.rows[0];
@@ -411,15 +469,17 @@ export async function voyageRoutes(
         Pick<Row, "revision" | "volunteer_mask"> & CrewState
       >(
         `UPDATE voyages SET moves = moves || $1::text[], volunteer_mask = 0,
-          assisted_tides = assisted_tides || $5::jsonb
+          assisted_tides = assisted_tides || $5::jsonb,
+          crew_signals = CASE WHEN $6::boolean THEN '{}'::jsonb ELSE crew_signals END
           WHERE id = $2 AND revision = $3 AND offer_revision = $4
-          RETURNING revision, volunteer_mask, crew_launched, joined_mask, crew_revision, assisted_tides`,
+          RETURNING revision, volunteer_mask, ${crewColumns}`,
         [
           next.history,
           row.id,
           expectedRevision,
           row.offer_revision,
           JSON.stringify(assisted),
+          before.phase === "event",
         ],
       );
       const saved = updated.rows[0];
