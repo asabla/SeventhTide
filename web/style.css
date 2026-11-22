@@ -878,7 +878,10 @@ a.crew-return {
     align-self: start;
     z-index: 4;
     top: 0;
-    display: block;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 7px;
     padding: 7px 10px;
     border-radius: 3px;
     background: #243b36;
@@ -886,9 +889,27 @@ a.crew-return {
     font: 700 0.9rem var(--sans);
   }
 
+  #play-count {
+    flex: none;
+    border-left: 1px solid #c0af7a80;
+    padding-left: 7px;
+    color: #f0d4a6;
+  }
+
   .voyage-board[data-table] {
     grid-template-areas: "forecast" "status" "table" "log";
     grid-template-rows: auto auto auto 1fr;
+  }
+
+  .voyage-table[data-boarding] {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .voyage-table[data-boarding] > #tide-result {
+    order: 1;
   }
 
   .played-card {

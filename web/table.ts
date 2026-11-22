@@ -192,5 +192,8 @@ export function renderTable(
   const stats = [`Hull ${s.hull}/${maxHull}`];
   if (atTable(s)) stats.push(`Brace ${s.guard}`);
   if (swimmer) stats.push(`${swimmer.name} ${swimmer.cold}/${coldLimit} cold`);
-  status.textContent = stats.join(" · ");
+  select("raft-condition").textContent = stats.join(" · ");
+  const count = select("play-count");
+  count.hidden = s.phase !== "cards";
+  count.textContent = `${s.plays.length}/${s.crew.length} played`;
 }
