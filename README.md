@@ -1,6 +1,6 @@
 # Seventh Tide
 
-Seventh Tide is a cooperative maritime horror card game for browsers and phones, with a solo mode and seven tides per voyage. Play solo, share a screen, or invite one or two friends to play on separate devices.
+Seventh Tide is a cooperative maritime horror card game for browsers and phones. Survive seven tides with two bot crewmates or invite one or two friends to join from their own devices.
 
 ## Set up the development tools
 
@@ -37,7 +37,11 @@ Run `npm run check` before committing. It checks formatting, type-aware code lin
 
 Oxlint rejects unsafe use of `any`, unhandled promises, import cycles, and unused lint suppressions. TypeScript checks both source and tests, including indexed reads, optional properties, unused parameters, and missing returns. Stylelint checks CSS. HTML Validate checks markup structure and built-in accessibility rules. Prettier checks supported source, configuration, and documentation files. The gate excludes generated bundles and installed packages.
 
-The rule tests must cover at least 95% of lines, 90% of branches, and 95% of functions in the shared rules they load. CI runs two jobs. The first runs `npm run check:ci`, which includes `check` and the PostgreSQL integration tests. To run it locally, set `TEST_DATABASE_URL` to a separate test database. If `check` has already passed, run only `npm run test:db`. The suite starts the built game server and checks persistence after a restart, concurrent moves, seat permissions, swimmer volunteers, and a complete two-player voyage. The second job checks the tide outcome laws.
+The rule tests must cover at least 95% of lines, 90% of branches, and 95% of functions in the shared rules they load. CI runs two jobs. The first runs `npm run check:ci`. It includes `check`, PostgreSQL integration tests, and a seeded simulation. Set `TEST_DATABASE_URL` to a separate test database to run it locally. The integration suite checks persistence, concurrent moves and bot assistance, private seats, and complete voyages. The second job checks the tide outcome laws.
+
+### Simulate voyages
+
+Run `mise exec -- npm run simulate` to check 512 seeds. Use `mise exec -- npm run simulate -- 1024 2048` to check 1,024 seeds from index 2,048. The simulator uses the same seat and bot functions as the game. It runs solo, two-player, three-player, and absent-friend voyages with cautious and random choices. It checks that pending turns advance, each voyage ends within 36 recorded moves, and replay reproduces the exact result. The JSON report includes sample seeds and move histories for rescues and losses. CI runs the same simulation on 256 seeds.
 
 ### Verify the tide outcome laws
 
@@ -67,14 +71,14 @@ Phaser supplies the 2D rendering and scene tools the illustrated table needs. Us
 - `packages/rules/` owns the voyage state, legal actions, and tide resolution. It has no dependency on the browser, renderer, or server.
 - `server/` contains the Fastify service, voyage routes, and database migrations.
 - `tests/` covers voyage rules and browser save data. Its `integration/` suite exercises the HTTP API against PostgreSQL.
-- `verification/tide/` contains the tide outcome model, laws, proof, and comparison with the game rules.
+- `verification/` contains the seeded voyage and landing simulations and the Bend tide outcome model and proof.
 - `art/` contains the original illustrations. The [art notes](art/README.md) include the prompts and links to the web exports.
 
 ## Crew hands
 
-On new voyages, the crew shares a deck of 23 cards. This includes one copy of each of the 13 equipment cards added since the original deck. Salvage determines two cards in the deck. The ration locker adds Pass the Tin, spare timber adds Emergency Patch, and dry canvas adds Canvas Sling. Each sailor draws two cards before boarding. Open a card during boarding to compare its raft and water effects. A sailor must hold a ration to play a face that spends one. Each device shows the hands of the sailors it controls.
+On new voyages, the crew shares a deck of 23 cards. This includes one copy of each of the 13 equipment cards added since the original deck. Salvage determines two cards in the deck. The ration locker adds Pass the Tin, spare timber adds Emergency Patch, and dry canvas adds Canvas Sling. Each sailor draws two cards before boarding. Open one of your cards during boarding to compare its raft and water effects. A sailor must hold a ration to play a face that spends one. Each device shows one private hand and the crew’s public plays.
 
-Play a held card to discard it and draw its replacement. Basic actions and ration sharing take the sailor’s turn and keep both cards for later. When the draw pile is empty, the crew reshuffles the discard pile. Existing solo saves and stored rooms finish with their original rules.
+Play a held card to discard it and draw its replacement. Basic actions and ration sharing take the sailor’s turn and keep both cards for later. When the draw pile is empty, the crew reshuffles the discard pile. Saved voyages replay their recorded moves with their original rules version. Open seats become bots on the next turn that needs them.
 
 ## The answering light
 
@@ -82,15 +86,17 @@ On tide six, two lanterns appear at the reef. Play Sounding line as the swimmer 
 
 Run `mise exec -- node verification/landing/simulate.ts` to compare spending and saving the line on the same 1,024 starting deals. The output includes replayable voyages and a separate count of landings by crews that never held a line.
 
-## Play with friends
+## Play solo or with friends
+
+Choose **Play solo** to play Mara with Ivo and Nell as bot crewmates. You choose salvage, assign the swimmer, play Mara’s move, and resolve the tide. Ivo and Nell play after you. Solo play runs in the browser and saves the voyage on the device.
 
 Start the server with [PostgreSQL](#durable-voyages). For friends on the same Wi-Fi, set `HOST=0.0.0.0` when starting the server. Open the game using the host computer’s LAN address on **all** devices, including the host. An invite created on `localhost` or `127.0.0.1` points back to the device that opens it. For remote play, use a shared HTTPS address.
 
-Open **Play on separate devices** and choose two or three players. Send each guest their private seat link. The host plays Mara and makes the salvage, boarding, and event decisions. The second player plays Ivo. In a two-player room the host also plays Nell. In a three-player room the third player plays Nell.
+Open **Play with friends** and choose **Invite one friend** or **Invite two friends**. Send each friend their private seat link. The host plays Mara and makes the salvage, boarding, and event decisions. The first friend plays Ivo. Nell is a bot in a two-player room, and the second friend plays Nell in a three-player room.
 
-During boarding, each player can volunteer or withdraw a sailor they control. The host assigns a volunteer, or any sailor if nobody has volunteered. The preview shows exposure and rations before cards and events change the outcome.
+During boarding, each player can volunteer or withdraw their sailor. The host assigns a volunteer or a bot. With no volunteers, the host can assign any sailor. The preview shows exposure and rations before cards and events change the outcome. On tide six, the crew can see which sailors can mark the channel.
 
-Each device shows the cards its player can use, the last card played, and the sailors still to act. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. After closing the tab, the host can open the game in the same browser and select **Resume crew voyage** for the most recently hosted room. Guests can also rejoin with their invite link. Anyone with that link can play the seat.
+Players can act in any order. Bots play after the human turns. If a friend is away, the host can use **Help a waiting sailor** to let a bot take that friend’s turn. The friend can act again on the next tide. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. The host can reopen the latest room with **Resume voyage with friends**. Guests can rejoin with their invite link. Anyone with that link can play the seat.
 
 ## Durable voyages
 
@@ -110,9 +116,9 @@ The database uses a named volume. Use `docker compose stop db` to stop it betwee
 | `POST /api/voyages/{id}/moves`     | Accepts a JSON body such as `{"expectedRevision":0,"moveId":"locker"}`. Select a move ID from the current choices. Returns the new state and revision.                                                      |
 | `PUT /api/voyages/{id}/volunteers` | Offers or withdraws a sailor during crew boarding. Send the current `expectedRevision`, a sailor index from `offerSeats`, and `offer` (`true` to volunteer, `false` to withdraw). Returns the updated room. |
 
-To create a single-owner voyage, send the create request without a body. Send `{"players":2}` or `{"players":3}` to create a crew room. The host receives one private token per guest in `invites`. For all subsequent requests, send the seat token in the `Authorization: Bearer <token>` header. The server stores token digests. It filters choices and checks each request against the caller’s seat.
+To create a single-owner voyage with two bots, send the create request without a body. Send `{"players":2}` or `{"players":3}` to create a crew room. The host receives one private token per guest in `invites`. For all subsequent requests, send the seat token in the `Authorization: Bearer <token>` header. The server stores token digests. It filters choices and checks each request against the caller’s seat.
 
-Each voyage stores its initial seed, rules version, and ordered move IDs. Its revision is the number of stored moves. A single conditional database update appends a legal move at the expected revision. A competing write or a repeated submission at an old revision receives HTTP 409. Read the current state before making the next choice. An unavailable move at the current revision receives HTTP 422.
+Each voyage stores its initial seed, rules version, and ordered move IDs. Its revision is the number of stored moves. A single conditional database update appends a legal move and any automatic bot moves at the expected revision. Replay uses the recorded bot moves. A host can send `assistSailor` in place of `moveId` for a sailor listed in `assistSeats`. A competing write or repeated submission at an old revision receives HTTP 409. An unavailable move at the current revision receives HTTP 422.
 
 Volunteer changes increment `offerRevision` and leave the voyage revision unchanged. When assigning the swimmer, the client sends the displayed `offerRevision` as `expectedOfferRevision` with the move. If the volunteers have changed, the server returns HTTP 409 so the host can review the current choices.
 

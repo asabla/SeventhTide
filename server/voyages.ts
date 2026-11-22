@@ -10,6 +10,13 @@ import {
   rulesVersion,
   type Voyage,
 } from "@seventh-tide/rules";
+import {
+  assistSeats,
+  botMove,
+  channelScouts,
+  playWithBots,
+  seatMoves,
+} from "@seventh-tide/rules/crew";
 import { migrate } from "./storage.ts";
 
 interface Row {
@@ -34,25 +41,23 @@ function guestToken(owner: string, seat: number) {
     .digest("base64url");
 }
 
-function controls(row: Row, sailor: number) {
-  return row.seat === (sailor > row.guests ? 0 : sailor);
-}
-
 function volunteered(row: Row, sailor: number) {
   return (row.volunteer_mask & (1 << sailor)) !== 0;
 }
 
 function crewChoices(row: Row, state: Voyage) {
-  return moves(state).filter(({ actor, id }) => {
-    if (state.phase === "board" && row.volunteer_mask)
-      return row.seat === 0 && volunteered(row, Number(id.slice(5)));
-    if (actor === undefined) return row.seat === 0;
-    return controls(row, actor);
-  });
+  const volunteers = state.crew.flatMap((_, i) =>
+    volunteered(row, i) ? [i] : [],
+  );
+  return seatMoves(state, row.seat, row.guests + 1, volunteers);
 }
 
 function snapshot(row: Row, state: Voyage, token: string) {
   const event = currentEvent(state);
+  const routes =
+    state.phase === "event"
+      ? moves(state).map(({ name, detail }) => ({ name, detail }))
+      : [];
   return {
     id: row.id,
     revision: row.revision,
@@ -63,7 +68,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
     hull: state.hull,
     crew: state.crew,
     hands: state.crew.map((_, i) =>
-      controls(row, i) ? handPreview(state.deck, i) : [],
+      i === row.seat ? handPreview(state.deck, i) : [],
     ),
     swimmer: state.swimmer,
     acted: state.acted,
@@ -78,19 +83,19 @@ function snapshot(row: Row, state: Voyage, token: string) {
         ? {
             title: event[0],
             description: event[2],
+            routes,
             landingRoutes:
               state.tide === 7 && state.channelMarked !== undefined
-                ? moves(state).map(({ name, detail }) => ({ name, detail }))
+                ? routes
                 : [],
           }
         : null,
     choices: crewChoices(row, state),
+    assistSeats: assistSeats(state, row.seat, row.guests + 1),
+    channelScouts: state.phase === "board" ? channelScouts(state) : [],
     offerRevision: row.offer_revision,
     volunteers: state.crew.flatMap((_, i) => (volunteered(row, i) ? [i] : [])),
-    offerSeats:
-      state.phase === "board" && row.guests > 0
-        ? state.crew.flatMap((_, i) => (controls(row, i) ? [i] : []))
-        : [],
+    offerSeats: state.phase === "board" && row.guests > 0 ? [row.seat] : [],
     seat: row.seat,
     players: row.guests + 1,
     invites:
@@ -247,7 +252,7 @@ export async function voyageRoutes(
       if (row.revision !== expectedRevision)
         return reply.code(409).send({ error: "The voyage has changed." });
       const state = replay(row);
-      if (state.phase !== "board" || !row.guests || !controls(row, sailor))
+      if (state.phase !== "board" || !row.guests || sailor !== row.seat)
         return reply
           .code(422)
           .send({ error: "This sailor cannot volunteer now." });
@@ -269,7 +274,8 @@ export async function voyageRoutes(
     Params: { id: string };
     Body: {
       expectedRevision: number;
-      moveId: string;
+      moveId?: string;
+      assistSailor?: number;
       expectedOfferRevision?: number;
     };
   }>(
@@ -279,7 +285,8 @@ export async function voyageRoutes(
         params,
         body: {
           type: "object",
-          required: ["expectedRevision", "moveId"],
+          required: ["expectedRevision"],
+          oneOf: [{ required: ["moveId"] }, { required: ["assistSailor"] }],
           properties: {
             expectedRevision: {
               type: "integer",
@@ -292,6 +299,7 @@ export async function voyageRoutes(
               maximum: 2147483647,
             },
             moveId: { type: "string", minLength: 1, maxLength: 64 },
+            assistSailor: { type: "integer", minimum: 1, maximum: 2 },
           },
         },
       },
@@ -300,7 +308,7 @@ export async function voyageRoutes(
       const session = await load(request, reply);
       if (!session) return reply;
       const { row, token } = session;
-      const { expectedRevision, moveId } = request.body;
+      const { expectedRevision, moveId, assistSailor } = request.body;
       const conflict = () =>
         reply
           .code(409)
@@ -312,20 +320,27 @@ export async function voyageRoutes(
       )
         return conflict();
       const before = replay(row);
-      if (!crewChoices(row, before).some((move) => move.id === moveId)) {
+      const players = row.guests + 1;
+      const choice =
+        assistSailor === undefined
+          ? crewChoices(row, before).find((move) => move.id === moveId)
+          : assistSeats(before, row.seat, players).includes(assistSailor)
+            ? botMove(before, assistSailor)
+            : undefined;
+      if (!choice) {
         return reply.code(422).send({ error: "This move is unavailable." });
       }
-      const next = play(before, moveId);
+      const next = playWithBots(before, choice.id, players);
       // PostgreSQL checks this condition again after waiting for a concurrent writer.
       const updated = await pool.query<
         Pick<Row, "revision" | "volunteer_mask">
       >(
-        "UPDATE voyages SET moves = array_append(moves, $1::text), volunteer_mask = 0 WHERE id = $2 AND revision = $3 AND offer_revision = $4 RETURNING revision, volunteer_mask",
-        [moveId, row.id, expectedRevision, row.offer_revision],
+        "UPDATE voyages SET moves = moves || $1::text[], volunteer_mask = 0 WHERE id = $2 AND revision = $3 AND offer_revision = $4 RETURNING revision, volunteer_mask",
+        [next.history, row.id, expectedRevision, row.offer_revision],
       );
       const saved = updated.rows[0];
       if (!saved) return conflict();
-      return snapshot({ ...row, ...saved }, next, token);
+      return snapshot({ ...row, ...saved }, next.state, token);
     },
   );
 }

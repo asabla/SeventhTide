@@ -2,5 +2,8 @@
   "name": "@seventh-tide/rules",
   "private": true,
   "type": "module",
-  "exports": "./voyage.ts"
+  "exports": {
+    ".": "./voyage.ts",
+    "./crew": "./crew.ts"
+  }
 }

@@ -21,7 +21,6 @@ import {
   handPreview,
   salvagePreview,
   play,
-  moves,
   currentEvent,
   jobs,
   maxHull,
@@ -31,6 +30,12 @@ import {
   type Voyage,
   type Move,
 } from "@seventh-tide/rules";
+import {
+  channelScouts,
+  finishBotTurns,
+  playWithBots,
+  seatMoves,
+} from "@seventh-tide/rules/crew";
 const saveKey = "seventh-tide-v1";
 function newRun(): SavedRun {
   return {
@@ -57,14 +62,22 @@ let turn: RoomSnapshot | undefined;
 let sending = false;
 let refreshing = false;
 let connectionFailed = false;
-let activeSailor: number | undefined;
+let showLobby = !room && run.history.length === 0;
+let renderedHand: string | undefined;
 const tray = select("crew-table");
 const trayButton = select("place-card");
 if (!(trayButton instanceof HTMLButtonElement))
   throw new Error("Missing card control");
 const placeCard = trayButton;
 const trayNote = select("tray-note");
-const handControls = select("hand-controls");
+const choiceArea = select("choices");
+const roomPanel = select("room-panel");
+const modePanel = select("mode-panel");
+const shipLog = select("ship-log");
+const startSolo = select("start-solo");
+const resume = element("button", "Resume voyage with friends", "resume-room");
+resume.type = "button";
+resume.hidden = true;
 const drag = cardDrag(tray);
 let selectedCard:
   | { button: HTMLButtonElement; moves: Move[]; targets: HTMLElement }
@@ -156,7 +169,8 @@ async function refreshRoom() {
 async function sendMove(action: RoomAction, origin?: CardOrigin) {
   if (!room || !turn || sending) return;
   sending = true;
-  select("choices").setAttribute("inert", "");
+  choiceArea.inert = true;
+  select("crew-assist").inert = true;
   try {
     const next = await readTurn(room, {
       expectedRevision: turn.revision,
@@ -172,7 +186,8 @@ async function sendMove(action: RoomAction, origin?: CardOrigin) {
     if (error instanceof TurnConflict) await refreshRoom();
     showRoomError(error);
   } finally {
-    select("choices").removeAttribute("inert");
+    choiceArea.inert = false;
+    select("crew-assist").inert = false;
     sending = false;
   }
 }
@@ -192,18 +207,24 @@ function act(id: string, source?: HTMLElement) {
     run = newRun();
     state = start(run.seed);
   } else {
-    state = play(state, id);
-    run.history.push(id);
+    const next = playWithBots(state, id, 1);
+    state = next.state;
+    run.history.push(...next.history);
   }
+  saveRun();
+  render(previous, origin);
+  paintSea?.();
+  select("heading").focus();
+}
+
+function saveRun() {
   try {
     localStorage.setItem(saveKey, JSON.stringify(run));
   } catch {
     /* Play continues in memory. */
   }
-  render(previous, origin);
-  paintSea?.();
-  select("heading").focus();
 }
+
 function usesCrewDeck() {
   return turn ? turn.rulesVersion >= 2 : Boolean(state.deck);
 }
@@ -222,7 +243,7 @@ function buttons(options: Move[]) {
         : "action-art haul";
       btn.append(element("span", "", "engraving"));
     }
-    const copy = element("span");
+    const copy = element("span", "", "action-copy");
     copy.append(
       element("strong", move.name),
       element(
@@ -255,39 +276,12 @@ function buttons(options: Move[]) {
   return group;
 }
 
-function renderHand(s: TableState, options: Move[]) {
+function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
   const section = element("div", "", "voyage-hand");
-  const actors = new Set(
-    options.flatMap(({ actor }) => (actor === undefined ? [] : [actor])),
-  );
-  handControls.replaceChildren();
-  handControls.hidden = actors.size < 2;
-  if (activeSailor === undefined || !actors.has(activeSailor))
-    activeSailor = actors.values().next().value;
-  const actor = activeSailor;
-  if (actor === undefined) return section;
   const sailor = s.crew[actor];
-  if (!sailor) return section;
+  if (!sailor || !actorOptions.length) return section;
   const water = actor === s.swimmer;
-  const actorOptions = options.filter((move) => move.actor === actor);
-  if (actors.size > 1) {
-    s.crew.forEach((member, index) => {
-      if (!actors.has(index)) return;
-      const control = element("button", member.name);
-      control.type = "button";
-      control.setAttribute("aria-pressed", String(index === actor));
-      control.addEventListener("click", () => {
-        clearCardSelection();
-        activeSailor = index;
-        select("choices").replaceChildren(renderHand(s, options));
-        handControls
-          .querySelector<HTMLElement>("[aria-pressed='true']")
-          ?.focus({ preventScroll: true });
-      });
-      handControls.append(control);
-    });
-  }
-  section.append(element("h2", `${sailor.name}’s hand`, "hand-heading"));
+  section.append(element("h2", `Your hand · ${sailor.name}`, "hand-heading"));
   if (usesCrewDeck()) {
     const held = turn ? turn.hands[actor] : handPreview(state.deck, actor);
     const deck = element("div", "", "equipment-cards");
@@ -355,10 +349,24 @@ function renderHand(s: TableState, options: Move[]) {
 
 function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
   const list = element("div", "", "boarding");
+  const scouts = turn?.channelScouts ?? channelScouts(state);
+  const mySeat = turn?.seat ?? 0;
+  const players = turn?.players ?? 1;
   s.crew.forEach((sailor, i) => {
     const offered = turn?.volunteers.includes(i);
     const row = element("section", "", "boarding-sailor");
-    row.append(element("h3", sailor.name + (offered ? " · Volunteered" : "")));
+    const role = i === mySeat ? " · You" : i >= players ? " · Bot" : "";
+    row.append(
+      element("h3", sailor.name + role + (offered ? " · Volunteered" : "")),
+    );
+    if (scouts.includes(i))
+      row.append(
+        element(
+          "p",
+          "Can mark the channel with Sounding line.",
+          "channel-mark",
+        ),
+      );
     const projected = sailor.cold + swimmerCold;
     const forecast = element("p", "", "exposure-preview");
     forecast.append(
@@ -384,7 +392,8 @@ function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
           "exposure-warning",
         ),
       );
-    const cards = turn ? turn.hands[i] : handPreview(state.deck, i);
+    const cards =
+      i === mySeat ? (turn ? turn.hands[i] : handPreview(state.deck, i)) : [];
     for (const card of cards ?? []) {
       const item = element("details");
       const effects = element("dl", "", "card-effects");
@@ -423,18 +432,69 @@ function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
   return list;
 }
 
+function showPlayMode() {
+  const container = showLobby ? modePanel : shipLog;
+  if (roomPanel.parentElement !== container) {
+    container.append(resume, roomPanel);
+  } else if (resume.parentElement !== container) {
+    roomPanel.before(resume);
+  }
+  startSolo.hidden = !showLobby;
+  modePanel.hidden = !showLobby;
+  shipLog.hidden = showLobby;
+  choiceArea.hidden = showLobby;
+}
+
+function renderAssists(s: TableState, players: number) {
+  const panel = select("crew-assist");
+  const sailors = turn?.assistSeats ?? [];
+  const waitingFriend = sailors.some((i) => i < players);
+  panel.hidden = sailors.length === 0;
+  if (panel.hidden) panel.removeAttribute("open");
+  else if (!waitingFriend) panel.setAttribute("open", "");
+  select("assist-label").textContent = waitingFriend
+    ? "Help a waiting sailor"
+    : "Continue with bots";
+  select("assist-help").hidden = !waitingFriend;
+  select("assist-actions").replaceChildren(
+    ...sailors.map((i) => {
+      const name = s.crew[i]?.name ?? "";
+      const button = element(
+        "button",
+        i < players ? `Let a bot play for ${name}` : `Let ${name} play`,
+      );
+      button.type = "button";
+      button.addEventListener(
+        "click",
+        () => void sendMove({ assistSailor: i }),
+      );
+      return button;
+    }),
+  );
+}
+
 function render(
   previous?: TableState & { channelMarked?: boolean | undefined },
   origin?: CardOrigin,
 ) {
   const s = turn ?? state;
-  clearCardSelection();
-  if (s.phase !== "cards") {
-    activeSailor = undefined;
-    handControls.hidden = true;
-    handControls.replaceChildren();
+  const seat = turn?.seat ?? 0;
+  const players = turn?.players ?? 1;
+  const options = turn?.choices ?? seatMoves(state, seat, players);
+  const hand =
+    s.phase === "cards" ? JSON.stringify([s.tide, options]) : undefined;
+  const keepHand = hand !== undefined && hand === renderedHand;
+  renderedHand = hand;
+  if (!keepHand) {
+    clearCardSelection();
+    choiceArea.replaceChildren();
   }
-  select("heading").closest("main")?.setAttribute("data-phase", s.phase);
+  showPlayMode();
+  const main = select("heading").closest("main");
+  main?.toggleAttribute(
+    "data-playing",
+    s.phase === "cards" && options.length > 0,
+  );
   const sighted = s.channelMarked !== undefined && s.tide >= 6;
   select("scene").hidden = !sighted;
   select("landing-rules").hidden = s.channelMarked === undefined;
@@ -466,34 +526,48 @@ function render(
     lost: s.log.at(-1) ?? "",
   };
   const numerals = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
-  select("step").textContent =
-    phase === "salvage" ? "Prologue" : `Tide ${numerals[s.tide]} of VII`;
-  select("heading").textContent = heads[phase];
+  select("step").textContent = showLobby
+    ? ""
+    : phase === "salvage"
+      ? "Prologue"
+      : `Tide ${numerals[s.tide]} of VII`;
+  select("heading").textContent = showLobby ? "Choose your crew" : heads[phase];
   select("heading").classList.toggle(
     "event-arrival",
     previous?.phase === "cards" && phase === "event",
   );
-  select("instruction").textContent = instructions[phase];
-  const choices = select("choices");
-  choices.replaceChildren();
-  const options = turn?.choices ?? moves(state);
+  select("instruction").textContent = showLobby
+    ? "Guide three sailors through seven tides."
+    : instructions[phase];
   if (turn && !options.length && (phase === "salvage" || phase === "event")) {
     select("instruction").textContent =
       phase === "salvage"
         ? "Waiting for the host to choose salvage."
-        : "Waiting for the host to resolve the tide.";
-    for (const route of turn.event?.landingRoutes ?? [])
-      choices.append(element("h3", route.name), element("p", route.detail));
+        : `${turn.event?.description ?? ""} Waiting for the host to choose a route.`;
+    if (turn.event) {
+      const routes = element("ul", "", "route-preview");
+      for (const route of turn.event.routes) {
+        const row = element("li");
+        row.append(element("strong", route.name), element("p", route.detail));
+        routes.append(row);
+      }
+      choiceArea.append(routes);
+    }
   }
   const feedback = select("turn-feedback");
   let turnText = "";
   if (phase === "cards" || phase === "event") {
-    const remaining = s.crew
-      .filter((_, i) => !s.acted.includes(i))
+    const waiting = s.crew
+      .filter((_, i) => i < players && i !== seat && !s.acted.includes(i))
       .map((p) => p.name);
-    const pending = remaining.length
-      ? "Waiting for " + new Intl.ListFormat("en").format(remaining) + "."
-      : "All three sailors have played.";
+    const pending =
+      phase === "event"
+        ? "All three sailors have played."
+        : options.length
+          ? "Your move."
+          : waiting.length
+            ? `Your turn is complete. Waiting for ${new Intl.ListFormat("en").format(waiting)}.`
+            : "The bots can take their turns.";
     turnText = (s.acted.length ? (s.log.at(-1) ?? "") + " " : "") + pending;
   }
   if (feedback.textContent !== turnText) feedback.textContent = turnText;
@@ -501,18 +575,18 @@ function render(
     if (turn)
       select("instruction").textContent =
         (turn.seat === 0
-          ? " Choose a volunteer to swim, or assign anyone if nobody volunteers."
+          ? "Choose a volunteer or a bot to swim. If nobody volunteers, choose any sailor."
           : " You can volunteer your sailor. The host confirms who swims.") +
         " Sailors on the raft shed 1 cold at tide’s end.";
     select("instruction").append(
       " The preview shows the result before cards and events.",
     );
-    choices.append(boarding(s, options));
+    choiceArea.append(boarding(s, options));
   } else if (phase === "cards") {
-    choices.append(renderHand(s, options));
-  } else if (options.length) choices.append(buttons(options));
+    if (!keepHand) choiceArea.append(renderHand(s, seat, options));
+  } else if (options.length) choiceArea.append(buttons(options));
   else if (!room)
-    choices.append(
+    choiceArea.append(
       buttons([
         {
           id: "again",
@@ -525,7 +599,8 @@ function render(
   crew.replaceChildren();
   s.crew.forEach((p, i) => {
     const row = element("tr");
-    const identity = element("th", p.name);
+    const role = i === seat ? " · You" : i >= players ? " · Bot" : "";
+    const identity = element("th", p.name + role);
     identity.scope = "row";
     const location =
       phase === "won"
@@ -550,7 +625,8 @@ function render(
   select("entries").replaceChildren(
     ...s.log.map((line) => element("li", line)),
   );
-  renderTable(s, previous, origin);
+  renderTable(s, { seat, players }, previous, origin);
+  renderAssists(s, players);
   if (previous) {
     const result =
       s.tideResult?.tide !== previous.tideResult?.tide ? s.tideResult : null;
@@ -574,9 +650,7 @@ function roomControls(snapshot: RoomSnapshot) {
   const controls = select("room-controls");
   const sailor = snapshot.crew[snapshot.seat]?.name ?? "";
   const role =
-    snapshot.seat === 0
-      ? "Host · " + sailor + (snapshot.players === 2 ? " and Nell" : "")
-      : "Playing as " + sailor;
+    snapshot.seat === 0 ? "Friends’ voyage · Host" : "Playing as " + sailor;
   select("room-label").textContent = role;
   controls.replaceChildren();
   if (snapshot.invites.length) {
@@ -630,8 +704,8 @@ if (room) {
   window.addEventListener("hashchange", () => {
     if (/^#[\w-]{43}$/.test(location.hash)) location.reload();
   });
-  const panel = select("room-panel");
-  panel.setAttribute("open", "");
+  showPlayMode();
+  roomPanel.setAttribute("open", "");
   select("room-label").textContent = "Crew room";
   select("room-controls").replaceChildren(soloLink());
   select("heading").textContent = "Joining the crew";
@@ -639,15 +713,23 @@ if (room) {
   window.setInterval(() => void refreshRoom(), 2500);
   document.addEventListener("visibilitychange", () => void refreshRoom());
 } else {
-  const resume = element("button", "Resume crew voyage", "resume-room");
-  resume.type = "button";
+  const restored = finishBotTurns(state, 1);
+  if (restored.history.length) {
+    state = restored.state;
+    run.history.push(...restored.history);
+    saveRun();
+  }
   resume.hidden = !savedHostRoom();
+  startSolo.addEventListener("click", () => {
+    showLobby = false;
+    render();
+    select("heading").focus();
+  });
   resume.addEventListener("click", () => {
     const previous = savedHostRoom();
     if (previous) location.assign(roomUrl(previous));
     else resume.hidden = true;
   });
-  select("room-panel").before(resume);
   window.addEventListener("pageshow", (event) => {
     if (event.persisted) {
       select("room-controls").removeAttribute("inert");
