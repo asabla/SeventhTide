@@ -235,30 +235,70 @@
           <span class="grip-tool" id="grip-hook"></span>
         </div>
         <p id="seat-notice" role="status"></p>
-        <div id="mode-panel" class="mode-panel" hidden>
-          <details id="room-panel">
-            <summary>Play with friends</summary>
-            <div id="room-controls">
-              <p>Share a private link with each friend.</p>
-              <button id="host-two" type="button">Invite one friend</button>
-              <p>Nell plays as a bot.</p>
-              <button id="host-three" type="button">Invite two friends</button>
+        <section
+          id="mode-panel"
+          class="mode-panel"
+          aria-label="Voyage setup"
+          hidden
+        >
+          <ul id="start-crew" class="crew-manifest" aria-label="The crew"></ul>
+          <div class="voyage-options">
+            <div>
+              <button
+                id="start-solo"
+                class="clasp-control"
+                type="button"
+                aria-describedby="solo-crew"
+              >
+                Play solo
+              </button>
+              <p id="solo-crew">Two bots</p>
             </div>
-          </details>
-          <button id="start-solo" type="button">
-            <strong>Play solo</strong>
-            <small>You play Mara. Two bots join your crew.</small>
+            <div>
+              <button
+                id="host-two"
+                class="clasp-control"
+                type="button"
+                aria-describedby="pair-crew"
+              >
+                Invite one friend
+              </button>
+              <p id="pair-crew">Nell plays as a bot</p>
+            </div>
+            <div>
+              <button
+                id="host-three"
+                class="clasp-control"
+                type="button"
+                aria-describedby="full-crew"
+              >
+                Invite two friends
+              </button>
+              <p id="full-crew">All human crew</p>
+            </div>
+          </div>
+          <button id="resume-room" class="resume-room" type="button" hidden>
+            Resume voyage with friends
           </button>
-        </div>
+        </section>
         <section
           class="crew-lobby"
           id="crew-lobby"
           aria-label="Crew seats"
           hidden
         >
-          <ul id="lobby-seats"></ul>
-          <button id="launch-voyage" type="button" hidden>Begin voyage</button>
-          <a href="./" class="crew-lobby-back">Back to Seventh Tide</a>
+          <ul id="lobby-seats" class="crew-manifest"></ul>
+          <div class="lobby-controls">
+            <a href="./" class="crew-lobby-back">Back to Seventh Tide</a>
+            <button
+              id="launch-voyage"
+              class="clasp-control"
+              type="button"
+              hidden
+            >
+              Begin voyage
+            </button>
+          </div>
           <p id="lobby-copy-status" role="status"></p>
         </section>
         <section id="tide-plays" aria-labelledby="tide-plays-heading" hidden>

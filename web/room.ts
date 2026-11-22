@@ -264,10 +264,11 @@ export async function hostRoom(players: number) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ players, prepareCrew: true }),
   });
-  if (!response.ok)
+  if (response.status === 404)
     throw new Error(
-      "Could not open a crew room. Check that the server has a database.",
+      "Online play is unavailable here. You can still play solo.",
     );
+  if (!response.ok) throw new Error("Could not open a crew room. Try again.");
   const value: unknown = await response.json();
   if (
     !isSnapshot(value) ||

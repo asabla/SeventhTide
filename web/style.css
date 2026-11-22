@@ -408,6 +408,10 @@ body.voyage {
   width: 100%;
 }
 
+.voyage-table[data-muster] {
+  grid-column: 1 / -1;
+}
+
 :where(.voyage) button:where(:not(.card, .drop-surface)),
 :where(.voyage details) > summary {
   cursor: pointer;
@@ -677,18 +681,13 @@ body.voyage {
   margin-top: 4px;
 }
 
-:where(#room-controls, #invite-links) button {
+:where(#invite-links) button {
   display: block;
   margin-top: 7px;
 }
 
 #invite-status:not(:empty) {
   margin-top: 12px;
-}
-
-.resume-room:not([hidden]) {
-  display: block;
-  margin-bottom: 7px;
 }
 
 .choices {
@@ -751,24 +750,20 @@ body.voyage {
   font: 0.86rem/1.3 var(--sans);
 }
 
-.item {
-  height: 84px;
-  border-radius: 2px;
-  background: url("./assets/salvage.jpg") 0 center / 300% 100% no-repeat;
-}
-
+/* The three supplies have different boundaries in the shared illustration. */
 .equipment-salvage {
-  height: auto;
   aspect-ratio: 1.2;
   border: 1px solid #75694e;
+  border-radius: 2px;
+  background: url("./assets/salvage.jpg") 0 center / 315% 100% no-repeat;
 }
 
-.canvas {
-  background-position: center;
+.equipment-salvage[data-salvage="canvas"] {
+  background-position-x: 47.3%;
 }
 
-.spar {
-  background-position: right;
+.equipment-salvage[data-salvage="spar"] {
+  background-position-x: 98.6%;
 }
 
 .boarding {
@@ -776,8 +771,7 @@ body.voyage {
   margin-inline: auto;
 }
 
-.boarding-scale,
-.boarding-equipment h2 {
+.boarding-scale {
   width: fit-content;
   margin: 0 auto 13px;
   padding: 4px 14px;
@@ -789,13 +783,15 @@ body.voyage {
   text-align: center;
 }
 
-.boarding-crew {
+.boarding-crew,
+.crew-manifest,
+.voyage-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(5px, 1.2vw, 14px);
 }
 
-.boarding-seat {
+.crew-seat {
   position: relative;
   display: flex;
   min-width: 0;
@@ -846,7 +842,7 @@ body.voyage {
   background-image: url("./assets/nell.webp");
 }
 
-.boarding-seat .crew-portrait {
+.crew-seat .crew-portrait {
   width: 100%;
   aspect-ratio: 1.4;
   border: 1px solid #836943;
@@ -855,24 +851,24 @@ body.voyage {
   box-shadow: none;
 }
 
-.boarding-seat:has(button:where(:hover, :focus-visible):not([hidden])) {
+.crew-seat:has(button:where(:hover, :focus-visible):not([hidden])) {
   outline: 2px solid #f4ce86;
   outline-offset: 1px;
 }
 
-.boarding-seat h3 {
+.crew-seat-name {
   margin: 0;
   font:
     700 clamp(1.05rem, 2vw, 1.45rem)/1.1 Georgia,
     serif;
 }
 
-.boarding-role,
+.crew-seat-role,
 .boarding-cold {
   font: 600 0.83rem/1.3 var(--sans);
 }
 
-.boarding-role {
+.crew-seat-role {
   color: #58432c;
 }
 
@@ -893,20 +889,20 @@ body.voyage {
   font-size: 0.8rem;
 }
 
-.boarding-seat :is(.volunteer-mark, .channel-mark, .exposure-warning) {
+.crew-seat :is(.volunteer-mark, .channel-mark, .exposure-warning) {
   color: #624216;
   font: bold 0.83rem/1.2 var(--sans);
 }
 
-.boarding-seat .exposure-warning {
+.crew-seat .exposure-warning {
   color: #792f20;
 }
 
-.boarding-controls {
+.crew-seat-controls {
   margin-top: auto;
 }
 
-.boarding-controls :where(button) {
+.crew-seat-controls :where(button) {
   width: 100%;
   min-height: 44px;
   margin-top: 4px;
@@ -921,7 +917,7 @@ body.voyage {
   text-align: center;
 }
 
-.boarding-controls :where(button:hover, button:focus-visible) {
+.crew-seat-controls :where(button:hover, button:focus-visible) {
   background: #344d43;
 }
 
@@ -1373,98 +1369,87 @@ body.voyage {
   width: 100%;
 }
 
-.mode-panel:not([hidden]) {
-  display: grid;
-  gap: 14px;
-  margin: 18px auto;
-  width: min(100%, 390px);
-}
-
+.mode-panel,
 .crew-lobby {
-  width: min(100%, 460px);
-  margin-inline: auto;
+  width: min(100%, 680px);
+  margin: 16px auto 0;
 }
 
-#lobby-seats {
-  display: grid;
-  gap: 10px;
+.crew-manifest {
   margin: 0;
   padding: 0;
   list-style: "";
 }
 
-.lobby-seat {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid #8b7858;
-  border-left: 4px solid #79583a;
-  border-radius: 3px;
-  background:
-    var(--grain) repeat,
-    var(--paper);
-  color: var(--ink);
-  box-shadow: 2px 3px 7px #14140dbc;
+.voyage-options {
+  margin-top: clamp(12px, 2vw, 25px);
+  align-items: start;
+  text-align: center;
 }
 
-.lobby-seat > strong {
-  font-size: 1.18rem;
-}
-
-.lobby-seat-status {
-  grid-column: 1;
-  font: 650 0.85rem var(--sans);
-  color: #5d432e;
-}
-
-.lobby-seat > :where(button) {
-  grid-area: 1 / 2 / span 2;
-  align-self: center;
-  max-width: 170px;
-}
-
-#launch-voyage {
-  margin: 14px 0;
-  border: 3px double #77552d;
-  background: linear-gradient(#eed39b, #c69552);
-  color: #2b2015;
+.voyage-options p {
+  width: fit-content;
+  margin: 4px auto 0;
+  padding: 2px clamp(4px, 1vw, 10px);
+  color: #f5dfb4;
+  background: #111712df;
   font:
-    700 1.14rem Georgia,
+    italic clamp(0.8rem, 1.45vw, 1rem)/1.3 Georgia,
     serif;
 }
 
-#launch-voyage:enabled:hover {
-  background: linear-gradient(#f7e4b5, #d2a263);
+.lobby-seat-status {
+  padding: 6px 0;
+  margin-top: 7px;
+  border-top: 1px solid #81664473;
+  color: #624216;
+  font:
+    italic 0.93rem/1.2 Georgia,
+    serif;
 }
 
+.lobby-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 20px;
+  margin-top: 16px;
+}
+
+:where(.voyage) .resume-room:not([hidden]),
 .crew-lobby-back {
   display: block;
   width: fit-content;
-  margin: 8px 0 0;
-  padding: 4px;
+  min-height: 44px;
+  align-content: center;
+  padding: 4px 12px;
+  border: 0;
   color: #f1d7ac;
   background: #121915e8;
+  font:
+    700 0.96rem/1.25 Georgia,
+    serif;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.resume-room:not([hidden]) {
+  margin: 14px auto 0;
+}
+
+:is(.crew-lobby-back, .resume-room):is(:hover, :focus-visible) {
+  color: #fff0ca;
+  background: #203028;
 }
 
 #lobby-copy-status:not(:empty) {
   width: fit-content;
-  margin-top: 9px;
+  margin: 9px auto 0;
   padding: 4px 7px;
   background: #121915e8;
   color: #ffe6aa;
   font: 0.9rem/1.35 var(--sans);
-}
-
-.mode-panel button :where(strong, small) {
-  display: block;
-}
-
-.mode-panel button strong {
-  font:
-    700 1.2rem Georgia,
-    serif;
-  margin-bottom: 4px;
 }
 
 #crew-assist {
@@ -1520,31 +1505,6 @@ body.voyage {
   color: #f4d295;
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.mode-panel details {
-  overflow: hidden;
-  border: 1px solid #9b8057;
-  border-radius: 4px;
-  background: #101714f0;
-}
-
-.mode-panel summary {
-  padding: 11px 12px;
-  color: var(--ink);
-  background: #e7d6ad;
-  font:
-    700 1.2rem Georgia,
-    serif;
-}
-
-.mode-panel #room-controls {
-  padding: 6px 12px 12px;
-}
-
-.mode-panel p {
-  margin: 6px 0;
-  font: 0.92rem/1.3 var(--sans);
 }
 
 .route-chart {
@@ -2047,7 +2007,7 @@ body.voyage {
   border-top: 1px solid #8367428c;
 }
 
-:is(.crew-return, .locker-keep):not([hidden]) {
+:is(.crew-return, .locker-keep, .clasp-control):not([hidden]) {
   display: grid;
   place-items: center;
   width: min(100%, 242px);
@@ -2073,11 +2033,19 @@ body.voyage {
   margin-top: -10px;
 }
 
-:is(.crew-return, .locker-keep):active {
+.voyage-options > div > .clasp-control {
+  min-height: 48px;
+  padding-inline: clamp(16px, 2.3vw, 30px);
+}
+
+:is(.crew-return, .locker-keep, .clasp-control):active {
   translate: 0 1px;
 }
 
-:is(.crew-return, .locker-keep):not([hidden]):is(:hover, :focus-visible) {
+:is(.crew-return, .locker-keep, .clasp-control):not([hidden]):is(
+    :hover,
+    :focus-visible
+  ) {
   filter: drop-shadow(1px 4px 4px #100d09a8) brightness(1.12);
 }
 
