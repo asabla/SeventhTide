@@ -3,83 +3,127 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#172b2b" />
+    <meta name="theme-color" content="#171c18" />
     <title>Seventh Tide</title>
+    <link rel="stylesheet" href="./hand.css" />
     <link rel="stylesheet" href="./style.css" />
   </head>
-  <body>
-    <header>
-      <span class="brand">Seventh Tide</span><a href="#log">Ship’s log</a>
+  <body class="voyage">
+    <header class="mast">
+      <a href="./">Seventh Tide</a>
+      <button id="sound-toggle" type="button" aria-pressed="false">
+        Sound <span id="sound-state" aria-hidden="true">off</span>
+      </button>
     </header>
-    <main>
-      <section class="scene">
-        <img
-          src="./assets/first-water.jpg"
-          alt="Two sailors on a timber raft hold a line to a swimmer reaching for a ration tin."
-        />
-        <div id="sea" aria-hidden="true"></div>
-        <div class="caption">
-          <span id="location"></span>
-          <h1>Seventh Tide</h1>
+    <div class="scene" id="scene" hidden>
+      <img
+        src="./assets/answering-light.jpg"
+        alt="An amber lantern hangs from a rescue cutter. A pale lantern floats alone across the reef."
+      />
+      <div id="sea" aria-hidden="true">
+        <div id="lantern-glows" hidden>
+          <span class="cutter-glow"></span>
+          <span class="drifting-glow"></span>
         </div>
-      </section>
-      <details id="room-panel">
-        <summary id="room-label">Play on separate devices</summary>
-        <div id="room-controls">
-          <p>
-            Invite friends to the same raft. Each device controls its own cards.
-          </p>
-          <button id="host-two" type="button">Host for 2 players</button>
-          <button id="host-three" type="button">Host for 3 players</button>
-        </div>
-      </details>
-      <p id="room-status" role="status"></p>
-      <div class="table">
-        <section class="play">
-          <p class="label" id="step"></p>
-          <h2 tabindex="-1" id="heading">Seventh Tide</h2>
-          <p id="instruction"></p>
-          <p id="turn-feedback" role="status"></p>
-          <div id="choices"></div>
-        </section>
-        <aside>
-          <div class="sidehead">
-            <h2>Crew manifest</h2>
-            <span>2 seats</span>
-          </div>
-          <div id="crew"></div>
-          <div id="hull"></div>
-          <details>
-            <summary>Voyage rules</summary>
-            <p id="deck-rules" hidden>
-              Salvage adds two cards to the shared deck. Each sailor holds two.
-              Play one and draw its replacement, or use a basic action and keep
-              both. When the draw pile runs out, shuffle the discard pile.
-            </p>
-            <p id="landing-rules" hidden>
-              On tide six, the swimmer can play Sounding line to mark a safe
-              channel. On tide seven, that route spares the hull and adds no
-              cold. Without it, brace the raft or send the swimmer ahead.
-            </p>
-            <p>
-              Keep all three sailors alive through tide seven. Each tide, assign
-              one swimmer and play one card per sailor in any order. The swimmer
-              gains 2 cold and recovers 1 personal ration from the wreckage.
-              Each seated sailor sheds 1 cold.
-            </p>
-            <p>
-              Spend a ration as a card to remove 2 cold from anyone. A brace
-              blocks 1 hull damage this tide. Check hull and cold after the
-              event and the seating effects. At 5 cold or 0 hull, the voyage
-              ends.
-            </p>
-          </details>
-        </aside>
       </div>
-      <details id="log">
-        <summary>Ship’s log</summary>
-        <ol id="entries"></ol>
-      </details>
+    </div>
+    <main class="board voyage-board">
+      <section class="forecast" aria-labelledby="heading">
+        <p class="kicker" id="step"></p>
+        <h1 tabindex="-1" id="heading">Seventh Tide</h1>
+        <p id="forecast" hidden></p>
+      </section>
+      <p id="raft-status" hidden></p>
+      <aside class="log" aria-labelledby="log-heading">
+        <h2 id="log-heading">Ship’s log</h2>
+        <dl>
+          <div>
+            <dt>Hull</dt>
+            <dd id="hull"></dd>
+          </div>
+          <div>
+            <dt>Brace</dt>
+            <dd id="brace"></dd>
+          </div>
+        </dl>
+        <table class="crew-totals" aria-label="Crew condition">
+          <thead>
+            <tr>
+              <th scope="col">Crew</th>
+              <th scope="col">Cold</th>
+              <th scope="col">Rations</th>
+            </tr>
+          </thead>
+          <tbody id="crew"></tbody>
+        </table>
+        <div
+          class="hand-controls"
+          id="hand-controls"
+          role="group"
+          aria-label="Choose a sailor’s hand"
+          hidden
+        ></div>
+        <details id="log">
+          <summary>Voyage entries</summary>
+          <ol id="entries"></ol>
+        </details>
+        <details>
+          <summary>Voyage rules</summary>
+          <p id="deck-rules" hidden>
+            Salvage adds two cards to the shared deck. Each sailor holds two.
+            Play one and draw its replacement, or use a basic action and keep
+            both. When the draw pile runs out, shuffle the discard pile.
+          </p>
+          <p id="landing-rules" hidden>
+            On tide six, the swimmer can play Sounding line to mark a safe
+            channel. On tide seven, that route spares the hull and adds no cold.
+            The crew can also brace the raft or send the swimmer ahead.
+          </p>
+          <p>
+            Assign one swimmer and play one move per sailor in any order. The
+            swimmer gains 2 cold and recovers 1 ration. Each sailor on the raft
+            sheds 1 cold.
+          </p>
+          <p>
+            Spend a ration to remove 2 cold from anyone. Each brace blocks 1
+            hull damage this tide. The voyage ends if any sailor reaches 5 cold
+            or the raft reaches 0 hull after the tide resolves.
+          </p>
+        </details>
+        <details id="room-panel">
+          <summary id="room-label">Play on separate devices</summary>
+          <div id="room-controls">
+            <p>Each device controls its own sailors.</p>
+            <button id="host-two" type="button">Host for 2 players</button>
+            <button id="host-three" type="button">Host for 3 players</button>
+          </div>
+        </details>
+      </aside>
+      <section class="table voyage-table" aria-label="Raft table">
+        <p id="room-status" role="status"></p>
+        <p id="instruction"></p>
+        <section
+          id="crew-table"
+          class="play-area"
+          aria-labelledby="crew-table-heading"
+          hidden
+        >
+          <button
+            id="place-card"
+            class="drop-surface"
+            type="button"
+            aria-label="Play selected equipment card"
+            disabled
+          ></button>
+          <span class="water" aria-hidden="true"><i></i><i></i></span>
+          <h2 id="crew-table-heading">Crew plays</h2>
+          <ul id="crew-plays"></ul>
+          <p id="tray-note" role="status" hidden></p>
+        </section>
+        <p id="turn-feedback" role="status"></p>
+        <div id="tide-result" aria-live="polite" hidden></div>
+        <div id="choices"></div>
+      </section>
     </main>
     <script type="module" src="./app.ts"></script>
   </body>

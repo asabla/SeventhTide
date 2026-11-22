@@ -104,3 +104,41 @@ await test("floating trades one hull for one cold and leaves the previous turn i
   assert.deepEqual(before.acted, []);
   assert.deepEqual(after.acted, [0]);
 });
+
+await test("the play-by-play records card targets and separates brace from exposure", () => {
+  const water = ["locker", "swim-0"].reduce(play, start(318));
+  const sound = play(water, "line-0");
+  assert.deepEqual(sound.plays[0], {
+    actor: 0,
+    id: "line-0",
+    name: "Sounding line",
+    card: "line",
+    changes: [
+      { sailor: null, resource: "brace", amount: 1 },
+      { sailor: 0, resource: "cold", amount: 1 },
+    ],
+    markedChannel: false,
+  });
+  const ready = ["hook-1", "tin-2-0"].reduce(play, sound);
+  assert.deepEqual(ready.plays[2]?.changes, [
+    { sailor: 0, resource: "cold", amount: -2 },
+    { sailor: 2, resource: "cold", amount: 1 },
+  ]);
+  const hull = play(ready, "hull");
+  assert.deepEqual(hull.tideResult, {
+    tide: 1,
+    event: "The wreck field",
+    choice: "Let the raft take it",
+    swimmer: 0,
+    route: { kind: "hull", incoming: 3, blocked: 3, lost: 0 },
+    exposure: [2, -1, -1],
+    ration: 1,
+  });
+  const boarding = play(hull, "swim-1");
+  assert.deepEqual(boarding.plays, []);
+  assert.deepEqual(boarding.tideResult, hull.tideResult);
+  const dive = play(ready, "dive");
+  assert.deepEqual(dive.tideResult?.route, { kind: "dive", cold: 1 });
+  assert.deepEqual(dive.tideResult?.exposure, hull.tideResult?.exposure);
+  assert.equal(dive.crew[0]?.cold, 3);
+});
