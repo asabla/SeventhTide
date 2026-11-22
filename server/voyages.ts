@@ -64,7 +64,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
   const event = currentEvent(state);
   const routes =
     state.phase === "event"
-      ? moves(state).map(({ name, detail }) => ({ name, detail }))
+      ? moves(state).map(({ id, name, detail }) => ({ id, name, detail }))
       : [];
   return {
     id: row.id,
@@ -109,7 +109,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
             routes,
             landingRoutes:
               state.tide === 7 && state.channelMarked !== undefined
-                ? routes
+                ? routes.map(({ name, detail }) => ({ name, detail }))
                 : [],
           }
         : null,

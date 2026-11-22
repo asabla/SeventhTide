@@ -1166,6 +1166,41 @@ a.crew-return {
     serif;
 }
 
+.ration-crew {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.ration-crew > :where(button) {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-height: 54px;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #fae3b8;
+  font:
+    700 0.84rem Georgia,
+    serif;
+}
+
+.ration-crew .crew-portrait {
+  width: 40px;
+  margin: 0;
+}
+
+.ration-crew > :where(button:hover, button:focus-visible) {
+  background: #b38b4f2c;
+}
+
+.ration-crew > :where(button:hover, button:focus-visible) .crew-portrait {
+  border-color: #f2c984;
+}
+
 .crew-commit-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1194,7 +1229,15 @@ a.crew-return {
   gap: 0;
 }
 
-#raft-table:is([data-boarding], [data-routes]) > #choices {
+#raft-table:is([data-boarding], [data-routes]) #choices {
+  width: 100%;
+}
+
+#play-space {
+  display: contents;
+}
+
+#deck-side {
   width: 100%;
 }
 
@@ -1293,12 +1336,58 @@ a.crew-return {
 }
 
 #crew-assist {
-  max-width: 620px;
-  margin: 12px auto;
-  padding: 10px 14px;
-  border: 1px solid #9b8057;
-  border-radius: 4px;
-  background: #101714f0;
+  width: min(100%, 488px);
+  margin: 0 auto 18px;
+  padding: 16px 20px;
+  background: #18251d url("./assets/wet-tray.webp") center / 100% 100% no-repeat;
+  box-shadow: 2px 5px 10px #0a0e0ab3;
+  text-align: center;
+}
+
+#crew-assist h2 {
+  margin-bottom: 9px;
+  color: #f0cf9b;
+  font:
+    700 1.25rem/1.2 Georgia,
+    serif;
+}
+
+.waiting-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.waiting-controls > :where(button) {
+  min-height: 44px;
+  padding: 6px 13px;
+  border: 1px solid #b59462;
+  background: linear-gradient(#50422f, #2c251c);
+  color: #f8e2bc;
+  font:
+    700 0.92rem Georgia,
+    serif;
+}
+
+.waiting-controls > :where(button:hover, button:focus-visible) {
+  background: #614b30;
+}
+
+#crew-assist[data-waiting] {
+  width: fit-content;
+  margin-top: -8px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#crew-assist[data-waiting] :where(button) {
+  border: 0;
+  background: #101714e8;
+  color: #f4d295;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .mode-panel details {
@@ -1317,16 +1406,11 @@ a.crew-return {
     serif;
 }
 
-#crew-assist summary {
-  color: #edca92;
-}
-
 .mode-panel #room-controls {
   padding: 6px 12px 12px;
 }
 
-.mode-panel p,
-#crew-assist p {
+.mode-panel p {
   margin: 6px 0;
   font: 0.92rem/1.3 var(--sans);
 }
@@ -1407,6 +1491,94 @@ a.crew-return {
 .chart-stops button.chart-stop:hover::before {
   border-color: #4d2b1b;
   background: #8f4f2a;
+}
+
+#raft-table[data-encounter] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+#raft-table[data-encounter] #tide-plays {
+  order: 1;
+  margin-top: 24px;
+}
+
+.wake-decision {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(6px, 2vw, 22px);
+  width: min(100%, 645px);
+  margin: 0 auto;
+  padding: clamp(8px, 2vw, 18px) 4px 9px;
+  background: radial-gradient(
+    ellipse at 50% 58%,
+    #101612f5 28%,
+    transparent 79%
+  );
+}
+
+.wake-decision::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: clamp(48px, 7.4vw, 73px);
+  inset-inline: 9%;
+  height: 6px;
+  border-bottom: 1px solid #352414;
+  background: repeating-linear-gradient(120deg, #ad8959 0 2px, #625032 2px 4px);
+  box-shadow: 0 2px 4px #080b08;
+  mask-image: linear-gradient(90deg, transparent, black 11% 89%, transparent);
+}
+
+.wake-decision > .wake-response {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 1px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #f1dfbd;
+  font: 0.87rem/1.3 var(--sans);
+  text-align: center;
+  text-shadow:
+    0 2px 2px #0a0e09,
+    0 0 10px #0a0e09;
+}
+
+.wake-response > img {
+  width: clamp(64px, 10vw, 94px);
+  max-width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 3px double #ba955a;
+  border-radius: 50%;
+  box-shadow: 1px 4px 9px #070a08;
+}
+
+.wake-response > :where(strong) {
+  color: #ffdfaa;
+  font:
+    700 clamp(1rem, 1.55vw, 1.3rem)/1.12 Georgia,
+    serif;
+}
+
+.wake-decision > button.wake-response:is(:hover, :focus-visible) img {
+  border-color: #fbd49a;
+  filter: brightness(1.16);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wake-decision {
+    animation: tide-beat 400ms ease-out;
+  }
 }
 
 #tide-result {
@@ -1498,16 +1670,15 @@ a.crew-return {
 
 @media (width >= 960px) {
   .voyage-table[data-hand] {
+    grid-column: 2 / -1;
     display: grid;
     grid-template:
       "connection connection" auto
       "instruction instruction" auto
       "notice notice" auto
-      "feedback played" auto
-      "tray played" auto
-      "hand played" auto
-      "assist played" auto / minmax(0, 1fr) 158px;
-    gap: 0 16px;
+      "feedback feedback" auto
+      "play side" auto / minmax(0, 1fr) clamp(186px, 18vw, 224px);
+    gap: 0 clamp(27px, 4vw, 60px);
     align-content: start;
     place-items: start stretch;
   }
@@ -1528,54 +1699,28 @@ a.crew-return {
     grid-area: feedback;
   }
 
-  .voyage-table[data-hand] > #tide-plays {
-    grid-area: played;
+  .voyage-table[data-hand] > #play-space {
+    display: block;
+    grid-area: play;
   }
 
-  .voyage-table[data-hand] > #personal-tray {
-    grid-area: tray;
+  .voyage-table[data-hand] > #deck-side {
+    grid-area: side;
   }
 
-  .voyage-table[data-hand] > #choices {
-    grid-area: hand;
+  #deck-side .crew-actions {
+    width: 100%;
+    margin: 0 0 15px;
   }
 
-  .voyage-table[data-hand] > #crew-assist {
-    grid-area: assist;
-  }
-
-  .voyage-table[data-hand] #crew-plays {
+  #deck-side #crew-plays {
     flex-direction: column;
     align-items: center;
   }
 
-  .voyage-table[data-hand] .played-card {
-    width: 142px;
+  #deck-side .played-card {
+    width: min(100%, 142px);
     flex: none;
-  }
-}
-
-@media (width >= 1150px) {
-  .voyage-hand:has(.crew-actions) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 164px;
-    column-gap: 12px;
-    align-items: start;
-  }
-
-  .voyage-hand > .equipment-targets {
-    grid-column: 1 / -1;
-  }
-
-  .voyage-hand > .equipment-cards {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .voyage-hand > .crew-actions {
-    grid-column: 2;
-    grid-row: 2;
-    margin: 17px 0 0;
   }
 }
 

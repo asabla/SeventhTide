@@ -82,6 +82,9 @@ const choiceArea = select("choices");
 const table = select("raft-table");
 const played = select("tide-plays");
 const feedback = select("turn-feedback");
+const deckSide = select("deck-side");
+const assist = select("crew-assist");
+let deferredCover = "";
 const roomPanel = select("room-panel");
 const modePanel = select("mode-panel");
 const crewLobby = select("crew-lobby");
@@ -272,7 +275,8 @@ async function sendMove(action: RoomAction, origin?: CardOrigin) {
   const volunteering = "offer" in action;
   sending = true;
   choiceArea.inert = !volunteering;
-  select("crew-assist").inert = true;
+  assist.inert = true;
+  deckSide.inert = true;
   try {
     const next = await readTurn(room, {
       expectedRevision: turn.revision,
@@ -289,7 +293,8 @@ async function sendMove(action: RoomAction, origin?: CardOrigin) {
     showRoomError(error);
   } finally {
     choiceArea.inert = false;
-    select("crew-assist").inert = false;
+    assist.inert = false;
+    deckSide.inert = false;
     sending = false;
   }
 }
@@ -415,20 +420,17 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
       }
       deck.append(button);
     }
-    const actions = crewActions(actorOptions.filter((move) => !move.card));
-    const canPlayCard = actorOptions.some((move) => move.card);
-    const groups = canPlayCard ? [deck, actions] : [actions, deck];
-    section.append(
-      targets,
-      ...groups.filter((group): group is HTMLElement =>
-        Boolean(group?.childElementCount),
-      ),
+    const actions = crewActions(
+      actorOptions.filter((move) => !move.card),
+      s.crew,
     );
+    if (actions) deckSide.prepend(actions);
+    section.append(targets, deck);
   } else section.append(buttons(actorOptions));
   return section;
 }
 
-function crewActions(options: Move[]) {
+function crewActions(options: Move[], crew: Voyage["crew"]) {
   if (!options.length) return undefined;
   const rail = element("section", "", "crew-actions");
   rail.setAttribute("aria-label", "Crew actions");
@@ -438,7 +440,7 @@ function crewActions(options: Move[]) {
   const rations = options.filter(({ id }) => id.startsWith("feed-"));
   for (const move of options)
     if (!move.id.startsWith("feed-"))
-      tools.append(actionChoice(move.name, move.detail, [move], commit));
+      tools.append(actionChoice(move.name, move.detail, [move], commit, crew));
   if (rations.length)
     tools.append(
       actionChoice(
@@ -446,6 +448,7 @@ function crewActions(options: Move[]) {
         "Remove 2 cold. Spend 1 ration.",
         rations,
         commit,
+        crew,
       ),
     );
   rail.append(
@@ -468,6 +471,7 @@ function actionChoice(
   detail: string,
   options: Move[],
   commit: HTMLElement,
+  crew: Voyage["crew"],
 ) {
   const [effect, cost = ""] = detail.split(/(?<=\.)\s+/);
   const button = element("button", "", "crew-tool");
@@ -491,17 +495,26 @@ function actionChoice(
     if (alreadySelected) return;
     selectedTool = { button, commit };
     button.setAttribute("aria-pressed", "true");
-    const sharing = options.length > 1;
-    const actions = element("div", "", "crew-commit-actions");
+    const sharing = options[0]?.id.startsWith("feed-");
+    const actions = element(
+      "div",
+      "",
+      sharing ? "ration-crew" : "crew-commit-actions",
+    );
     for (const move of options) {
-      const label = sharing ? move.name.replace(/^Share with /, "") : name;
-      const action = element("button", label);
+      const target = sharing ? Number(move.id.split("-")[2]) : -1;
+      const sailor = crew[target];
+      const action = element("button");
       action.type = "button";
-      action.addEventListener("click", () => act(move.id, button));
+      if (sailor) {
+        action.setAttribute("aria-label", "Give one ration to " + sailor.name);
+        action.append(crewPortrait(target), element("strong", sailor.name));
+      } else action.textContent = name;
+      action.addEventListener("click", () => act(move.id, action));
       actions.append(action);
     }
     commit.append(
-      element("p", sharing ? "Give 1 ration to" : "Use your turn?"),
+      element("p", sharing ? "Who gets the ration?" : "Use your turn?"),
       actions,
     );
     commit.hidden = false;
@@ -512,16 +525,16 @@ function actionChoice(
   return button;
 }
 
-function routeChart(
-  routes: readonly (Pick<Move, "name" | "detail"> & { id?: string })[],
-) {
+type TideRoute = Pick<Move, "name" | "detail"> & { id?: string };
+
+function routeChart(routes: readonly TideRoute[], canChoose: boolean) {
   const chart = element("section", "", "route-chart");
   chart.setAttribute("aria-label", "Tide routes");
   const stops = element("ul", "", "chart-stops");
   for (const route of routes) {
     const { id } = route;
     const row = element("li");
-    const stop = id ? element("button") : element("div");
+    const stop = id && canChoose ? element("button") : element("div");
     stop.className = "chart-stop";
     stop.append(element("strong", route.name), element("span", route.detail));
     if (stop instanceof HTMLButtonElement && id) {
@@ -535,6 +548,31 @@ function routeChart(
   return chart;
 }
 
+function wakeDecision(routes: readonly TideRoute[], canChoose: boolean) {
+  const scene = element("section", "", "wake-decision");
+  scene.setAttribute("aria-label", "Respond to the second wake");
+  for (const { id, name, detail } of routes) {
+    const choice = canChoose && id ? element("button") : element("div");
+    choice.className = "wake-response";
+    const art = equipmentArt(id === "decoy" ? "bell" : "line", id === "dive");
+    if (art) choice.append(art);
+    choice.append(element("strong", name), element("span", detail));
+    if (choice instanceof HTMLButtonElement && id) {
+      choice.type = "button";
+      choice.addEventListener("click", () => act(id));
+    }
+    scene.append(choice);
+  }
+  return scene;
+}
+
+function crewPortrait(seat: number) {
+  const portrait = element("span", "", "crew-portrait");
+  portrait.dataset.sailor = String(seat);
+  portrait.setAttribute("aria-hidden", "true");
+  return portrait;
+}
+
 function boarding(s: Pick<Voyage, "crew">) {
   const board = element("section", "", "boarding");
   board.setAttribute("aria-label", "Pass the swimmer’s line");
@@ -544,9 +582,6 @@ function boarding(s: Pick<Voyage, "crew">) {
   const players = turn?.players ?? 1;
   s.crew.forEach((sailor, i) => {
     const seat = element("section", "", "boarding-seat");
-    const portrait = element("span", "", "crew-portrait");
-    portrait.dataset.sailor = String(i);
-    portrait.setAttribute("aria-hidden", "true");
     const role = i === mySeat ? "You" : i >= players ? "Bot" : jobs[i];
     const offered = element("span", "Volunteered", "volunteer-mark");
     offered.hidden = true;
@@ -566,7 +601,7 @@ function boarding(s: Pick<Voyage, "crew">) {
       ),
     );
     seat.append(
-      portrait,
+      crewPortrait(i),
       element("h3", sailor.name),
       element("p", role, "boarding-role"),
       cold,
@@ -668,32 +703,70 @@ function showPlayMode() {
     turn.phase === "lost";
 }
 
-function renderAssists(s: TableState, players: number) {
-  const panel = select("crew-assist");
-  const sailors = turn?.assistSeats ?? [];
-  const waitingFriend = sailors.some((i) => i < players);
-  panel.hidden = sailors.length === 0;
-  if (panel.hidden) panel.removeAttribute("open");
-  else if (!waitingFriend) panel.setAttribute("open", "");
-  select("assist-label").textContent = waitingFriend
-    ? "Help a waiting sailor"
-    : "Continue with bots";
-  select("assist-help").hidden = !waitingFriend;
-  select("assist-actions").replaceChildren(
-    ...sailors.map((i) => {
+function renderAssists(
+  s: Voyage | RoomSnapshot,
+  players: number,
+  status: string,
+) {
+  const sailors = s.acted.includes(0) ? (turn?.assistSeats ?? []) : [];
+  const key = sailors.length
+    ? `${turn?.id}:${s.tide}:${sailors.join(",")}`
+    : "";
+  const deferred = key !== "" && deferredCover === key;
+  const view = deferred ? key + ":waiting" : key;
+  const message = key && !deferred ? "" : status;
+  if (feedback.textContent !== message) feedback.textContent = message;
+  assist.hidden = !key;
+  if (assist.dataset.view === view) return;
+  assist.dataset.view = view;
+  assist.toggleAttribute("data-waiting", deferred);
+  assist.replaceChildren();
+  if (!key) return;
+
+  const waiting = sailors.filter((i) => i < players);
+  const controls = element("div", "", "waiting-controls");
+  if (deferred) {
+    const reopen = element("button", "Let a bot take a turn?");
+    reopen.type = "button";
+    reopen.addEventListener("click", () => {
+      deferredCover = "";
+      renderAssists(s, players, status);
+      assist.querySelector("button")?.focus();
+    });
+    controls.append(reopen);
+  } else {
+    const sailor =
+      waiting.length === 1 ? s.crew[waiting[0] ?? -1]?.name : undefined;
+    const question = sailor
+      ? `Let a bot play for ${sailor} this tide?`
+      : waiting.length
+        ? "Should a bot cover a crewmate this tide?"
+        : "Let the bots finish the tide?";
+    const heading = element("h2", question);
+    heading.setAttribute("role", "status");
+    assist.append(heading);
+    if (waiting.length) {
+      const wait = element("button", "Keep waiting");
+      wait.type = "button";
+      wait.addEventListener("click", () => {
+        deferredCover = key;
+        renderAssists(s, players, status);
+        assist.querySelector("button")?.focus();
+      });
+      controls.append(wait);
+    }
+    for (const i of sailors) {
       const name = s.crew[i]?.name ?? "";
-      const button = element(
+      const cover = element(
         "button",
-        i < players ? `Let a bot play for ${name}` : `Let ${name} play`,
+        i < players ? `Cover ${name} this turn` : `Let ${name} play`,
       );
-      button.type = "button";
-      button.addEventListener(
-        "click",
-        () => void sendMove({ assistSailor: i }),
-      );
-      return button;
-    }),
-  );
+      cover.type = "button";
+      cover.addEventListener("click", () => void sendMove({ assistSailor: i }));
+      controls.append(cover);
+    }
+  }
+  assist.append(controls);
 }
 
 function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
@@ -717,6 +790,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   renderedHand = hand;
   if (!keepHand && !keepBoard) {
     clearSelection();
+    deckSide.querySelector(".crew-actions")?.remove();
     choiceArea.replaceChildren();
   }
   select("heading")
@@ -726,10 +800,10 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   tray.hidden = !showHand || !options.some(({ card }) => card);
   table.toggleAttribute("data-hand", showHand);
   table.toggleAttribute("data-boarding", s.phase === "board");
-  if (showHand && played.previousElementSibling !== choiceArea)
-    choiceArea.after(played);
-  else if (!showHand && played.nextElementSibling !== feedback)
-    feedback.before(played);
+  deckSide.hidden = !showHand;
+  if (showHand && played.parentElement !== deckSide) deckSide.append(played);
+  else if (!showHand && played.previousElementSibling !== assist)
+    assist.after(played);
   const sighted = s.channelMarked !== undefined && s.tide >= 6;
   const scene = select("scene");
   scene.hidden = !sighted && !wake;
@@ -738,6 +812,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("landing-art").hidden = Boolean(wake);
   select("wake-art").hidden = !wake;
   table.toggleAttribute("data-routes", s.phase === "event");
+  table.toggleAttribute("data-encounter", Boolean(wake && s.phase === "event"));
   select("landing-rules").hidden = s.channelMarked === undefined;
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   const localEvent = room ? null : currentEvent(state);
@@ -768,7 +843,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
       "The ship is sinking. Take one salvage card for the crew before you board the raft.",
     board: "",
     cards: "",
-    event: "Choose a route.",
+    event: wake ? "" : "Choose a route.",
     won: "All three sailors survived the seventh tide.",
     lost: s.log.at(-1) ?? "",
   };
@@ -808,7 +883,6 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
           : "The bots can take their turns.");
     }
   }
-  if (feedback.textContent !== turnText) feedback.textContent = turnText;
   const assisted = turn?.assistedTide;
   const notice = select("seat-notice");
   const noticeText =
@@ -841,8 +915,11 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   } else if (phase === "cards") {
     if (!keepHand) choiceArea.append(renderHand(s, seat, options));
   } else if (phase === "event") {
+    const routes = options.length ? options : (turn?.event?.routes ?? []);
     choiceArea.append(
-      routeChart(options.length ? options : (turn?.event?.routes ?? [])),
+      wake
+        ? wakeDecision(routes, options.length > 0)
+        : routeChart(routes, options.length > 0),
     );
   } else if (options.length) choiceArea.append(buttons(options));
   else if (phase === "won" || phase === "lost") {
@@ -900,7 +977,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     previous,
     origin,
   );
-  renderAssists(s, players);
+  renderAssists(s, players, turnText);
   if (previous) {
     const result =
       s.tideResult?.tide !== previous.tideResult?.tide ? s.tideResult : null;
