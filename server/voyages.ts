@@ -9,6 +9,7 @@ import {
   play,
   secondWake,
   underRaft,
+  lockerFind,
   start,
   rulesVersion,
   type Voyage,
@@ -101,6 +102,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
     wake: secondWake(state),
     buoy: bellBuoy(state),
     underRaft: underRaft(state),
+    lockerFind: lockerFind(state),
     hull: state.hull,
     crew: state.crew,
     hands: state.crew.map((_, i) =>

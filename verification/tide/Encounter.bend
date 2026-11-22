@@ -7,6 +7,7 @@ type Water is Data:
   BellBuoy{}
   Landing{}
   RaftGrip{}
+  DriftingLocker{}
 
 type Ring is Data:
   Silent{}
@@ -21,6 +22,8 @@ type Route is Data:
   Channel{}
   Pry{}
   Cut{}
+  HaulLocker{}
+  LeaveLocker{}
 
 def marks_channel(tide: Nat, line: Bool, swimmer: Bool, marked: Bool) -> Bool:
   match tide line swimmer marked:
@@ -30,7 +33,7 @@ def marks_channel(tide: Nat, line: Bool, swimmer: Bool, marked: Bool) -> Bool:
       False{}
 
 type Routes is Data:
-  Routes{decoy: Bool, chain: Bool, dive: Bool, channel: Bool, pry: Bool}
+  Routes{decoy: Bool, chain: Bool, dive: Bool, channel: Bool, pry: Bool, haul: Bool}
 
 def decoy_open(ring: Ring, version: Nat) -> Bool:
   match ring:
@@ -65,39 +68,52 @@ def grip_open(line: Bool, hook: Bool, version: Nat) -> Bool:
     case _ _ _:
       False{}
 
+def can_haul(water: Water, version: Nat) -> Bool:
+  match water version:
+    case DriftingLocker{} 9n+_:
+      True{}
+    case _ _:
+      False{}
+
 def routes(water: Water, version: Nat, ring: Ring, marked: Bool, line: Bool, hook: Bool) -> Routes:
   match water:
     case OpenWater{}:
-      Routes{False{}, False{}, True{}, False{}, False{}}
+      Routes{False{}, False{}, True{}, False{}, False{}, False{}}
     case SecondWake{}:
-      Routes{decoy_open(ring, version), False{}, True{}, False{}, False{}}
+      Routes{decoy_open(ring, version), False{}, True{}, False{}, False{}, False{}}
     case BellBuoy{}:
       match version:
         case 7n+_:
-          Routes{False{}, True{}, False{}, False{}, False{}}
+          Routes{False{}, True{}, False{}, False{}, False{}, False{}}
         case _:
-          Routes{False{}, False{}, True{}, False{}, False{}}
+          Routes{False{}, False{}, True{}, False{}, False{}, False{}}
     case Landing{}:
-      Routes{False{}, False{}, True{}, marked, False{}}
+      Routes{False{}, False{}, True{}, marked, False{}, False{}}
     case RaftGrip{}:
-      Routes{False{}, False{}, True{}, False{}, grip_open(line, hook, version)}
+      Routes{False{}, False{}, True{}, False{}, grip_open(line, hook, version), False{}}
+    case DriftingLocker{}:
+      Routes{False{}, False{}, False{}, False{}, False{}, can_haul(DriftingLocker{}, version)}
 
 def allowed(route: Route, plan: Routes) -> Bool:
   match route plan:
     case Hull{} _:
       True{}
-    case Dive{} Routes{_, _, dive, _, _}:
+    case Dive{} Routes{_, _, dive, _, _, _}:
       dive
-    case Decoy{} Routes{decoy, _, _, _, _}:
+    case Decoy{} Routes{decoy, _, _, _, _, _}:
       decoy
-    case Chain{} Routes{_, chain, _, _, _}:
+    case Chain{} Routes{_, chain, _, _, _, _}:
       chain
-    case Channel{} Routes{_, _, _, channel, _}:
+    case Channel{} Routes{_, _, _, channel, _, _}:
       channel
-    case Pry{} Routes{_, _, _, _, pry}:
+    case Pry{} Routes{_, _, _, _, pry, _}:
       pry
     case Cut{} _:
       True{}
+    case LeaveLocker{} _:
+      True{}
+    case HaulLocker{} Routes{_, _, _, _, _, haul}:
+      haul
 
 type Effects is Data:
   Effects{damage: Nat, extra_cold: Nat, exposure: Nat, rations: Nat}
@@ -122,6 +138,10 @@ def effects(route: Route, brace: Nat, incoming: Nat, dive_cold: Nat) -> Effects:
       Effects{0n, 0n, 2n, 1n}
     case Cut{}:
       Effects{1n, 0n, 2n, 1n}
+    case HaulLocker{}:
+      Effects{0n, 1n, 2n, 1n}
+    case LeaveLocker{}:
+      Effects{0n, 0n, 2n, 1n}
 
 type Resolution is Data:
   Resolution{hull: Nat, swim_cold: Nat, first_cold: Nat, second_cold: Nat, rations: Nat, outcome: Tide.Outcome}

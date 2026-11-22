@@ -4,6 +4,7 @@ import {
   botMove,
   channelScouts,
   playWithBots,
+  recoveryGain,
   seatMoves,
 } from "@seventh-tide/rules/crew";
 import {
@@ -25,7 +26,7 @@ const profiles = [
 ] as const;
 
 type Profile = (typeof profiles)[number];
-const maxMoves = 1 + 7 * 5;
+const maxMoves = 1 + 7 * 5 + 1;
 
 function positionScore(s: Voyage) {
   if (s.phase === "won") return 1_000;
@@ -40,7 +41,8 @@ function positionScore(s: Voyage) {
 }
 
 function bestChoice(state: Voyage, choices: Move[]) {
-  if (state.phase === "cards") return botMove(state, choices[0]?.actor ?? -1);
+  if (state.phase === "cards" || state.phase === "recover")
+    return botMove(state, choices[0]?.actor ?? -1);
   if (state.phase === "board") {
     const scouts = channelScouts(state);
     const score = ({ id }: Move) => {
@@ -49,10 +51,14 @@ function bestChoice(state: Voyage, choices: Move[]) {
     };
     return choices.toSorted((left, right) => score(left) - score(right))[0];
   }
-  const ranked = choices.map((choice) => ({
-    choice,
-    score: positionScore(play(state, choice.id)),
-  }));
+  const ranked = choices.map((choice) => {
+    const next = play(state, choice.id);
+    const gain = Math.max(
+      0,
+      ...moves(next).map((move) => recoveryGain(next, move)),
+    );
+    return { choice, score: positionScore(next) + gain };
+  });
   return ranked.toSorted((left, right) => right.score - left.score)[0]?.choice;
 }
 
@@ -87,6 +93,9 @@ function sail(
       );
       seat = waiting[draw(waiting.length)] ?? -1;
       assert.ok(seat >= 0, checkpoint());
+    } else if (state.phase === "recover") {
+      seat = state.swimmer ?? -1;
+      assert.ok(seat >= 0 && seat < players, checkpoint());
     } else if (state.phase === "board" && players > 1) {
       volunteers = state.crew.flatMap((_, i) =>
         i < players && i !== absent && draw(2) ? [i] : [],
@@ -97,7 +106,10 @@ function sail(
     let move = cautious
       ? bestChoice(state, choices)
       : choices[draw(choices.length)];
-    if (state.phase === "cards" && seat === absent) {
+    if (
+      (state.phase === "cards" || state.phase === "recover") &&
+      seat === absent
+    ) {
       assert.ok(assistSeats(state, 0, players).includes(seat), checkpoint());
       move = botMove(state, seat);
       assisted++;
@@ -162,6 +174,8 @@ const profilesReport = profiles.map((profile) => {
     wakeDecoys: 0,
     buoyChains: 0,
     raftPries: 0,
+    lockerHauls: 0,
+    lockerSwaps: 0,
     assisted: 0,
     longest: 0,
   };
@@ -181,6 +195,8 @@ const profilesReport = profiles.map((profile) => {
       if (history.includes("decoy")) counts.wakeDecoys++;
       if (history.includes("chain")) counts.buoyChains++;
       if (history.includes("pry")) counts.raftPries++;
+      if (history.includes("haul-locker")) counts.lockerHauls++;
+      if (history.some((id) => id.startsWith("stow-"))) counts.lockerSwaps++;
       const outcome =
         state.phase === "won"
           ? "won"

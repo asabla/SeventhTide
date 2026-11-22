@@ -2,18 +2,19 @@ import { nextSeed, shuffle } from "./random.ts";
 import {
   cardInfo,
   deal,
+  equipmentPreview,
   replaceCard,
   salvageCard,
   type CardId,
   type Deck,
 } from "./hands.ts";
-export { handPreview } from "./hands.ts";
+export { handPreview, equipmentPreview } from "./hands.ts";
 
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 8;
-export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export const rulesVersion = 9;
+export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -23,7 +24,8 @@ export function isRulesVersion(value: unknown): value is RulesVersion {
   );
 }
 
-export type Phase = "salvage" | "board" | "cards" | "event" | "won" | "lost";
+export type Phase =
+  "salvage" | "board" | "cards" | "event" | "recover" | "won" | "lost";
 
 export interface Move {
   id: string;
@@ -68,6 +70,8 @@ export interface TideResult {
     | { kind: "decoy" }
     | { kind: "chain"; cold: number }
     | { kind: "pry" }
+    | { kind: "haul-locker"; cold: number; find: string; stowed?: boolean }
+    | { kind: "leave-locker" }
     | { kind: "channel" };
   exposure: number[];
   ration: number;
@@ -76,6 +80,7 @@ export interface TideResult {
 export interface Voyage {
   rulesVersion?: number;
   channelMarked?: boolean;
+  lockerCard?: CardId;
   deck?: Deck;
   tide: number;
   phase: Phase;
@@ -101,6 +106,15 @@ const shelteredCold = swimmerCold - 1;
 const secondWakeTitle = "The second wake";
 const bellBuoyTitle = "The bell buoy";
 const splitSeamTitle = "The split seam";
+const squallTitle = "The black squall";
+const lockerFinds = [
+  "line",
+  "hook",
+  "bell",
+  "hatch",
+  "mitts",
+  "lantern",
+] as const;
 const cutterSighting =
   "The cutter’s lamp holds steady. A second light moves against the swell.";
 export const wreckBellWakeEffect = "Draw the wake away.";
@@ -135,7 +149,7 @@ const waters: TideEvent[] = [
     1,
   ],
   [
-    "The black squall",
+    squallTitle,
     "Rain flattens the water ahead.",
     "A squall drives spray over the bow.",
     1,
@@ -178,6 +192,25 @@ const raftGrip: TideEvent = [
   1,
   2,
 ];
+
+const driftingLocker: TideEvent = [
+  "The drifting locker",
+  "An ironbound locker rides low in the swell.",
+  "The lid breaks open against the raft. The swimmer has one chance to take what’s inside.",
+  0,
+  1,
+];
+
+export function lockerFind(state: Voyage) {
+  const card = state.lockerCard;
+  if (
+    card &&
+    (state.phase === "event" || state.phase === "recover") &&
+    state.events[state.tide - 1]?.[0] === driftingLocker[0]
+  )
+    return equipmentPreview(card);
+  return undefined;
+}
 
 const finalTide: TideEvent = [
   "The answering light",
@@ -334,9 +367,27 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     bits = nextSeed(bits);
     return bits / 4294967296;
   };
+  const offeredSalvage = shuffle(salvage, random).slice(0, 2);
+  const events = shuffle(waters, random).map((event) =>
+    version >= 8 && event[0] === splitSeamTitle ? raftGrip : event,
+  );
+  if (version >= 9) {
+    const squall = events.findIndex(([title]) => title === squallTitle);
+    const slot = 2 + ((seed >>> 0) % 3);
+    if (squall !== slot) events[squall] = events[slot] ?? driftingLocker;
+    events[slot] = driftingLocker;
+  }
   return {
     ...(version >= 4 ? { rulesVersion: version } : {}),
     ...(version >= 3 ? { channelMarked: false } : {}),
+    ...(version >= 9
+      ? {
+          lockerCard:
+            lockerFinds[
+              nextSeed((seed ^ 0x165667b1) >>> 0) % lockerFinds.length
+            ],
+        }
+      : {}),
     ...(version >= 2
       ? {
           deck: {
@@ -356,15 +407,56 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     tideResult: null,
     guard: 0,
     crew: names.map((name) => ({ name, cold: 1, food: 0 })),
-    salvage: shuffle(salvage, random).slice(0, 2),
-    events: [
-      ...shuffle(waters, random).map((event) =>
-        version >= 8 && event[0] === splitSeamTitle ? raftGrip : event,
-      ),
-      version >= 3 ? answeringLight : finalTide,
-    ],
+    salvage: offeredSalvage,
+    events: [...events, version >= 3 ? answeringLight : finalTide],
     log: ["The ship is going down. Two seats remain on the raft."],
   };
+}
+
+function lockerRoutes(s: Voyage, swimmer: number): Move[] {
+  const sailor = crewMember(s, swimmer);
+  const extra = driftingLocker[4];
+  const exposure = (cost: number) => {
+    const cold = sailor.cold + swimmerCold + cost;
+    return `${sailor.name} ${sailor.cold} → ${cold}/${coldLimit} cold${cold >= coldLimit ? " (fatal)" : ""}.`;
+  };
+  return [
+    {
+      id: "haul-locker",
+      name: "Haul it aboard",
+      detail:
+        exposure(extra) +
+        (sailor.cold + swimmerCold + extra < coldLimit
+          ? "\nMay swap one card."
+          : ""),
+    },
+    {
+      id: "hull",
+      name: "Cut it loose",
+      detail: exposure(0) + "\nKeep both cards.",
+    },
+  ];
+}
+
+function recoveryMoves(s: Voyage, swimmer: number): Move[] {
+  const find = lockerFind(s);
+  if (!find) return [];
+  return [
+    ...Array.from(new Set(s.deck?.hands[swimmer])).flatMap((card) =>
+      card === find.id
+        ? []
+        : [
+            {
+              id: "stow-" + card,
+              name: "Swap " + cardInfo(card).name,
+              detail: "Stow " + find.name + ".",
+              actor: swimmer,
+              card,
+            },
+          ],
+    ),
+    { id: "keep-hand", name: "Keep both cards", detail: "", actor: swimmer },
+  ];
 }
 
 function landingMoves(s: Voyage, swimmer: number): Move[] {
@@ -448,6 +540,8 @@ export function moves(s: Voyage): Move[] {
       name: p.name,
       detail: "Take the line. Recover a ration when the tide ends.",
     }));
+  if (s.phase === "recover" && s.swimmer !== null)
+    return recoveryMoves(s, s.swimmer);
   const grip = underRaft(s);
   if (s.phase === "cards")
     return s.crew.flatMap((p, i) => {
@@ -535,6 +629,7 @@ export function moves(s: Voyage): Move[] {
       return hand;
     });
   if (s.phase === "event" && s.swimmer !== null) {
+    if (lockerFind(s)) return lockerRoutes(s, s.swimmer);
     if (s.tide === 7 && s.channelMarked !== undefined)
       return landingMoves(s, s.swimmer);
     if (grip) return gripMoves(s, s.swimmer, grip);
@@ -719,7 +814,13 @@ export function play(state: Voyage, moveId: string): Voyage {
     const [event, , , incoming, extraCold] = currentEvent(s);
     let route: TideResult["route"] = { kind: "channel" };
     let ration = swimmerRation;
-    if (action === "hull" && underRaft(s)) {
+    const find = lockerFind(s);
+    if (find && moveId === "haul-locker") {
+      cold(s.swimmer, extraCold);
+      route = { kind: "haul-locker", cold: extraCold, find: find.name };
+    } else if (find) {
+      route = { kind: "leave-locker" };
+    } else if (action === "hull" && underRaft(s)) {
       s.hull = Math.max(0, s.hull - incoming);
       route = { kind: "cut", lost: state.hull - s.hull };
     } else if (action === "hull") {
@@ -775,11 +876,33 @@ export function play(state: Voyage, moveId: string): Voyage {
     } else if (s.tide === 7) {
       s.phase = "won";
       s.log.push("All three reached the rescue vessel.");
+    } else if (route.kind === "haul-locker") {
+      s.guard = 0;
+      s.phase = "recover";
     } else {
       s.tide++;
       s.phase = "board";
       s.swimmer = null;
     }
+  } else if (
+    s.phase === "recover" &&
+    s.swimmer !== null &&
+    s.deck &&
+    s.lockerCard &&
+    s.tideResult?.route.kind === "haul-locker"
+  ) {
+    const sailor = crewMember(s, s.swimmer).name;
+    const find = s.tideResult.route.find;
+    s.tideResult.route.stowed = Boolean(move.card);
+    if (move.card) {
+      replaceCard(s.deck, s.swimmer, move.card, s.lockerCard);
+      s.log.push(`${sailor} stowed ${find}.`);
+    } else {
+      s.log.push(`${sailor} left ${find} in the locker.`);
+    }
+    s.tide++;
+    s.phase = "board";
+    s.swimmer = null;
   }
   return s;
 }

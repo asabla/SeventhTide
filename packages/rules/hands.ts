@@ -340,19 +340,24 @@ export function deal(deck: Deck, salvage: string, version: number) {
   deck.hands = Array.from({ length: 3 }, () => [draw(deck), draw(deck)]);
 }
 
-export function replaceCard(deck: Deck, actor: number, card: CardId) {
+export function replaceCard(
+  deck: Deck,
+  actor: number,
+  card: CardId,
+  replacement?: CardId,
+) {
   const hand = deck.hands[actor];
   const slot = hand?.indexOf(card) ?? -1;
   if (!hand || slot < 0) throw new Error("Sailor does not hold this card.");
   deck.discard.push(card);
-  hand[slot] = draw(deck);
+  hand[slot] = replacement ?? draw(deck);
+}
+
+export function equipmentPreview(id: CardId) {
+  const { name, water, raft } = cards[id];
+  return { id, name, water: water.text, raft: raft.text };
 }
 
 export function handPreview(deck: Deck | undefined, sailor: number) {
-  return (deck?.hands[sailor] ?? []).map((id) => ({
-    id,
-    name: cards[id].name,
-    water: cards[id].water.text,
-    raft: cards[id].raft.text,
-  }));
+  return (deck?.hands[sailor] ?? []).map(equipmentPreview);
 }

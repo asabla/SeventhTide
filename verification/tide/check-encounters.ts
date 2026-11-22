@@ -17,14 +17,24 @@ const routeTags = {
   chain: "Chain",
   channel: "Channel",
   pry: "Pry",
+  "haul-locker": "HaulLocker",
 } as const;
 type Route = keyof typeof routeTags;
-const routeIds: Route[] = ["hull", "dive", "decoy", "chain", "channel", "pry"];
+const routeIds: Route[] = [
+  "hull",
+  "dive",
+  "decoy",
+  "chain",
+  "channel",
+  "pry",
+  "haul-locker",
+];
 
 const outcomes = {
   lost: "VoyageLost",
   won: "VoyageRescued",
   board: "VoyageAdrift",
+  recover: "VoyageAdrift",
 } as const;
 
 function replay(seed: number, version: number, history: string) {
@@ -41,6 +51,8 @@ function waterAt(state: Voyage) {
       return "BellBuoy";
     case "Something under the raft":
       return "RaftGrip";
+    case "The drifting locker":
+      return "DriftingLocker";
     case "The answering light":
       return "Landing";
     default:
@@ -103,12 +115,20 @@ function checkResolution(
   assert.ok(first !== undefined && second !== undefined, context);
   const [, , , incoming, diveCold] = water;
   const grip = waterAt(state) === "RaftGrip";
-  const kind: TideResult["route"]["kind"] = grip && id === "hull" ? "cut" : id;
+  const locker = waterAt(state) === "DriftingLocker";
+  const kind: TideResult["route"]["kind"] =
+    id === "hull" ? (locker ? "leave-locker" : grip ? "cut" : "hull") : id;
   if (state.channelMarked !== undefined && state.tide === 7)
     assert.deepEqual([incoming, diveCold], [4, 2], context);
   const effect = call(
     "effects",
-    tag(kind === "cut" ? "Cut" : routeTags[id]),
+    tag(
+      kind === "leave-locker"
+        ? "LeaveLocker"
+        : kind === "cut"
+          ? "Cut"
+          : routeTags[id],
+    ),
     state.guard,
     incoming,
     diveCold,
@@ -128,7 +148,10 @@ function checkResolution(
   const result = after.tideResult;
   assert.ok(result && result.route.kind === kind, context);
   assert.ok(
-    after.phase === "lost" || after.phase === "won" || after.phase === "board",
+    after.phase === "lost" ||
+      after.phase === "won" ||
+      after.phase === "board" ||
+      after.phase === "recover",
     context,
   );
   assert.deepEqual(
@@ -172,11 +195,30 @@ function checkResolution(
       context,
     );
   }
+  if (locker) {
+    const previous = crewMember(state, swimmer);
+    const cold = crewMember(after, swimmer).cold;
+    const fatal = cold >= 5 ? " (fatal)" : "";
+    assert.equal(
+      moves(state)
+        .find((move) => move.id === id)
+        ?.detail.split("\n")[0],
+      `${previous.name} ${previous.cold} → ${cold}/5 cold${fatal}.`,
+      context,
+    );
+    assert.equal(
+      after.phase === "recover",
+      kind === "haul-locker" && after.phase !== "lost",
+      context,
+    );
+  }
   assert.equal(result.swimmer, swimmer, context);
   assert.equal(result.tide, state.tide, context);
   assert.equal(result.exposure[swimmer], effect.exposure, context);
   const extra =
-    result.route.kind === "chain" || result.route.kind === "dive"
+    result.route.kind === "chain" ||
+    result.route.kind === "dive" ||
+    result.route.kind === "haul-locker"
       ? result.route.cold
       : 0;
   assert.equal(extra, effect.extra_cold, context);
@@ -223,6 +265,15 @@ export function checkEncounters(call: BendCall) {
   );
   const fixtures = [
     { name: "wake / silence", state: quietWake, water: "SecondWake" },
+    {
+      name: "drifting locker",
+      state: replay(
+        0,
+        9,
+        "spar swim-0 float-0 line-1 lash-2 hull swim-0 feed-0-0 lash-1 line-2 hull swim-1 feed-0-1 anchor-1 patch-2",
+      ),
+      water: "DriftingLocker",
+    },
     {
       name: "wake / raft bell",
       state: replay(456, rulesVersion, "locker swim-1 bell-0 float-1 lash-2"),

@@ -5,10 +5,12 @@ import reefUrl from "./assets/answering-light-reef.webp";
 import wakeUrl from "./assets/second-wake.webp";
 import buoyUrl from "./assets/bell-buoy.webp";
 import gripUrl from "./assets/under-raft.webp";
+import lockerUrl from "./assets/drifting-locker.webp";
 
 const framing = {
   buoy: [0.6, 0.51],
   grip: [0.61, 0.52],
+  locker: [0.64, 0.53],
   wake: [0.62, 0.54],
   reef: [0.57, 0.39],
   approach: [0.5, 0.43],
@@ -28,6 +30,7 @@ export function mountSea(frame: HTMLElement, parent: HTMLElement) {
       this.load.image("wake", wakeUrl);
       this.load.image("buoy", buoyUrl);
       this.load.image("grip", gripUrl);
+      this.load.image("locker", lockerUrl);
     }
     create() {
       backdrop = this.add.image(0, 0, "wreck-field").setOrigin(0, 0);
@@ -53,17 +56,19 @@ export function mountSea(frame: HTMLElement, parent: HTMLElement) {
     const height = parent.clientHeight;
     if (!width || !height) return;
     const { landing, wake, buoy } = frame.dataset;
-    const texture = frame.hasAttribute("data-grip")
-      ? "grip"
-      : buoy
-        ? "buoy"
-        : wake
-          ? "wake"
-          : landing === "reef"
-            ? "reef"
-            : landing === "approach"
-              ? "approach"
-              : "wreck-field";
+    const texture = frame.hasAttribute("data-locker")
+      ? "locker"
+      : frame.hasAttribute("data-grip")
+        ? "grip"
+        : buoy
+          ? "buoy"
+          : wake
+            ? "wake"
+            : landing === "reef"
+              ? "reef"
+              : landing === "approach"
+                ? "approach"
+                : "wreck-field";
     const [x, y] = framing[texture];
     backdrop.setTexture(texture);
     const scale = Math.max(width / backdrop.width, height / backdrop.height);
