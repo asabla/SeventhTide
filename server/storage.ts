@@ -8,6 +8,7 @@ export async function migrate(pool: Pool) {
     "002-crew-seats.sql",
     "003-swimmer-offers.sql",
     "004-crew-lobby.sql",
+    "005-crew-signals.sql",
   ];
   const client = await pool.connect();
   try {

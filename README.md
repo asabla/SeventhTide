@@ -98,6 +98,8 @@ During boarding, each player can volunteer or withdraw their sailor. The host as
 
 Players can act in any order. Bots play after the human turns. If a friend is away, the host can use **Help a waiting sailor** to let a bot take that friend’s turn. The returning friend sees which tide the bot covered and can act again on the next tide. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. The host can reopen the latest room with **Resume voyage with friends**. Guests can rejoin with their invite link. Anyone with that link can play the seat.
 
+During card play, use **Crew signals** to ask for warmth or brace, or offer a ration. The Ship’s log shows each sailor’s active signal. Each sailor can change or clear their signal, and the tide clears all signals when it resolves. Bot callouts reflect the crew’s public resources.
+
 ## Durable voyages
 
 The browser saves solo voyages on the device. To enable the voyage API, set `DATABASE_URL` when starting Fastify. On startup, the server applies pending migrations in a transaction. The database user needs permission to create and alter the game tables. For a local database, install Docker with the Compose plugin and start the Docker engine. After building the game, run these commands from the repository root.
@@ -115,6 +117,7 @@ The database uses a named volume. Use `docker compose stop db` to stop it betwee
 | `GET /api/voyages/{id}`            | Replays the recorded moves and returns the current state and choices.                                                                                                                                       |
 | `PUT /api/voyages/{id}/seat`       | Marks the authenticated seat as joined and returns the current room.                                                                                                                                        |
 | `PUT /api/voyages/{id}/launch`     | Lets the host begin a prepared voyage and returns the first choices.                                                                                                                                        |
+| `PUT /api/voyages/{id}/signal`     | Sets or clears a signal for the authenticated seat during card play.                                                                                                                                        |
 | `POST /api/voyages/{id}/moves`     | Accepts a JSON body such as `{"expectedRevision":0,"moveId":"locker"}`. Select a move ID from the current choices. Returns the new state and revision.                                                      |
 | `PUT /api/voyages/{id}/volunteers` | Offers or withdraws a sailor during crew boarding. Send the current `expectedRevision`, a sailor index from `offerSeats`, and `offer` (`true` to volunteer, `false` to withdraw). Returns the updated room. |
 

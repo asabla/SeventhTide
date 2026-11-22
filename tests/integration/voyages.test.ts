@@ -618,6 +618,99 @@ await test("prepare a crew, launch with an open seat, and restore a covered turn
   assert.equal((await act(ivo, 7, { moveId: "lash-1" })).status, 200);
 });
 
+await test("crew signals stay with their authenticated seats and clear when the tide resolves", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 2 }),
+    }),
+  );
+  const host = room.token;
+  assert.ok(typeof host === "string" && Array.isArray(room.invites));
+  const guest: unknown = room.invites[0];
+  assert.ok(typeof guest === "string");
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  const url = base + "/" + room.id;
+  const read = (token: string) =>
+    fetch(url, { headers: { Authorization: "Bearer " + token } }).then(
+      readSnapshot,
+    );
+  const request = (
+    token: string,
+    endpoint: string,
+    method: string,
+    body: Record<string, unknown>,
+  ) =>
+    fetch(url + "/" + endpoint, {
+      method,
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  const signal = (token: string, tide: number, value: string | null) =>
+    request(token, "signal", "PUT", { tide, signal: value });
+  const act = (token: string, expectedRevision: number, moveId: string) =>
+    request(token, "moves", "POST", { expectedRevision, moveId });
+
+  assert.deepEqual(room.signals, [null, null, null]);
+  assert.equal((await signal(guest, 1, "warmth")).status, 409);
+  assert.equal((await signal("", 1, "brace")).status, 401);
+  await pool.query("UPDATE voyages SET seed=$1, moves=$2 WHERE id=$3", [
+    318,
+    ["locker", "swim-0"],
+    room.id,
+  ]);
+  assert.equal((await signal(guest, 1, "invalid")).status, 400);
+  const outputs = await Promise.all([
+    signal(guest, 1, "warmth"),
+    signal(host, 1, "brace"),
+  ]);
+  for (const output of outputs) {
+    assert.equal(output.status, 200);
+    assert.equal((await readSnapshot(output)).revision, 2);
+  }
+  const shared = await read(guest);
+  assert.deepEqual(shared.signals, ["brace", "warmth", null]);
+  assert.equal(shared.crewRevision, 2);
+  assert.deepEqual((await read(host)).signals, shared.signals);
+  assert.equal(
+    (await readSnapshot(await signal(host, 1, "brace"))).crewRevision,
+    2,
+  );
+  assert.deepEqual((await readSnapshot(await signal(host, 1, null))).signals, [
+    null,
+    "warmth",
+    null,
+  ]);
+  assert.deepEqual(
+    (await readSnapshot(await signal(guest, 1, "ration"))).signals,
+    [null, "ration", null],
+  );
+  assert.equal((await act(host, 2, "line-0")).status, 200);
+  const event = await readSnapshot(await act(guest, 3, "hook-1"));
+  assert.equal(event.phase, "event");
+  assert.deepEqual(event.signals, [null, "ration", null]);
+  assert.equal((await signal(guest, 1, "brace")).status, 409);
+  const board = await readSnapshot(await act(host, 5, "hull"));
+  assert.equal(board.tide, 2);
+  assert.deepEqual(board.signals, [null, null, null]);
+  assert.equal((await act(host, 6, "swim-0")).status, 200);
+  assert.equal((await signal(guest, 1, "warmth")).status, 409);
+  assert.deepEqual((await read(guest)).signals, [null, null, null]);
+});
+
 await test("assistance and a returning friend cannot both play the same turn", async (t) => {
   const server = await launch(t);
   const base = server.address + "/api/voyages";

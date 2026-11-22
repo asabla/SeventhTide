@@ -277,10 +277,85 @@ body.voyage {
   margin-bottom: 0;
 }
 
+.voyage .crew-totals :is(td, th:not(:first-child)) {
+  padding-inline-start: 6px;
+  white-space: nowrap;
+}
+
 :where(#crew) small {
   display: block;
   padding-top: 2px;
   font: 0.75rem var(--sans);
+}
+
+.crew-signal-label:not(:empty) {
+  display: block;
+  width: fit-content;
+  margin: 4px 0 2px;
+  padding: 2px 5px;
+  border-left: 2px solid #896239;
+  background: #87603322;
+  color: #523322;
+  font: 700 0.74rem/1.2 var(--sans);
+}
+
+#open-signals:not([hidden]) {
+  display: block;
+  width: fit-content;
+  margin: 0 auto 8px;
+  padding: 5px 12px;
+  border: 1px solid #aa8957;
+  border-radius: 2px;
+  background: #26382f;
+  color: #f3dcac;
+  box-shadow:
+    inset 0 0 0 2px #111e1880,
+    0 2px 4px #11181099;
+  font:
+    700 0.95rem Georgia,
+    serif;
+}
+
+#signal-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.signal-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+#active-signals {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+#signal-options:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #8b7858;
+}
+
+#signal-options button[aria-pressed="true"] {
+  background: #26382f;
+  color: #f3dcac;
+}
+
+#signal-options > :where(button:disabled) {
+  cursor: default;
+  opacity: 0.55;
+}
+
+#signal-status:not(:empty) {
+  margin-top: 10px;
 }
 
 #invite-links label {
@@ -900,6 +975,7 @@ a.crew-return {
       "instruction instruction" auto
       "notice notice" auto
       "feedback played" auto
+      "signals played" auto
       "tray played" auto
       "hand played" auto
       "assist played" auto / minmax(0, 1fr) 158px;
@@ -922,6 +998,10 @@ a.crew-return {
 
   .voyage-table[data-hand] > #turn-feedback {
     grid-area: feedback;
+  }
+
+  .voyage-table[data-hand] > #open-signals {
+    grid-area: signals;
   }
 
   .voyage-table[data-hand] > #tide-plays {

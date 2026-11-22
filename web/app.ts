@@ -9,6 +9,8 @@ import {
   type RoomAction,
 } from "./room.ts";
 import type { RoomSnapshot } from "../server/voyages.ts";
+import type { CrewSignal } from "../shared/crew-signals.ts";
+import { crewSignalPanel } from "./crew-signals.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
 import { equipmentArt } from "./equipment-art.ts";
 import { element, select } from "./dom.ts";
@@ -60,6 +62,7 @@ const roomId = new URLSearchParams(location.search).get("room");
 const room = roomId ? readRoom(roomId) : null;
 let turn: RoomSnapshot | undefined;
 let sending = false;
+let signaling = false;
 let refreshing = false;
 let connectionFailed = false;
 let showLobby = !room && run.history.length === 0;
@@ -90,6 +93,7 @@ resume.type = "button";
 resume.hidden = true;
 roomPanel.before(resume);
 const drag = cardDrag(tray);
+const renderSignals = crewSignalPanel((signal) => void sendSignal(signal));
 let selectedMove:
   | { button: HTMLButtonElement; moves: Move[]; targets: HTMLElement }
   | undefined;
@@ -174,8 +178,10 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
     next.crewLaunched &&
     next.revision === previous.revision &&
     next.offerRevision === previous.offerRevision
-  )
+  ) {
+    renderSignals(next, next.seat, next.players, true, next.signals);
     return;
+  }
   render(previous, origin);
   if (previous && !previous.crewLaunched && next.crewLaunched)
     select("heading").focus();
@@ -208,6 +214,26 @@ async function refreshRoom() {
     showRoomError(error);
   } finally {
     refreshing = false;
+  }
+}
+
+async function sendSignal(signal: CrewSignal | null) {
+  if (!room || turn?.phase !== "cards" || signaling) return;
+  const status = select("signal-status");
+  signaling = true;
+  status.textContent = "Sending signal…";
+  try {
+    const selected = signal === turn.signals[turn.seat] ? null : signal;
+    setTurn(await readTurn(room, { tide: turn.tide, signal: selected }));
+    status.textContent = selected
+      ? "Your signal is up."
+      : "Your signal was cleared.";
+  } catch (error) {
+    if (error instanceof TurnConflict) await refreshRoom();
+    status.textContent =
+      error instanceof Error ? error.message : "Could not send the signal.";
+  } finally {
+    signaling = false;
   }
 }
 
@@ -722,7 +748,10 @@ function render(
           : i === s.swimmer
             ? "In the water"
             : "On the raft";
-    identity.append(element("small", location));
+    identity.append(
+      element("small", location),
+      element("span", "", "crew-signal-label"),
+    );
     row.append(
       identity,
       element("td", `${p.cold} / ${coldLimit}`),
@@ -730,6 +759,7 @@ function render(
     );
     crew.append(row);
   });
+  renderSignals(s, seat, players, Boolean(turn), turn?.signals ?? []);
   select("hull").textContent = `${s.hull} / ${maxHull}`;
   select("brace").textContent = String(
     phase === "cards" || phase === "event" ? s.guard : 0,
