@@ -859,6 +859,16 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const buoy = buoyIn(s);
   const landing = landingAt(s);
   const phase = s.phase;
+  const phaseRope = select("phase-rope");
+  phaseRope.hidden = showLobby;
+  const current = phase === "won" || phase === "lost" ? "end" : phase;
+  for (const knot of phaseRope.children) {
+    if (!(knot instanceof HTMLElement)) continue;
+    const step = knot.dataset.phase;
+    knot.hidden = (step === "end" || step === "salvage") && step !== current;
+    if (step === current) knot.setAttribute("aria-current", "step");
+    else knot.removeAttribute("aria-current");
+  }
   select("voyage-closeout").hidden = phase !== "won" && phase !== "lost";
   const seat = turn?.seat ?? 0;
   const players = turn?.players ?? 1;

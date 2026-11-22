@@ -18,6 +18,79 @@ body.voyage {
   white-space: nowrap;
 }
 
+#phase-rope:not([hidden]) {
+  position: relative;
+  display: flex;
+  flex: 0 1 410px;
+  margin: 0 9px;
+  padding: 0;
+  list-style: none;
+}
+
+#phase-rope::before,
+#phase-rope::after {
+  position: absolute;
+  top: 4px;
+  width: 15px;
+  height: 15px;
+  content: "";
+  background: center / 100% 100% no-repeat;
+}
+
+#phase-rope::before {
+  right: 100%;
+  background-image: url("./assets/mast-rope-left.webp");
+}
+
+#phase-rope::after {
+  left: 100%;
+  background-image: url("./assets/mast-rope-right.webp");
+}
+
+:where(#phase-rope) li {
+  position: relative;
+  flex: 1 1 0;
+  padding: 32px 3px 0;
+  color: #d8ccb4;
+  font:
+    500 0.88rem/1.2 Georgia,
+    serif;
+  text-align: center;
+  white-space: nowrap;
+}
+
+:where(#phase-rope) li::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 34px;
+  background: url("./assets/mast-rope.webp") center / 100% 100% no-repeat;
+}
+
+:where(#phase-rope) li[aria-current] {
+  color: #ffe4ac;
+  font-weight: 700;
+}
+
+:where(#phase-rope) li[aria-current]::before {
+  background-image: url("./assets/mast-rope-current.webp");
+}
+
+@media (width <= 1010px) {
+  .voyage .mast:has(#phase-rope:not([hidden])) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    row-gap: 3px;
+  }
+
+  #phase-rope:not([hidden]) {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: min(calc(100% - 28px), 410px);
+  }
+}
+
 .mast-actions {
   display: flex;
   align-items: center;
@@ -45,15 +118,17 @@ body.voyage {
   gap: 5px;
 }
 
-.mast-tool svg {
+.mast-icon {
   display: block;
-  width: 39px;
-  height: 39px;
   flex: none;
-  overflow: visible;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(1px 2px 1px #080b08);
+  width: clamp(40px, 4vw, 48px);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(1px 2px 2px #070c0a);
+}
+
+.mast-tool:is(:hover, :focus-visible) .mast-icon {
+  filter: brightness(1.12) drop-shadow(1px 3px 2px #070c0a);
 }
 
 .mast-tool span {
@@ -73,12 +148,8 @@ body.voyage {
     serif;
 }
 
-#sound-toggle[aria-pressed="true"] svg {
-  filter: drop-shadow(0 0 4px #eab56a80);
-}
-
-#sound-toggle[aria-pressed="false"] .sound-wave,
-#sound-toggle[aria-pressed="true"] .sound-muted {
+#sound-toggle[aria-pressed="false"] .bell,
+#sound-toggle[aria-pressed="true"] .bell-muted {
   display: none;
 }
 
@@ -453,8 +524,12 @@ body.voyage {
   display: none;
 }
 
-.signal-flag-cloth {
-  fill: var(--signal-cloth);
+#signal-station[data-signal="brace"] .mast-icon {
+  filter: sepia(0.7) saturate(1.45) drop-shadow(1px 2px 2px #070c0a);
+}
+
+#signal-station[data-signal="ration"] .mast-icon {
+  filter: hue-rotate(145deg) saturate(0.65) drop-shadow(1px 2px 2px #070c0a);
 }
 
 :where(.crew-signal-label:not(:empty), #compact-signals li) {
@@ -1928,8 +2003,15 @@ body.voyage {
     padding-inline: 0;
   }
 
-  .mast-tool svg {
-    width: min(36px, 10vw);
+  .mast-icon {
+    width: min(39px, 10vw);
+  }
+
+  :where(#phase-rope) li {
+    min-width: 0;
+    padding-inline: 1px;
+    font-size: clamp(0.7rem, 3.1vw, 0.84rem);
+    white-space: normal;
   }
 
   .mast-tool span {
