@@ -141,10 +141,14 @@
         <h1 tabindex="-1" id="heading">Seventh Tide</h1>
         <p id="forecast" hidden></p>
       </section>
-      <p id="raft-status" hidden>
-        <span id="raft-condition"></span>
-        <span id="play-count" hidden></span>
-      </p>
+      <div id="raft-status" hidden>
+        <p class="raft-status-line">
+          <span id="raft-condition"></span>
+          <span id="play-count" hidden></span>
+        </p>
+        <div id="compact-signal-tabs"></div>
+        <ul id="compact-signals" aria-label="Active crew signals" hidden></ul>
+      </div>
       <aside class="log" id="ship-log" aria-labelledby="log-heading">
         <h2 id="log-heading">Ship’s log</h2>
         <dl>
@@ -167,6 +171,20 @@
           </thead>
           <tbody id="crew"></tbody>
         </table>
+        <div id="log-signal-tabs">
+          <div
+            id="signal-options"
+            class="signal-options"
+            role="group"
+            aria-label="Signal crew"
+            hidden
+          >
+            <p id="signal-help" class="signal-announcement">
+              Activate your current signal again to clear it.
+            </p>
+            <p id="signal-status" role="status"></p>
+          </div>
+        </div>
       </aside>
       <section
         class="table voyage-table"
@@ -207,14 +225,6 @@
           <ol id="crew-plays" aria-live="polite"></ol>
         </section>
         <p id="turn-feedback" role="status"></p>
-        <button id="open-signals" type="button" aria-haspopup="dialog" hidden>
-          Crew signals <span id="signal-count"></span>
-        </button>
-        <p
-          id="signal-announcement"
-          class="signal-announcement"
-          role="status"
-        ></p>
         <div id="tide-result" aria-live="polite" hidden></div>
         <div id="personal-tray" class="play-area" hidden>
           <button
@@ -257,25 +267,7 @@
       <p id="empty-entries">No entries yet.</p>
       <ol id="entries"></ol>
     </dialog>
-    <dialog
-      class="voyage-dialog"
-      id="crew-signals"
-      aria-labelledby="signals-heading"
-    >
-      <form method="dialog" class="dialog-heading">
-        <h2 id="signals-heading">Crew signals</h2>
-        <button type="submit">Close</button>
-      </form>
-      <ul id="active-signals"></ul>
-      <p id="no-signals">No signals this tide.</p>
-      <div
-        id="signal-options"
-        role="group"
-        aria-label="Your signal"
-        hidden
-      ></div>
-      <p id="signal-status" role="status"></p>
-    </dialog>
+    <p id="signal-announcement" class="signal-announcement" role="status"></p>
     <dialog
       class="voyage-dialog"
       id="voyage-rules"

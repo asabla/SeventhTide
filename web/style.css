@@ -299,27 +299,6 @@ body.voyage {
   font: 700 0.74rem/1.2 var(--sans);
 }
 
-#open-signals:not([hidden]) {
-  display: block;
-  width: fit-content;
-  margin: 0 auto 8px;
-  padding: 5px 12px;
-  border: 1px solid #aa8957;
-  border-radius: 2px;
-  background: #26382f;
-  color: #f3dcac;
-  box-shadow:
-    inset 0 0 0 2px #111e1880,
-    0 2px 4px #11181099;
-  font:
-    700 0.95rem Georgia,
-    serif;
-}
-
-#signal-count {
-  font-variant-numeric: tabular-nums;
-}
-
 .signal-announcement {
   position: absolute;
   width: 1px;
@@ -330,32 +309,67 @@ body.voyage {
   white-space: nowrap;
 }
 
-#active-signals {
-  margin: 0;
-  padding-left: 1.2em;
-}
-
-#signal-options:not([hidden]) {
+.signal-options:not([hidden]) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #8b7858;
+  gap: 5px;
+  margin-top: 9px;
 }
 
-#signal-options button[aria-pressed="true"] {
-  background: #26382f;
-  color: #f3dcac;
+.signal-options > :where(.signal-tag) {
+  position: relative;
+  min-height: 36px;
+  padding: 4px 14px 5px 7px;
+  border: 1px solid #967454;
+  border-left: 3px solid #775435;
+  border-radius: 2px 4px 4px 2px;
+  background:
+    linear-gradient(105deg, #7e562b32, transparent 58%),
+    var(--grain) repeat,
+    #dbbf8e;
+  color: #32291d;
+  box-shadow: 1px 2px 3px #3c261745;
+  font: 700 0.8rem/1.2 var(--sans);
 }
 
-#signal-options > :where(button:disabled) {
-  cursor: default;
-  opacity: 0.55;
+.signal-options > :where(.signal-tag:hover) {
+  background-color: #f0d5a2;
 }
 
-#signal-status:not(:empty) {
-  margin-top: 10px;
+.signal-options > :where(.signal-tag[aria-pressed="true"]) {
+  border-color: #24382f;
+  border-left-color: #a48655;
+  background: linear-gradient(135deg, #435245, #273b32);
+  color: #ffe4ae;
+  box-shadow:
+    inset 0 0 0 1px #e8c18635,
+    1px 2px 3px #3c26177a;
+}
+
+#log-signal-tabs .signal-tag:last-of-type {
+  grid-column: 1 / -1;
+}
+
+.signal-tag-clear {
+  position: absolute;
+  inset: 3px 4px auto auto;
+  visibility: hidden;
+  font:
+    700 0.9rem/1 Georgia,
+    serif;
+}
+
+.signal-tag[aria-pressed="true"] .signal-tag-clear {
+  visibility: visible;
+}
+
+#signal-status {
+  grid-column: 1 / -1;
+  font: 650 0.79rem/1.3 var(--sans);
+}
+
+#signal-status:empty {
+  display: none;
 }
 
 #invite-links label {
@@ -975,7 +989,6 @@ a.crew-return {
       "instruction instruction" auto
       "notice notice" auto
       "feedback played" auto
-      "signals played" auto
       "tray played" auto
       "hand played" auto
       "assist played" auto / minmax(0, 1fr) 158px;
@@ -998,10 +1011,6 @@ a.crew-return {
 
   .voyage-table[data-hand] > #turn-feedback {
     grid-area: feedback;
-  }
-
-  .voyage-table[data-hand] > #open-signals {
-    grid-area: signals;
   }
 
   .voyage-table[data-hand] > #tide-plays {
@@ -1057,15 +1066,53 @@ a.crew-return {
     align-self: start;
     z-index: 4;
     top: 0;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 7px;
+    display: block;
     padding: 7px 10px;
     border-radius: 3px;
     background: #243b36;
     color: #fff6dd;
     font: 700 0.9rem var(--sans);
+  }
+
+  .raft-status-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 7px;
+  }
+
+  #compact-signal-tabs .signal-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 6px;
+  }
+
+  #compact-signal-tabs .signal-tag {
+    min-height: 44px;
+  }
+
+  #compact-signals:not([hidden]) {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 24px;
+    margin: 3px 0 0;
+    padding: 0;
+    overflow-x: auto;
+    list-style: "";
+    scrollbar-width: none;
+  }
+
+  #compact-signals li {
+    flex: none;
+    padding: 2px 5px;
+    border-left: 2px solid #a78551;
+    background: #ddc194;
+    color: #36291c;
+    font: 650 0.75rem/1.25 var(--sans);
+  }
+
+  #compact-signal-tabs #signal-status {
+    color: #ffe6aa;
   }
 
   #play-count {
