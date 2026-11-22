@@ -991,7 +991,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   } else if (options.length) choiceArea.append(buttons(options));
   else if (phase === "won" || phase === "lost") {
     if (room) {
-      const link = element("a", "Return to Seventh Tide", "crew-return");
+      const link = element("a", "Leave voyage", "crew-return");
       link.href = location.pathname;
       choiceArea.append(link);
     } else {
