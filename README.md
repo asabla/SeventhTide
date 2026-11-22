@@ -80,7 +80,7 @@ Phaser supplies the 2D rendering and scene tools the illustrated table needs. Us
 
 On new voyages, the crew shares a deck of 23 cards. This includes one copy of each of the 13 equipment cards added since the original deck. Salvage determines two cards in the deck. The ration locker adds Pass the Tin, spare timber adds Emergency Patch, and dry canvas adds Canvas Sling. Each sailor draws two cards before boarding. Open one of your cards during boarding to compare its raft and water effects. A sailor must hold a ration to play a face that spends one. Each device shows one private hand and the crew’s public plays.
 
-Play a held equipment card to discard it and draw its replacement. Action cards such as Lash the timbers and Share a ration take the sailor’s turn and let them keep both equipment cards. When the draw pile is empty, the crew reshuffles the discard pile. Saved voyages replay their recorded moves with their original rules version. Open seats become bots on the next turn that needs them.
+Play a held equipment card to discard it and draw its replacement. Use the crew action rail for moves such as Lash the timbers and Share a ration. These use the sailor’s turn and keep both equipment cards. When the draw pile is empty, the crew reshuffles the discard pile. Saved voyages replay their recorded moves with their original rules version. Open seats become bots on the next turn that needs them.
 
 ## The answering light
 

@@ -13,6 +13,8 @@ Start from the latest design the user approved. Open the matching state in the r
 | Ship’s log            | Use ruled paper, ledger typography, and ink annotations. Keep condition and crew callouts here. Retain the same materials and hierarchy at narrow widths. |
 | Header tools          | Use the illustrated objects beside the wordmark for secondary interactions such as entries, rules, and signals.                                           |
 
+Use the tool rail for actions that keep both equipment cards. Carry the same tool marker into the public play. Show route options on a single shared chart with controls for the host and previews for guests. Give the line handoff priority when boarding. Put the previous tide’s recap within reach below it.
+
 Reuse the closest approved surface before making a new one. Inspect illustrations at the actual rendered size against the nearby card art. A new asset must read clearly in its crop and depict the action it represents.
 
 ## Verify in the running game
