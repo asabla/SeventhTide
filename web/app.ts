@@ -28,6 +28,7 @@ import {
   handPreview,
   salvagePreview,
   play,
+  previewRoutes,
   currentEvent,
   jobs,
   maxHull,
@@ -36,6 +37,7 @@ import {
   swimmerRation,
   type Voyage,
   type Move,
+  type TideRoute,
 } from "@seventh-tide/rules";
 import {
   channelScouts,
@@ -602,33 +604,107 @@ function actionChoice(
   return button;
 }
 
-type TideRoute = Pick<Move, "name" | "detail"> & { id?: string };
+type RouteHazard = "hull" | number;
+
+function routeHazards(
+  { crew }: TableState,
+  { forecast }: TideRoute,
+): RouteHazard[] {
+  return [
+    ...(forecast.hull === 0 ? ["hull" as const] : []),
+    ...crew.flatMap((_, seat) =>
+      (forecast.cold[seat] ?? 0) >= coldLimit ? [seat] : [],
+    ),
+  ];
+}
+
+function routeWarning(
+  { crew }: TableState,
+  hazards: RouteHazard[],
+  shared = false,
+) {
+  const names = hazards.flatMap((seat) =>
+    seat !== "hull" && crew[seat] ? [crew[seat].name] : [],
+  );
+  const ending = shared ? " on every route." : ".";
+  return [
+    ...(hazards.includes("hull") ? ["The raft breaks" + ending] : []),
+    ...(names.length
+      ? [
+          new Intl.ListFormat("en").format(names) +
+            (names.length === 1 ? " succumbs" : " succumb") +
+            " to cold" +
+            ending,
+        ]
+      : []),
+  ].join(" ");
+}
+
+interface RouteView {
+  position: TableState;
+  commonHazards: RouteHazard[];
+}
 
 function routeOption(
-  { id, name, detail }: TideRoute,
+  route: TideRoute,
   className: string,
   canChoose: boolean,
+  view: RouteView,
   art?: HTMLElement,
 ) {
+  const { id, name, forecast } = route;
+  const { position, commonHazards } = view;
   const guest = Boolean(turn && turn.seat > 0);
-  const option = element(
-    id && (canChoose || guest) ? "button" : "div",
-    "",
-    className,
+  const option = element(canChoose || guest ? "button" : "div", "", className);
+  const cost = element("span", "", "route-cost");
+  const swimmer = position.swimmer ?? -1;
+  const sailor = position.crew[swimmer];
+  cost.append(
+    element(
+      "span",
+      forecast.hull === position.hull
+        ? forecast.hull > 0
+          ? `Hull holds at ${forecast.hull}.`
+          : "Hull at 0."
+        : `Hull ${position.hull} → ${forecast.hull}.`,
+    ),
   );
-  const cost = element("span", detail, "route-cost");
+  if (sailor)
+    cost.append(
+      element(
+        "span",
+        `${sailor.name} ${sailor.cold} → ${forecast.cold[swimmer]}/${coldLimit} cold.`,
+      ),
+    );
+  if (forecast.ration !== swimmerRation)
+    cost.append(
+      element("span", `+${forecast.ration} rations for ${sailor?.name}.`),
+    );
+  if (forecast.outcome === "recover")
+    cost.append(element("span", `${sailor?.name} may swap one card.`));
+  const hazards = routeHazards(position, route).filter(
+    (reason) => !commonHazards.includes(reason),
+  );
+  if (hazards.length)
+    cost.append(
+      element("strong", routeWarning(position, hazards), "route-warning"),
+    );
   if (art) option.append(art);
   option.append(element("strong", name), cost);
-  if (id && option instanceof HTMLButtonElement) {
+  if (option instanceof HTMLButtonElement) {
     option.type = "button";
+    cost.id = "route-cost-" + id;
+    const describedBy = [
+      cost.id,
+      ...(commonHazards.length ? ["route-omen"] : []),
+    ];
+    option.setAttribute("aria-describedby", describedBy.join(" "));
+    option.setAttribute("aria-label", guest ? "Recommend " + name : name);
     if (guest) {
-      cost.id = "route-cost-" + id;
-      option.setAttribute("aria-label", "Recommend " + name);
-      option.setAttribute("aria-describedby", cost.id);
       option.addEventListener("click", () => void recommendRoute(id));
     } else option.addEventListener("click", () => act(id));
   }
-  if (id && turn && turn.players > 1) {
+  if (turn && turn.players > 1) {
     const pennants = element("span", "", "route-pennants");
     pennants.dataset.route = id;
     pennants.setAttribute("aria-hidden", "true");
@@ -680,13 +756,17 @@ function renderRouteRecommendations() {
   if (announcement.textContent !== message) announcement.textContent = message;
 }
 
-function routeChart(routes: readonly TideRoute[], canChoose: boolean) {
+function routeChart(
+  routes: readonly TideRoute[],
+  canChoose: boolean,
+  view: RouteView,
+) {
   const chart = element("section", "", "route-chart");
   chart.setAttribute("aria-label", "Tide routes");
   const stops = element("ul", "", "chart-stops");
   for (const route of routes) {
     const row = element("li");
-    row.append(routeOption(route, "chart-stop", canChoose));
+    row.append(routeOption(route, "chart-stop", canChoose, view));
     stops.append(row);
   }
   chart.append(element("div", "", "chart-engraving"), stops);
@@ -697,6 +777,7 @@ function encounterDecision(
   routes: readonly TideRoute[],
   canChoose: boolean,
   encounter: "wake" | "buoy" | "reef" | "grip" | "locker",
+  view: RouteView,
 ) {
   const scene = element("section", "", "encounter-decision");
   scene.dataset.encounter = encounter;
@@ -739,7 +820,13 @@ function encounterDecision(
             id === "echo-crossing" ? "bell" : card,
             id === "dive" || id === "chain",
           );
-    const choice = routeOption(route, "encounter-response", canChoose, art);
+    const choice = routeOption(
+      route,
+      "encounter-response",
+      canChoose,
+      view,
+      art,
+    );
     if (id === "channel" || id === "pry")
       choice.setAttribute("data-marked", "");
     scene.append(choice);
@@ -1115,7 +1202,10 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   deckSide.hidden = !showHand || !usesCrewDeck();
   if (!deckSide.hidden && played.parentElement !== deckSide)
     deckSide.append(played);
-  else if (deckSide.hidden && played.previousElementSibling !== assist)
+  else if (phase === "event") {
+    const playSpace = select("play-space");
+    if (played.previousElementSibling !== playSpace) playSpace.after(played);
+  } else if (deckSide.hidden && played.previousElementSibling !== assist)
     assist.after(played);
   const seeLights = landing && !(phase === "event" && (wake || buoy || grip));
   const seaWake = seeLights ? undefined : wake;
@@ -1157,10 +1247,6 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("locker-art").hidden = !find;
   renderGrip(grip, phase === "cards");
   table.toggleAttribute("data-routes", phase === "event");
-  table.toggleAttribute(
-    "data-encounter",
-    Boolean(encounter && (phase === "event" || phase === "recover")),
-  );
   select("landing-rules").hidden = s.channelMarked === undefined;
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   select("buoy-rules").hidden = (s.rulesVersion ?? 1) < 7;
@@ -1274,11 +1360,25 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   } else if (phase === "cards") {
     if (!keepHand) choiceArea.append(renderHand(s, seat, options));
   } else if (phase === "event") {
-    const routes = options.length ? options : (turn?.event?.routes ?? []);
+    const routes = turn?.event?.routes ?? previewRoutes(state);
+    const hazards = routes.map((route) => routeHazards(s, route));
+    const commonHazards = (hazards[0] ?? []).filter((reason) =>
+      hazards.every((route) => route.includes(reason)),
+    );
+    const view = { position: s, commonHazards };
     if (buoy) choiceArea.append(buoyCadence(buoy));
+    if (commonHazards.length) {
+      const omen = element(
+        "p",
+        routeWarning(s, commonHazards, true),
+        "route-omen",
+      );
+      omen.id = "route-omen";
+      choiceArea.append(omen);
+    }
     const decision = encounter
-      ? encounterDecision(routes, options.length > 0, encounter)
-      : routeChart(routes, options.length > 0);
+      ? encounterDecision(routes, options.length > 0, encounter, view)
+      : routeChart(routes, options.length > 0, view);
     if (find) {
       const locker = element("div", "", "locker-decision");
       locker.append(lockerPrize(find), decision);

@@ -284,3 +284,9 @@ law reef_lure_uses_the_bells_action:
 
 law ordinary_raft_bell_adds_brace:
   { Encounter.reef_bell_brace(False{}) == 3n : Nat }
+
+law five_cold_on_raft_can_recover:
+  { Encounter.resolve(Encounter.Effects{0n, 0n, 2n, 1n}, 2n, 1n, 5n, 5n, True{}) == Encounter.Resolution{2n, 3n, 4n, 4n, 1n, Tide.VoyageRescued{}} : Encounter.Resolution }
+
+law safe_swimmer_cannot_save_a_raft_sailor_at_six_cold:
+  { Encounter.resolve(Encounter.Effects{0n, 0n, 2n, 1n}, 2n, 1n, 6n, 1n, True{}) == Encounter.Resolution{2n, 3n, 5n, 0n, 1n, Tide.VoyageLost{}} : Encounter.Resolution }

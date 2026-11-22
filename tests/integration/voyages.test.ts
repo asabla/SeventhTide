@@ -582,6 +582,15 @@ await test("a friend can ring the bell and recommend the echo crossing to the ho
   assert.deepEqual(rung.choices, []);
   const decision = await read(host);
   assert.deepEqual(rung.event, decision.event);
+  assert.ok(isRecord(decision.event) && Array.isArray(decision.event.routes));
+  const forecastRoute: unknown = decision.event.routes[0];
+  assert.ok(isRecord(forecastRoute));
+  assert.deepEqual(forecastRoute.forecast, {
+    hull: 4,
+    cold: [4, 2, 3],
+    ration: 1,
+    outcome: "won",
+  });
   assert.deepEqual(
     decision.choices.map(({ id }) => id),
     ["echo-crossing", "hull", "dive"],

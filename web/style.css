@@ -1628,15 +1628,7 @@ body.voyage {
   background: #8f4f2a;
 }
 
-#raft-table[data-encounter] {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
-}
-
-#raft-table[data-encounter] #tide-plays {
-  order: 1;
+#raft-table[data-routes] #tide-plays {
   margin-top: 24px;
 }
 
@@ -1713,9 +1705,37 @@ body.voyage {
     serif;
 }
 
-.encounter-decision:is([data-encounter="grip"], [data-encounter="locker"])
-  .route-cost {
-  white-space: pre-line;
+.route-cost {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+
+.route-warning {
+  color: #802f25;
+  font-weight: 700;
+}
+
+.encounter-response .route-warning {
+  color: #ffbc9c;
+}
+
+.route-omen {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 12px;
+  padding: 7px 18px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #2d1913ed 14% 86%,
+    transparent
+  );
+  color: #ffcbab;
+  font:
+    700 1rem/1.3 Georgia,
+    serif;
+  text-align: center;
 }
 
 .locker-decision,
@@ -1843,10 +1863,6 @@ body.voyage {
     #101612fb 34%,
     transparent 90%
   );
-}
-
-.encounter-decision[data-encounter="reef"] .encounter-response {
-  white-space: pre-line;
 }
 
 .route-pennants {
@@ -2362,14 +2378,7 @@ body.voyage {
     grid-template-rows: auto auto 1fr;
   }
 
-  #raft-table[data-routes] {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
   #raft-table[data-routes] #tide-plays {
-    order: 1;
     margin-top: 14px;
   }
 
