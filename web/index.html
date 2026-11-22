@@ -141,7 +141,10 @@
         <h1 tabindex="-1" id="heading">Seventh Tide</h1>
         <p id="forecast" hidden></p>
       </section>
-      <p id="raft-status" hidden></p>
+      <p id="raft-status" hidden>
+        <span id="raft-condition"></span>
+        <span id="play-count" hidden></span>
+      </p>
       <aside class="log" id="ship-log" aria-labelledby="log-heading">
         <h2 id="log-heading">Ship’s log</h2>
         <dl>
@@ -165,9 +168,13 @@
           <tbody id="crew"></tbody>
         </table>
       </aside>
-      <section class="table voyage-table" aria-label="Raft table">
+      <section
+        class="table voyage-table"
+        id="raft-table"
+        aria-label="Raft table"
+      >
         <p id="room-status" role="status"></p>
-        <p id="instruction"></p>
+        <p id="instruction" aria-live="polite"></p>
         <div id="mode-panel" class="mode-panel" hidden>
           <details id="room-panel">
             <summary>Play with friends</summary>
