@@ -6,6 +6,7 @@ import {
   currentEvent,
   moves,
   play,
+  previewRoutes,
   start,
   underRaft,
 } from "@seventh-tide/rules";
@@ -63,9 +64,43 @@ await test("a missing tool or a tool played in the wrong position leaves two fal
   assert.equal(cut.crew[0]?.cold, crewMember(ready, 0).cold + 2);
   const haul = play(ready, "dive");
   assert.equal(haul.hull, ready.hull);
-  assert.deepEqual(haul.tideResult?.route, { kind: "dive", cold: 2 });
-  assert.equal(haul.crew[0]?.cold, crewMember(ready, 0).cold + 4);
+  assert.deepEqual(haul.tideResult?.route, { kind: "dive", cold: 1 });
+  assert.equal(haul.crew[0]?.cold, crewMember(ready, 0).cold + 3);
   assert.equal(haul.phase, "lost");
+});
+
+await test("hauling trades one extra cold for the timber and preserves earlier replay", () => {
+  const seed = 1013904226;
+  const history = ["canvas", "swim-1", "mitts-0", "line-1", "lash-2"];
+  const earlier = play(history.reduce(play, start(seed, 12)), "dive");
+  assert.equal(earlier.phase, "lost");
+  assert.deepEqual(earlier.tideResult?.route, { kind: "dive", cold: 2 });
+
+  const current = history.reduce(play, start(seed));
+  assert.equal(current.guard, 2);
+  const forecasts = previewRoutes(current);
+  assert.deepEqual(
+    forecasts.map(({ id, forecast }) => [
+      id,
+      forecast.hull,
+      forecast.cold[1],
+      forecast.outcome,
+    ]),
+    [
+      ["hull", current.hull - 1, 3, "board"],
+      ["dive", current.hull, 4, "board"],
+    ],
+  );
+  const hauled = play(current, "dive");
+  assert.equal(hauled.hull, current.hull);
+  assert.equal(hauled.phase, "board");
+  assert.equal(hauled.creatureFollowing, true);
+  const oneBrace = ["canvas", "swim-1", "lash-0", "line-1", "lash-2"].reduce(
+    play,
+    start(seed),
+  );
+  assert.equal(oneBrace.guard, 1);
+  assert.equal(play(oneBrace, "dive").phase, "lost");
 });
 
 await test("solo bots consider both positions when Mara plays part of the pair", () => {

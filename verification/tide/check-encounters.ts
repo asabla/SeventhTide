@@ -6,6 +6,7 @@ import {
 } from "../../tests/fixtures/landfall-pursuit.ts";
 import {
   crewMember,
+  currentEvent,
   moves,
   play,
   previewRoutes,
@@ -134,9 +135,13 @@ function checkResolution(
   const raft = state.crew.flatMap((_, i) => (i === swimmer ? [] : [i]));
   const [first, second] = raft;
   assert.ok(first !== undefined && second !== undefined, context);
-  const [, , , incoming, diveCold] = water;
+  const [, , , incoming, storedCold] = water;
   const grip = waterAt(state) === "RaftGrip";
   const locker = waterAt(state) === "DriftingLocker";
+  const diveCold = grip
+    ? call("grip_haul_cost", state.guard, state.rulesVersion ?? 1)
+    : storedCold;
+  assert.equal(currentEvent(state)[4], diveCold, context);
   const kind: TideResult["route"]["kind"] =
     id === "hull" ? (locker ? "leave-locker" : grip ? "cut" : "hull") : id;
   if (state.channelMarked !== undefined && state.tide === 7)
@@ -373,11 +378,18 @@ export function checkEncounters(call: BendCall) {
       state: replay(96, rulesVersion, "spar " + history),
       water: "RaftGrip",
     });
-  fixtures.push({
-    name: "split seam / archived",
-    state: replay(96, 7, "spar swim-0 line-0 hook-1 lash-2"),
-    water: "OpenWater",
-  });
+  fixtures.push(
+    {
+      name: "split seam / archived",
+      state: replay(96, 7, "spar swim-0 line-0 hook-1 lash-2"),
+      water: "OpenWater",
+    },
+    {
+      name: "raft grip / archived haul",
+      state: replay(96, 12, "spar swim-0 float-0 lash-1 lash-2"),
+      water: "RaftGrip",
+    },
+  );
   for (const { seed, history, plays } of [unmarked, marked]) {
     for (const version of [9, 10]) {
       const state = history.reduce(play, start(seed, version));

@@ -211,6 +211,27 @@ law a_cut_timber_costs_one_hull_despite_brace:
   for extra: Nat
   { Encounter.effects(Encounter.Cut{}, brace, version, incoming, extra) == Encounter.Effects{1n, 0n, 2n, 1n} : Encounter.Effects }
 
+law bracing_shelters_the_haul:
+  for since: Nat
+  for brace: Nat
+  for timber: Nat
+  { Encounter.effects(Encounter.Dive{}, 2n+brace, 13n+since, timber, Encounter.grip_haul_cost(2n+brace, 13n+since)) == Encounter.Effects{0n, 1n, 2n, 1n} : Encounter.Effects }
+
+law bare_raft_cannot_shelter_the_haul:
+  for version: Nat
+  for timber: Nat
+  { Encounter.effects(Encounter.Dive{}, 0n, version, timber, Encounter.grip_haul_cost(0n, version)) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+
+law one_brace_cannot_shelter_the_haul:
+  for version: Nat
+  for timber: Nat
+  { Encounter.effects(Encounter.Dive{}, 1n, version, timber, Encounter.grip_haul_cost(1n, version)) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+
+law archived_grip_haul_costs_two_extra_cold:
+  for brace: Nat
+  for timber: Nat
+  { Encounter.effects(Encounter.Dive{}, brace, 12n, timber, Encounter.grip_haul_cost(brace, 12n)) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+
 law locker_has_two_routes:
   for since: Nat
   for ring: Encounter.Ring

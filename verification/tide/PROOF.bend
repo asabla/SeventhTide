@@ -190,6 +190,24 @@ def Laws.prying_only_costs_normal_exposure(version, brace, incoming, extra):
 def Laws.a_cut_timber_costs_one_hull_despite_brace(version, brace, incoming, extra):
   {==}
 
+def Laws.bracing_shelters_the_haul(since, brace, timber):
+  {==}
+
+def Laws.bare_raft_cannot_shelter_the_haul(version, timber):
+  {==}
+
+def Laws.one_brace_cannot_shelter_the_haul(version, timber):
+  {==}
+
+def Laws.archived_grip_haul_costs_two_extra_cold(brace, timber):
+  match brace:
+    case 0n:
+      {==}
+    case 1n:
+      {==}
+    case 2n+_:
+      {==}
+
 def Laws.missing_line_closes_pry(version, hook):
   {==}
 
