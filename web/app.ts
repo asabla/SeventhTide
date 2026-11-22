@@ -826,6 +826,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const buoy = buoyIn(s);
   const landing = landingAt(s);
   const phase = s.phase;
+  select("voyage-closeout").hidden = phase !== "won" && phase !== "lost";
   const seat = turn?.seat ?? 0;
   const players = turn?.players ?? 1;
   const options = turn?.choices ?? seatMoves(state, seat, players);
@@ -989,18 +990,6 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
         : routeChart(routes, options.length > 0),
     );
   } else if (options.length) choiceArea.append(buttons(options));
-  else if (phase === "won" || phase === "lost") {
-    if (room) {
-      const link = element("a", "Leave voyage", "crew-return");
-      link.href = location.pathname;
-      choiceArea.append(link);
-    } else {
-      const restart = element("button", "Choose your crew", "crew-return");
-      restart.type = "button";
-      restart.addEventListener("click", () => act("again"));
-      choiceArea.append(restart);
-    }
-  }
   const prompt = select("instruction");
   if (prompt.textContent !== instruction) prompt.textContent = instruction;
   const crew = select("crew");
@@ -1210,6 +1199,9 @@ soundToggle(select("sound-toggle"), select("sound-state"), () => {
 });
 
 if (room) {
+  const leave = select("leave-voyage");
+  leave.setAttribute("href", location.pathname);
+  leave.hidden = false;
   window.addEventListener("hashchange", () => {
     if (/^#[\w-]{43}$/.test(location.hash)) location.reload();
   });
@@ -1222,6 +1214,9 @@ if (room) {
     if (event.persisted) void refreshRoom();
   });
 } else {
+  const restart = select("choose-crew");
+  restart.addEventListener("click", () => act("again"));
+  restart.hidden = false;
   const restored = finishBotTurns(state, 1);
   if (restored.history.length) {
     state = restored.state;

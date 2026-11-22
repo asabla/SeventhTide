@@ -1390,8 +1390,7 @@ body.voyage {
   gap: 8px;
 }
 
-.waiting-controls > :where(button),
-.crew-return {
+.waiting-controls > :where(button) {
   min-height: 44px;
   padding: 6px 13px;
   border: 1px solid #b59462;
@@ -1402,20 +1401,8 @@ body.voyage {
     serif;
 }
 
-.waiting-controls > :where(button:hover, button:focus-visible),
-.crew-return:where(:hover, :focus-visible) {
+.waiting-controls > :where(button:hover, button:focus-visible) {
   background: #614b30;
-}
-
-.crew-return {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  margin: 15px auto 0;
-  padding-inline: 18px;
-  border-radius: 3px;
-  text-decoration: none;
 }
 
 #crew-assist[data-waiting] {
@@ -1722,6 +1709,48 @@ body.voyage {
 #tide-result h3,
 #tide-result p {
   margin: 0 0 5px;
+}
+
+#tide-result:has(#voyage-closeout:not([hidden])) {
+  margin-bottom: 30px;
+}
+
+#voyage-closeout:not([hidden]) {
+  display: flex;
+  justify-content: flex-end;
+  margin: 20px 3px -30px;
+  border-top: 1px solid #8367428c;
+}
+
+.crew-return:not([hidden]) {
+  display: grid;
+  place-items: center;
+  width: min(100%, 242px);
+  min-height: 44px;
+  aspect-ratio: 5.35;
+  margin-top: -10px;
+  padding: 8px 30px;
+  border: 0;
+  background:
+    url("./assets/voyage-clasp.webp") center / 100% 100% no-repeat,
+    linear-gradient(#252823, #252823) center / calc(100% - 24px)
+      calc(100% - 6px) no-repeat;
+  filter: drop-shadow(1px 4px 4px #100d09a8);
+  color: #ffe7b9;
+  font:
+    700 1.01rem/1.17 Georgia,
+    serif;
+  text-align: center;
+  text-decoration: none;
+  text-shadow: 0 1px 2px #070a08;
+}
+
+.crew-return:active {
+  translate: 0 1px;
+}
+
+.crew-return:not([hidden]):is(:hover, :focus-visible) {
+  filter: drop-shadow(1px 4px 4px #100d09a8) brightness(1.12);
 }
 
 #raft-table[data-boarding] > #tide-result {
