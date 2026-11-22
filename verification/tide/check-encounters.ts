@@ -148,7 +148,14 @@ function checkResolution(
         ? "Cut"
         : routeTags[id],
   );
-  const effect = call("effects", modelRoute, state.guard, incoming, diveCold);
+  const effect = call(
+    "effects",
+    modelRoute,
+    state.guard,
+    state.rulesVersion ?? 1,
+    incoming,
+    diveCold,
+  );
   record(effect);
   const resolution = call(
     "resolve",
@@ -345,6 +352,11 @@ export function checkEncounters(call: BendCall) {
     {
       name: "buoy / legacy brace",
       state: replay(256, 6, "locker swim-1 mitts-0 float-1 lash-2"),
+      water: "BellBuoy",
+    },
+    {
+      name: "buoy / previous chain reward",
+      state: replay(256, 11, "locker swim-1 mitts-0 float-1 lash-2"),
       water: "BellBuoy",
     },
   ];

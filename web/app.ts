@@ -618,6 +618,7 @@ function routeWarning(
 interface RouteView {
   position: TableState;
   commonHazards: RouteHazard[];
+  compareRations: boolean;
 }
 
 function routeOption(
@@ -628,7 +629,7 @@ function routeOption(
   art?: HTMLElement,
 ) {
   const { id, name, forecast } = route;
-  const { position, commonHazards } = view;
+  const { position, commonHazards, compareRations } = view;
   const guest = Boolean(turn && turn.seat > 0);
   const option = element(canChoose || guest ? "button" : "div", "", className);
   const cost = element("span", "", "route-cost");
@@ -651,9 +652,12 @@ function routeOption(
         `${sailor.name} ${sailor.cold} → ${forecast.cold[swimmer]}/${coldLimit} cold.`,
       ),
     );
-  if (forecast.ration !== swimmerRation)
+  if (sailor && compareRations)
     cost.append(
-      element("span", `+${forecast.ration} rations for ${sailor?.name}.`),
+      element(
+        "span",
+        `+${forecast.ration} ${forecast.ration === 1 ? "ration" : "rations"} for ${sailor.name}.`,
+      ),
     );
   if (forecast.outcome === "recover")
     cost.append(element("span", `${sailor?.name} may swap one card.`));
@@ -1350,7 +1354,10 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     const commonHazards = (hazards[0] ?? []).filter((reason) =>
       hazards.every((route) => route.includes(reason)),
     );
-    const view = { position: s, commonHazards };
+    const compareRations = routes.some(
+      (route) => route.forecast.ration !== swimmerRation,
+    );
+    const view = { position: s, commonHazards, compareRations };
     if (buoy) choiceArea.append(buoyCadence(buoy));
     if (commonHazards.length) {
       const omen = element(

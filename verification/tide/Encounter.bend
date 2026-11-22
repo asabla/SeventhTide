@@ -148,7 +148,7 @@ def allowed(route: Route, plan: Routes) -> Bool:
 type Effects is Data:
   Effects{damage: Nat, extra_cold: Nat, exposure: Nat, rations: Nat}
 
-def effects(route: Route, brace: Nat, incoming: Nat, dive_cold: Nat) -> Effects:
+def effects(route: Route, brace: Nat, version: Nat, incoming: Nat, dive_cold: Nat) -> Effects:
   match route:
     case Hull{}:
       Effects{Nat.sub(incoming, brace), 0n, 2n, 1n}
@@ -157,10 +157,12 @@ def effects(route: Route, brace: Nat, incoming: Nat, dive_cold: Nat) -> Effects:
     case Decoy{}:
       Effects{0n, 0n, 1n, 1n}
     case Chain{}:
-      match brace:
-        case 0n:
+      match brace version:
+        case 0n _:
           Effects{0n, 2n, 2n, 1n}
-        case 1n+_:
+        case 1n+_ 12n+_:
+          Effects{0n, 1n, 2n, 3n}
+        case 1n+_ _:
           Effects{0n, 1n, 2n, 2n}
     case Channel{}:
       Effects{0n, 0n, 2n, 1n}

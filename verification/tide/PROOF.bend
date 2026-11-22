@@ -34,7 +34,7 @@ def Laws.legacy_wake_keeps_routes(ring, marked):
     case Encounter.RaftBell{}:
       {==}
 
-def Laws.echo_shelters_swimmer(brace, incoming, dive_cold):
+def Laws.echo_shelters_swimmer(version, brace, incoming, dive_cold):
   {==}
 
 def Laws.buoy_routes(since, ring, marked):
@@ -43,10 +43,13 @@ def Laws.buoy_routes(since, ring, marked):
 def Laws.legacy_buoy_keeps_routes(ring, marked):
   {==}
 
-def Laws.buoy_braced_chain(brace, incoming, dive_cold):
+def Laws.buoy_braced_chain(since, brace, incoming, dive_cold):
   {==}
 
-def Laws.buoy_false_bell(incoming, dive_cold):
+def Laws.archived_buoy_braced_chain(brace, incoming, dive_cold):
+  {==}
+
+def Laws.buoy_false_bell(version, incoming, dive_cold):
   {==}
 
 def Laws.hull_route_always_available(plan):
@@ -70,13 +73,13 @@ def Laws.landing_is_too_late_to_mark():
 def Laws.landing_routes_follow_mark(version, ring, marked):
   {==}
 
-def Laws.marked_channel_spares_the_hull(brace, incoming, dive_cold):
+def Laws.marked_channel_spares_the_hull(version, brace, incoming, dive_cold):
   {==}
 
-def Laws.forced_landing_uses_brace(brace):
+def Laws.forced_landing_uses_brace(version, brace):
   {==}
 
-def Laws.scouting_spares_the_hull_at_a_cold_cost(brace):
+def Laws.scouting_spares_the_hull_at_a_cold_cost(version, brace):
   {==}
 
 def Laws.fatal_cold(excess):
@@ -181,10 +184,10 @@ def Laws.both_tools_open_pry_and_keep_fallbacks(since):
 def Laws.legacy_crew_cannot_pry():
   {==}
 
-def Laws.prying_only_costs_normal_exposure(brace, incoming, extra):
+def Laws.prying_only_costs_normal_exposure(version, brace, incoming, extra):
   {==}
 
-def Laws.a_cut_timber_costs_one_hull_despite_brace(brace, incoming, extra):
+def Laws.a_cut_timber_costs_one_hull_despite_brace(version, brace, incoming, extra):
   {==}
 
 def Laws.missing_line_closes_pry(version, hook):
@@ -203,10 +206,10 @@ def Laws.locker_has_two_routes(since, ring, marked, line, hook):
 def Laws.old_voyage_cannot_haul():
   {==}
 
-def Laws.hauling_costs_one_extra_cold(brace, incoming, extra):
+def Laws.hauling_costs_one_extra_cold(version, brace, incoming, extra):
   {==}
 
-def Laws.leaving_costs_normal_exposure(brace, incoming, extra):
+def Laws.leaving_costs_normal_exposure(version, brace, incoming, extra):
   {==}
 
 def Laws.surviving_haul_opens_recovery(later):
@@ -248,7 +251,7 @@ def Laws.quiet_reef_keeps_the_original_routes(version, ring, marked):
 def Laws.archived_reef_never_opens_echo_crossing():
   {==}
 
-def Laws.echo_crossing_costs_one_hull_and_normal_exposure(brace, incoming, extra):
+def Laws.echo_crossing_costs_one_hull_and_normal_exposure(version, brace, incoming, extra):
   {==}
 
 def Laws.reef_lure_uses_the_bells_action():
