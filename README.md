@@ -49,7 +49,7 @@ Run `mise exec -- npm run simulate` to check 512 seeds. Use `mise exec -- npm ru
 
 From the repository root, run `mise trust verification/tide/mise.toml` once, then `mise -C verification/tide run verify`. The verification configuration pins Bend and Lean for macOS and Linux. The GitHub Actions job `tide-laws` runs the same verification command.
 
-The [Bend laws](verification/tide/LAWS.bend) cover route availability and resolution for The Second Wake and The Bell Buoy. They prove which bell play opens the echo route and how brace changes the swimmer’s cold and ration costs. Zero hull or any sailor at five or more cold ends the voyage. A surviving crew lands on tide seven and continues on earlier tides.
+The [Bend laws](verification/tide/LAWS.bend) cover route availability and resolution for The Second Wake, The Bell Buoy, and The Answering Light. They prove which bell play opens the echo route, how brace changes the chain costs, and which play marks the landing channel. Zero hull or any sailor at five or more cold ends the voyage. A surviving crew lands on tide seven and continues on earlier tides.
 
 The turn model gives each active stage a legal move and starts with a budget of 36 moves. Each move spends one from the budget. A voyage that ends early discards its unused moves. A pending player can act, the host can cover a pending guest, and bots act when the humans finish. The bound counts recorded moves in a launched voyage. It assumes that the host or the player who can act takes the move.
 
@@ -86,7 +86,7 @@ Play a held equipment card to discard it and draw its replacement. Use the crew 
 
 ## The answering light
 
-On tide six, two lanterns appear at the reef. Play Sounding line as the swimmer to mark a channel to the rescue cutter. The card still gives one brace and costs one cold. On tide seven the host can follow that channel without paying a landing cost. The swimmer still gains two cold from exposure. Without the mark, force a landing for four hull before brace, or scout the reef for two extra cold.
+On tide six, the cutter’s lamp holds steady while a pale light moves against the swell. Play Sounding line as the swimmer to mark a channel to the cutter. The card gives one brace and costs one cold. On tide seven, following the marked channel spares the hull. The swimmer still gains two cold from exposure. Force a landing for up to four hull damage after brace, or scout the reef for four cold in all. The choices show the resulting hull and swimmer cold before the host chooses.
 
 During **The second wake**, hold the line and let brace absorb the pull, or follow the pull and take extra cold on the swimmer. A sailor on the raft can ring the Wreck bell to unlock **Haul in on the echo**. This spares the hull and reduces the swimmer’s exposure from 2 cold to 1. The sailor who rings the bell still takes the card’s cost. The swimmer recovers one ration on every route.
 

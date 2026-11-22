@@ -67,6 +67,11 @@ function wakeIn(voyage: Voyage | RoomSnapshot) {
 function buoyIn(voyage: Voyage | RoomSnapshot) {
   return "events" in voyage ? bellBuoy(voyage) : voyage.buoy;
 }
+
+function landingAt({ tide, channelMarked }: Voyage | RoomSnapshot) {
+  if (channelMarked === undefined || tide < 6) return undefined;
+  return tide === 6 ? "approach" : "reef";
+}
 const roomId = new URLSearchParams(location.search).get("room");
 const room = roomId ? readRoom(roomId) : null;
 let turn: RoomSnapshot | undefined;
@@ -556,23 +561,36 @@ function routeChart(routes: readonly TideRoute[], canChoose: boolean) {
 function encounterDecision(
   routes: readonly TideRoute[],
   canChoose: boolean,
-  buoy: ReturnType<typeof bellBuoy>,
+  encounter: "wake" | "buoy" | "reef",
 ) {
-  const scene = element("section", "", "wake-decision");
+  const scene = element("section", "", "encounter-decision");
+  scene.dataset.encounter = encounter;
   scene.setAttribute(
     "aria-label",
-    buoy ? "Respond to the bell buoy" : "Respond to the second wake",
+    {
+      wake: "Respond to the second wake",
+      buoy: "Respond to the bell buoy",
+      reef: "Choose the landing route",
+    }[encounter],
   );
   for (const { id, name, detail } of routes) {
     const choice = canChoose && id ? element("button") : element("div");
-    choice.className = "wake-response";
-    const card = buoy
-      ? id === "chain"
-        ? "bell"
-        : "hatch"
-      : id === "decoy"
-        ? "bell"
-        : "line";
+    choice.className = "encounter-response";
+    if (id === "channel") choice.setAttribute("data-marked", "");
+    const card =
+      encounter === "reef"
+        ? id === "channel"
+          ? "lantern"
+          : id === "hull"
+            ? "hatch"
+            : "line"
+        : encounter === "buoy"
+          ? id === "chain"
+            ? "bell"
+            : "hatch"
+          : id === "decoy"
+            ? "bell"
+            : "line";
     const art = equipmentArt(card, id === "dive" || id === "chain");
     if (art) choice.append(art);
     choice.append(element("strong", name), element("span", detail));
@@ -806,6 +824,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const s = turn ?? state;
   const wake = wakeIn(s);
   const buoy = buoyIn(s);
+  const landing = landingAt(s);
+  const phase = s.phase;
   const seat = turn?.seat ?? 0;
   const players = turn?.players ?? 1;
   const options = turn?.choices ?? seatMoves(state, seat, players);
@@ -833,25 +853,35 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   if (showHand && played.parentElement !== deckSide) deckSide.append(played);
   else if (!showHand && played.previousElementSibling !== assist)
     assist.after(played);
-  const sighted = s.channelMarked !== undefined && s.tide >= 6;
+  const seeLights = landing && !(phase === "event" && (wake || buoy));
+  const seaWake = seeLights ? undefined : wake;
+  const seaBuoy = seeLights ? undefined : buoy;
+  const encounter =
+    landing === "reef" ? "reef" : buoy ? "buoy" : wake ? "wake" : undefined;
   const scene = select("scene");
-  scene.hidden = !sighted && !wake && !buoy;
-  scene.dataset.wake = wake ?? "";
-  scene.dataset.buoy = buoy ?? "";
-  scene.toggleAttribute("data-reveal", Boolean(wake && s.phase === "event"));
-  select("landing-art").hidden = Boolean(wake || buoy);
-  select("wake-art").hidden = !wake;
-  select("buoy-art").hidden = !buoy;
-  table.toggleAttribute("data-routes", s.phase === "event");
+  scene.hidden = !seeLights && !seaWake && !seaBuoy;
+  scene.dataset.wake = seaWake ?? "";
+  scene.dataset.buoy = seaBuoy ?? "";
+  scene.dataset.landing = seeLights ? landing : "";
+  scene.dataset.landfall = phase === "won" || phase === "lost" ? phase : "";
+  scene.toggleAttribute(
+    "data-channel-marked",
+    Boolean(seeLights && s.channelMarked),
+  );
+  scene.toggleAttribute("data-reveal", Boolean(seaWake && phase === "event"));
+  select("approach-art").hidden = !(seeLights && landing === "approach");
+  select("landing-art").hidden = !(seeLights && landing === "reef");
+  select("wake-art").hidden = !seaWake;
+  select("buoy-art").hidden = !seaBuoy;
+  table.toggleAttribute("data-routes", phase === "event");
   table.toggleAttribute(
     "data-encounter",
-    Boolean((wake || buoy) && s.phase === "event"),
+    Boolean(encounter && phase === "event"),
   );
   select("landing-rules").hidden = s.channelMarked === undefined;
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   select("buoy-rules").hidden = (s.rulesVersion ?? 1) < 7;
   const localEvent = room ? null : currentEvent(state);
-  const phase = s.phase;
   const eventDescription = turn?.event?.description ?? localEvent?.[2] ?? "";
   const choosingRoute = phase === "event";
   const forecast = choosingRoute
@@ -863,7 +893,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const clue = select("forecast");
   clue.hidden =
     !forecast || (!choosingRoute && phase !== "cards" && phase !== "board");
-  clue.textContent = forecast;
+  if (clue.textContent !== forecast) clue.textContent = forecast;
   select("deck-rules").hidden = !usesCrewDeck();
   const heads = {
     salvage: "What can you save?",
@@ -878,8 +908,9 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
       "The ship is sinking. Take one salvage card for the crew before you board the raft.",
     board: "",
     cards: "",
-    event: wake || buoy ? "" : "Choose a route.",
-    won: "All three sailors survived the seventh tide.",
+    event: encounter ? "" : "Choose a route.",
+    won:
+      landing === "reef" ? "" : "All three sailors survived the seventh tide.",
     lost: s.log.at(-1) ?? "",
   };
   const numerals = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
@@ -953,8 +984,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     const routes = options.length ? options : (turn?.event?.routes ?? []);
     if (buoy) choiceArea.append(buoyCadence(buoy));
     choiceArea.append(
-      wake || buoy
-        ? encounterDecision(routes, options.length > 0, buoy)
+      encounter
+        ? encounterDecision(routes, options.length > 0, encounter)
         : routeChart(routes, options.length > 0),
     );
   } else if (options.length) choiceArea.append(buttons(options));
@@ -1032,6 +1063,12 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
       result?.route.kind === "channel"
     )
       playCue("channel");
+    else if (
+      landing &&
+      (previous.tide !== s.tide ||
+        (landing === "reef" && phase === "event" && previous.phase !== "event"))
+    )
+      playCue(landing);
     else if (result?.route.kind === "hull" && result.route.blocked > 0)
       playCue("brace");
     else if (previous.phase === "board" && phase === "cards") playCue("rope");
@@ -1167,6 +1204,8 @@ soundToggle(select("sound-toggle"), select("sound-state"), () => {
   if (s.phase === "event" && buoy)
     return buoy === "chain" ? "buoy-chain" : "buoy-echo";
   const wake = wakeIn(s);
+  const landing = landingAt(s);
+  if (landing && !(s.phase === "event" && wake)) return landing;
   return wake === "drawn-off" ? "wake-bell" : wake ? "wake" : "brace";
 });
 
@@ -1226,14 +1265,6 @@ if (room) {
 // The crew controls are ready before the presentation engine finishes loading.
 void import("./sea.ts")
   .then(({ mountSea }) => {
-    paintSea = mountSea(select("sea"), () => {
-      const s = turn ?? state;
-      return {
-        tide: s.tide,
-        channelMarked: s.channelMarked,
-        wake: wakeIn(s),
-        buoy: buoyIn(s),
-      };
-    });
+    paintSea = mountSea(select("scene"), select("sea"));
   })
   .catch((error: unknown) => console.warn("Sea scene unavailable", error));
