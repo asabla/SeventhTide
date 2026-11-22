@@ -12,6 +12,7 @@ export function mountSea(
   },
 ) {
   let backdrop: Phaser.GameObjects.Image;
+  const lights = parent.querySelector<HTMLElement>("#lantern-glows");
   class SeaScene extends Scene {
     preload() {
       this.load.image("wreck-field", seaUrl);
@@ -52,6 +53,15 @@ export function mountSea(
       (width - backdrop.displayWidth) / 2,
       (height - backdrop.displayHeight) * (sighted ? 0.44 : 0.64),
     );
+    if (lights) {
+      lights.hidden = !sighted;
+      if (sighted) {
+        lights.style.left = backdrop.x + "px";
+        lights.style.top = backdrop.y + "px";
+        lights.style.width = backdrop.displayWidth + "px";
+        lights.style.height = backdrop.displayHeight + "px";
+      }
+    }
     // This scene only changes on a turn or resize. Stop rendering between them.
     game.loop.wake();
     game.events.once("postrender", () => game.loop.sleep());

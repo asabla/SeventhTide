@@ -67,6 +67,8 @@ function snapshot(row: Row, state: Voyage, token: string) {
     ),
     swimmer: state.swimmer,
     acted: state.acted,
+    plays: state.plays,
+    tideResult: state.tideResult,
     guard: state.guard,
     log: state.log,
     forecast: state.phase === "salvage" ? null : event[1],

@@ -41,6 +41,34 @@ type TideEvent = [
   cold: number,
 ];
 
+export interface ResourceChange {
+  sailor: number | null;
+  resource: "hull" | "brace" | "cold" | "ration";
+  amount: number;
+}
+
+export interface CrewPlay {
+  actor: number;
+  id: string;
+  name: string;
+  kind: "card" | "action";
+  changes: ResourceChange[];
+  markedChannel: boolean;
+}
+
+export interface TideResult {
+  tide: number;
+  event: string;
+  choice: string;
+  swimmer: number;
+  route:
+    | { kind: "hull"; incoming: number; blocked: number; lost: number }
+    | { kind: "dive"; cold: number }
+    | { kind: "channel" };
+  exposure: number[];
+  ration: number;
+}
+
 export interface Voyage {
   rulesVersion?: number;
   channelMarked?: boolean;
@@ -50,6 +78,8 @@ export interface Voyage {
   hull: number;
   swimmer: number | null;
   acted: number[];
+  plays: CrewPlay[];
+  tideResult: TideResult | null;
   guard: number;
   crew: { name: string; cold: number; food: number }[];
   salvage: Move[];
@@ -215,6 +245,8 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     hull: 4,
     swimmer: null,
     acted: [],
+    plays: [],
+    tideResult: null,
     guard: 0,
     crew: names.map((name) => ({ name, cold: 1, food: 0 })),
     salvage: shuffle(salvage, random).slice(0, 2),
@@ -359,6 +391,21 @@ export function moves(s: Voyage): Move[] {
   return [];
 }
 
+function resourceChanges(before: Voyage, after: Voyage) {
+  const changes: ResourceChange[] = [
+    { sailor: null, resource: "hull", amount: after.hull - before.hull },
+    { sailor: null, resource: "brace", amount: after.guard - before.guard },
+  ];
+  after.crew.forEach((sailor, i) => {
+    const previous = crewMember(before, i);
+    changes.push(
+      { sailor: i, resource: "cold", amount: sailor.cold - previous.cold },
+      { sailor: i, resource: "ration", amount: sailor.food - previous.food },
+    );
+  });
+  return changes.filter(({ amount }) => amount !== 0);
+}
+
 export function play(state: Voyage, moveId: string): Voyage {
   const move = moves(state).find((option) => option.id === moveId);
   if (!move) throw new Error("This move is unavailable.");
@@ -381,6 +428,7 @@ export function play(state: Voyage, moveId: string): Voyage {
   } else if (s.phase === "board") {
     s.swimmer = Number(who);
     s.acted = [];
+    s.plays = [];
     s.guard = 0;
     s.log.push(
       "Tide " +
@@ -451,13 +499,41 @@ export function play(state: Voyage, moveId: string): Voyage {
     s.log.push(
       crewMember(s, i).name + " played " + move.name + targetName + ".",
     );
+    s.plays.push({
+      actor: i,
+      id: move.id,
+      name: move.name,
+      kind: move.card ? "card" : "action",
+      changes: resourceChanges(state, s),
+      markedChannel: s.channelMarked === true && state.channelMarked === false,
+    });
     if (s.acted.length === s.crew.length) s.phase = "event";
   } else if (s.phase === "event" && s.swimmer !== null) {
-    if (action === "hull")
-      s.hull = Math.max(0, s.hull - Math.max(0, currentEvent(s)[3] - s.guard));
-    else if (action === "dive") cold(s.swimmer, currentEvent(s)[4]);
-    s.crew.forEach((_, i) => cold(i, i === s.swimmer ? swimmerCold : -1));
+    const [event, , , incoming, extraCold] = currentEvent(s);
+    let route: TideResult["route"] = { kind: "channel" };
+    if (action === "hull") {
+      const blocked = Math.min(incoming, s.guard);
+      s.hull = Math.max(0, s.hull - (incoming - blocked));
+      route = { kind: "hull", incoming, blocked, lost: state.hull - s.hull };
+    } else if (action === "dive") {
+      cold(s.swimmer, extraCold);
+      route = { kind: "dive", cold: extraCold };
+    }
+    const exposure = s.crew.map((sailor, i) => {
+      const before = sailor.cold;
+      cold(i, i === s.swimmer ? swimmerCold : -1);
+      return sailor.cold - before;
+    });
     crewMember(s, s.swimmer).food += swimmerRation;
+    s.tideResult = {
+      tide: s.tide,
+      event,
+      choice: move.name,
+      swimmer: s.swimmer,
+      route,
+      exposure,
+      ration: swimmerRation,
+    };
     s.log.push(
       move.name +
         ". " +

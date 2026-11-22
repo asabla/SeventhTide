@@ -11,6 +11,9 @@ import {
 import type { RoomSnapshot } from "../server/voyages.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
 import { equipmentImage } from "./equipment-art.ts";
+import { element, select } from "./dom.ts";
+import { renderTable, type CardOrigin, type TableState } from "./table.ts";
+import { playCue, soundToggle } from "./sound.ts";
 import lanterns from "./assets/answering-light.jpg";
 import firstWater from "./assets/first-water.jpg";
 import {
@@ -29,11 +32,6 @@ import {
   type Voyage,
   type Move,
 } from "@seventh-tide/rules";
-function select(id: string): HTMLElement {
-  const node = document.getElementById(id);
-  if (!node) throw new Error("Missing interface element: " + id);
-  return node;
-}
 const saveKey = "seventh-tide-v1";
 function newRun(): SavedRun {
   return {
@@ -66,7 +64,7 @@ function showRoomError(error: unknown) {
     error instanceof Error ? error.message : "Could not reach the room.";
 }
 
-function setTurn(next: RoomSnapshot) {
+function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
   if (
     turn &&
     (next.revision < turn.revision ||
@@ -74,13 +72,14 @@ function setTurn(next: RoomSnapshot) {
         next.offerRevision <= turn.offerRevision))
   )
     return;
-  const joined = !turn;
+  const previous = turn;
+  const joined = !previous;
   turn = next;
   if (joined) roomControls(next);
   const finished = next.phase === "won" || next.phase === "lost";
   if (room && next.seat === 0 && (joined || finished))
     storeHostRoom(room, finished);
-  render();
+  render(previous, origin);
   paintSea?.();
 }
 
@@ -108,7 +107,7 @@ async function refreshRoom() {
   }
 }
 
-async function sendMove(action: RoomAction) {
+async function sendMove(action: RoomAction, origin?: CardOrigin) {
   if (!room || !turn || sending) return;
   sending = true;
   select("choices").setAttribute("inert", "");
@@ -120,7 +119,7 @@ async function sendMove(action: RoomAction) {
         : {}),
       ...action,
     });
-    setTurn(next);
+    setTurn(next, origin);
     select("room-status").textContent = "";
     select("heading").focus();
   } catch (error) {
@@ -131,11 +130,18 @@ async function sendMove(action: RoomAction) {
     sending = false;
   }
 }
-function act(id: string) {
+function act(id: string, source?: HTMLElement) {
+  const rect = source?.getBoundingClientRect();
+  const origin = rect && {
+    id,
+    x: rect.left + rect.width / 2 + scrollX,
+    y: rect.top + rect.height / 2 + scrollY,
+  };
   if (room) {
-    void sendMove({ moveId: id });
+    void sendMove({ moveId: id }, origin);
     return;
   }
+  const previous = id === "again" ? undefined : state;
   if (id === "again") {
     run = newRun();
     state = start(run.seed);
@@ -148,7 +154,7 @@ function act(id: string) {
   } catch {
     /* Play continues in memory. */
   }
-  render();
+  render(previous, origin);
   paintSea?.();
   select("heading").focus();
 }
@@ -160,16 +166,6 @@ const phaseName = {
   won: "Landfall",
   lost: "Voyage lost",
 };
-function element<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  text?: string,
-  className?: string,
-) {
-  const el = document.createElement(tag);
-  if (text) el.textContent = text;
-  if (className) el.className = className;
-  return el;
-}
 function usesCrewDeck() {
   return turn ? turn.rulesVersion >= 2 : Boolean(state.deck);
 }
@@ -177,6 +173,7 @@ function buttons(options: Move[]) {
   const group = element("div", "", "choices");
   for (const move of options) {
     const btn = element("button");
+    btn.type = "button";
     if ((turn ?? state).phase === "salvage") {
       btn.className = "salvage";
       btn.append(element("span", "", "item " + move.id));
@@ -200,6 +197,7 @@ function buttons(options: Move[]) {
         btn.append(art);
       }
     }
+    if (move.card) btn.classList.add("held-card");
     const copy = element("span");
     copy.append(
       element("strong", move.name),
@@ -214,7 +212,9 @@ function buttons(options: Move[]) {
       ),
     );
     btn.append(copy);
-    btn.addEventListener("click", () => act(move.id));
+    btn.addEventListener("click", () =>
+      act(move.id, move.actor === undefined ? undefined : btn),
+    );
     if (usesCrewDeck() && (turn ?? state).phase === "salvage") {
       const item = element("div", "", "salvage-choice");
       const preview = element("details");
@@ -237,36 +237,43 @@ function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
     const row = element("section", "", "boarding-sailor");
     row.append(element("h3", sailor.name + (offered ? " · Volunteered" : "")));
     const projected = sailor.cold + swimmerCold;
-    row.append(
+    const forecast = element("p", "", "exposure-preview");
+    forecast.append(
+      element("span", `${sailor.cold}/${coldLimit} cold now`),
       element(
-        "p",
-        sailor.cold +
-          " cold · " +
-          sailor.food +
-          (sailor.food === 1 ? " ration" : " rations"),
+        "strong",
+        `${projected}/${coldLimit} cold after swimming`,
+        projected >= coldLimit ? "exposure-warning" : "",
       ),
     );
     row.append(
+      forecast,
       element(
         "p",
-        "Swimming ends with " +
-          projected +
-          " cold and " +
-          (sailor.food + swimmerRation) +
-          (sailor.food + swimmerRation === 1 ? " ration." : " rations.") +
-          (projected >= coldLimit
-            ? " Needs help to stay below " + coldLimit + " cold."
-            : ""),
+        `${sailor.food} ${sailor.food === 1 ? "ration" : "rations"} now · +${swimmerRation} after swimming`,
       ),
     );
+    if (projected >= coldLimit)
+      row.append(
+        element(
+          "p",
+          "Needs help to stay below " + coldLimit + " cold.",
+          "exposure-warning",
+        ),
+      );
     const cards = turn ? turn.hands[i] : handPreview(state.deck, i);
     for (const card of cards ?? []) {
       const item = element("details");
-      item.append(
-        element("summary", card.name),
-        element("p", "In the water · " + card.water),
-        element("p", "On the raft · " + card.raft),
-      );
+      const effects = element("dl", "", "card-effects");
+      for (const [location, detail] of [
+        ["In the water", card.water],
+        ["On the raft", card.raft],
+      ] as const) {
+        const effect = element("div");
+        effect.append(element("dt", location), element("dd", detail));
+        effects.append(effect);
+      }
+      item.append(element("summary", card.name), effects);
       row.append(item);
     }
     if (turn?.offerSeats.includes(i)) {
@@ -293,7 +300,10 @@ function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
   return list;
 }
 
-function render() {
+function render(
+  previous?: TableState & { channelMarked?: boolean | undefined },
+  origin?: CardOrigin,
+) {
   const s = turn ?? state;
   const sighted = s.channelMarked !== undefined && s.tide >= 6;
   const scene = document.querySelector<HTMLImageElement>(".scene img");
@@ -343,6 +353,10 @@ function render() {
     "  /  " +
     phaseName[phase];
   select("heading").textContent = heads[phase];
+  select("heading").classList.toggle(
+    "event-arrival",
+    previous?.phase === "cards" && phase === "event",
+  );
   select("instruction").textContent = instructions[phase];
   const choices = select("choices");
   choices.replaceChildren();
@@ -431,11 +445,13 @@ function render() {
     const row = element("div", "", "crewline");
     const identity = element("div");
     const location =
-      s.swimmer === null
-        ? jobs[i]
-        : i === s.swimmer
-          ? "In the water"
-          : "On the raft";
+      phase === "won"
+        ? "Ashore"
+        : s.swimmer === null
+          ? jobs[i]
+          : i === s.swimmer
+            ? "In the water"
+            : "On the raft";
     identity.append(element("strong", p.name), element("small", location));
     const vitals = element(
       "div",
@@ -457,6 +473,19 @@ function render() {
   select("entries").replaceChildren(
     ...s.log.map((line) => element("li", line)),
   );
+  renderTable(s, previous, origin);
+  if (previous) {
+    const result =
+      s.tideResult?.tide !== previous.tideResult?.tide ? s.tideResult : null;
+    if (
+      (s.channelMarked && !previous.channelMarked) ||
+      result?.route.kind === "channel"
+    )
+      playCue("channel");
+    else if (result?.route.kind === "hull" && result.route.blocked > 0)
+      playCue("brace");
+    else if (previous.phase === "board" && phase === "cards") playCue("rope");
+  }
 }
 function soloLink() {
   const link = element("a", "Return to solo voyage");
@@ -517,6 +546,8 @@ function roomControls(snapshot: RoomSnapshot) {
   }
   controls.append(soloLink());
 }
+
+soundToggle(select("sound-toggle"), select("sound-state"));
 
 if (room) {
   window.addEventListener("hashchange", () => {

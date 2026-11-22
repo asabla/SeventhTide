@@ -9,7 +9,13 @@
   </head>
   <body>
     <header>
-      <span class="brand">Seventh Tide</span><a href="#log">Ship’s log</a>
+      <span class="brand">Seventh Tide</span>
+      <div class="header-controls">
+        <button id="sound-toggle" type="button" aria-pressed="false">
+          Sound <span id="sound-state" aria-hidden="true">off</span>
+        </button>
+        <a href="#log">Ship’s log</a>
+      </div>
     </header>
     <main>
       <section class="scene">
@@ -17,7 +23,12 @@
           src="./assets/first-water.jpg"
           alt="Two sailors on a timber raft hold a line to a swimmer reaching for a ration tin."
         />
-        <div id="sea" aria-hidden="true"></div>
+        <div id="sea" aria-hidden="true">
+          <div id="lantern-glows" hidden>
+            <span class="cutter-glow"></span>
+            <span class="drifting-glow"></span>
+          </div>
+        </div>
         <div class="caption">
           <span id="location"></span>
           <h1>Seventh Tide</h1>
@@ -38,8 +49,14 @@
         <section class="play">
           <p class="label" id="step"></p>
           <h2 tabindex="-1" id="heading">Seventh Tide</h2>
+          <p id="raft-status" hidden></p>
           <p id="instruction"></p>
+          <section id="crew-table" aria-labelledby="crew-table-heading" hidden>
+            <h3 id="crew-table-heading">Crew plays</h3>
+            <ul id="crew-plays"></ul>
+          </section>
           <p id="turn-feedback" role="status"></p>
+          <div id="tide-result" aria-live="polite" hidden></div>
           <div id="choices"></div>
         </section>
         <aside>
