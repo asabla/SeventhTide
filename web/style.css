@@ -322,15 +322,18 @@ body.voyage {
   fill: var(--signal-cloth);
 }
 
-.crew-signal-label:not(:empty) {
+:where(.crew-signal-label:not(:empty), #compact-signals li) {
   position: relative;
   display: block;
-  margin-top: 3px;
   padding-left: 12px;
   color: #593d2e;
   font:
     italic 700 0.79rem/1.2 Georgia,
     serif;
+}
+
+.crew-signal-label:not(:empty) {
+  margin-top: 3px;
 }
 
 :where(.crew-signal-label:not(:empty), #compact-signals li)::before {
@@ -771,61 +774,13 @@ a.crew-return {
   font: 700 0.86rem var(--sans);
 }
 
-.hand-actions {
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
-  gap: 9px;
-  margin: 11px 10px 0;
+.reserve-cards {
+  margin-block: 23px 13px;
 }
 
-.hand-actions > :where(.action-slip) {
-  flex: 0 1 205px;
-  min-width: 0;
-  position: relative;
-  padding: 7px 10px 8px 16px;
-  border: 1px solid #816a4c;
-  border-left: 3px solid #79583a;
-  border-radius: 2px;
-  background:
-    linear-gradient(100deg, #7c552b40, transparent 55%),
-    var(--grain) repeat,
-    #cdb588;
-  box-shadow: 1px 3px 5px #10110bc5;
-}
-
-.hand-actions > :where(.action-slip:hover, .action-slip[aria-pressed="true"]) {
-  background-color: #eed4a1;
-}
-
-.action-slip[aria-pressed="true"] {
-  outline: 2px solid #edbd72;
-  outline-offset: 2px;
-}
-
-.action-slip::before {
-  content: "";
-  position: absolute;
-  top: 10px;
-  left: 4px;
-  width: 5px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #e0b16d, #694724 70%);
-  box-shadow: 1px 1px 1px #4b3523;
-}
-
-.action-slip strong {
-  display: block;
-  margin-bottom: 3px;
-  font:
-    700 1rem/1.15 Georgia,
-    serif;
-}
-
-.action-slip small {
-  display: block;
-  font: 600 0.78rem/1.3 var(--sans);
+.reserve-cards .card img {
+  aspect-ratio: 1.85;
+  margin-bottom: 6px;
 }
 
 .mode-panel:not([hidden]) {
@@ -1033,7 +988,8 @@ a.crew-return {
   font: 0.9rem/1.4 var(--sans);
 }
 
-#raft-status {
+#compact-log,
+#compact-signals {
   display: none;
 }
 
@@ -1096,110 +1052,144 @@ a.crew-return {
   }
 }
 
-@media (width <= 550px) {
+@media (width >= 1150px) {
+  .voyage-hand:has(.reserve-cards) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 142px;
+    column-gap: 19px;
+    align-items: start;
+  }
+
+  .voyage-hand > .equipment-targets {
+    grid-column: 1 / -1;
+  }
+
+  .voyage-hand > .equipment-cards:not(.reserve-cards) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .voyage-hand > .reserve-cards {
+    grid-column: 2;
+    grid-row: 2;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 21px;
+    margin: 17px 0 0;
+  }
+
+  .reserve-cards .card {
+    grid-column: 1;
+    padding: 6px;
+  }
+
+  .reserve-cards .card:not([aria-pressed="true"]) {
+    transform: rotate(-2deg);
+  }
+
+  .reserve-cards .card:nth-child(2):not([aria-pressed="true"]) {
+    transform: rotate(2deg);
+  }
+
+  .reserve-cards .card strong {
+    font-size: 1rem;
+  }
+
+  .reserve-cards .effect {
+    font-size: 0.8rem;
+  }
+}
+
+@media (width <= 700px) {
+  .wordmark {
+    font-size: clamp(1rem, 4.6vw, 1.25rem);
+  }
+
   .mast-tool:not([hidden]) {
     justify-content: center;
-    width: 40px;
+    width: clamp(30px, 10vw, 40px);
     padding-inline: 0;
+  }
+
+  .mast-tool svg {
+    width: min(36px, 10vw);
   }
 
   .mast-tool span {
     display: none;
   }
-}
 
-@media (width <= 700px) {
-  .voyage-board {
-    grid-template: "forecast" auto "status" auto "log" auto "table" 1fr / minmax(
-        0,
-        1fr
-      );
-  }
-
-  #raft-status:not([hidden]) {
-    grid-area: status;
+  .log[data-compact] {
     position: sticky;
-    align-self: start;
     z-index: 4;
     top: 0;
-    display: block;
-    padding: 7px 10px;
-    border-radius: 3px;
-    background: #243b36;
-    color: #fff6dd;
-    font: 700 0.9rem var(--sans);
+    padding: 0 10px;
   }
 
-  .raft-status-line {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 7px;
-  }
-
-  .raft-readout {
-    flex: 1;
-    min-width: 0;
-  }
-
-  #compact-signal-anchor:empty,
-  #compact-signal-anchor:has(#signal-station[hidden]) {
+  .log[data-compact] #log-heading > span,
+  .log[data-compact]:not([data-open]) #log-page,
+  .log[data-compact][data-open] #compact-signals,
+  .log[data-compact] #log-page > dl {
     display: none;
   }
 
-  #signal-flag {
-    justify-content: center;
-    width: 40px;
-    min-height: 40px;
-    padding: 0;
+  .log[data-compact][data-open] #log-page {
+    padding-top: 5px;
+    border-top: 3px double #8d8060;
   }
 
-  #signal-flag svg {
-    width: 32px;
-    height: 32px;
-  }
-
-  #signal-flag span {
-    display: none;
-  }
-
-  #compact-signals:not([hidden]) {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    min-height: 18px;
-    margin: 1px 0 0;
-    padding: 0;
-    overflow-x: auto;
-    list-style: "";
-    scrollbar-width: none;
-  }
-
-  #compact-signals li {
+  .log[data-compact] #compact-log {
     position: relative;
-    flex: none;
-    padding: 1px 6px 1px 16px;
-    border-radius: 2px;
-    background: #ddc194;
-    color: #36291c;
-    font: 650 0.75rem/1.25 var(--sans);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 7px 19px 6px 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
   }
 
-  #compact-signals li::before {
-    inset: 0.48em auto auto 5px;
+  #compact-log::after {
+    content: "";
+    position: absolute;
+    inset: 15px 3px auto auto;
+    width: 7px;
+    height: 7px;
+    border: solid #704f31;
+    border-width: 0 2px 2px 0;
+    rotate: 45deg;
   }
 
-  #play-count {
-    flex: none;
-    white-space: nowrap;
-    border-left: 1px solid #c0af7a80;
-    padding-left: 7px;
-    color: #f0d4a6;
+  #compact-log[aria-expanded="true"]::after {
+    rotate: 225deg;
+    top: 19px;
   }
 
-  .voyage-board[data-table] {
-    grid-template-areas: "forecast" "status" "table" "log";
-    grid-template-rows: auto auto auto 1fr;
+  #raft-condition {
+    font:
+      600 0.86rem/1.35 Georgia,
+      serif;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .log[data-compact]:not([data-open]) #compact-signals:not([hidden]) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin: 0;
+    padding: 5px 0 7px;
+    border-top: 1px solid #8d8060;
+    list-style: "";
+  }
+
+  .voyage-board[data-table]:not(:has(.log[data-compact])) {
+    grid-template-areas: "forecast" "table" "log";
+    grid-template-rows: auto auto 1fr;
   }
 
   .voyage-table[data-boarding] {

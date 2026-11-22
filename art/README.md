@@ -96,6 +96,12 @@ The generator received this common prompt followed by the scene for each card.
 
 > From raft level an exhausted sailor crouches on the lashed timbers, braced boots against rough wood, both hands hauling a taut knotted hemp line angling over the lower right edge into dark water. A small amber lantern glows behind one shoulder. The gesture and taut rope dominate.
 
+## Crew actions
+
+The three panels in [crew-actions.png](crew-actions.png) supply the illustrations for [Lash the timbers](../web/assets/lash-the-timbers.webp), [Share a ration](../web/assets/share-a-ration.webp), and [Float on the line](../web/assets/float-on-the-line.webp). Each action uses the same image in the hand and on the table.
+
+> A single 3:1 panorama TRIPTYCH which will be sliced mechanically into three equal square game card illustrations. Three completely INDEPENDENT nautical scenes, separated exactly at one-third and two-thirds; each composition fits entirely in its own square, with focal subject centered within its square. Seventh Tide is a grim historical maritime folk horror tabletop survival game set on a wrecked Victorian steamer's improvised raft in 1890. Authentic hand-cut antique copperplate engraving with aquatint, fine carbon black etching on aged bone paper. Restrained warm ochre and muted deep sea-green washes, dark damp wood, salt, directional storm light. Realistic figure anatomy and bold silhouettes at very small size. Left square: tightly cropped view of two bare wet hands wrenching an unmistakable large hemp lashing knot around two visibly separate cracked raft timbers. Their oilskin cuffs at edges, planks wet with sea spray. Middle square: two distinct sailors' hands pass a SINGLE opened unlabelled cylindrical ration tin from one palm to the other, its simple tin lip catching lantern light. A rough sleeve, dark wet timbers behind. Keep the whole tin and hands centered. Right square: waterline close view of one tethered clothed swimmer lying back on a breaking black swell, eyes and face visibly clear of the water, gripping the very thick taut rope that holds them afloat; rope prominent diagonally. No life belt or buoy. Each scene quiet, naturalistic, intricate but readable, completely full bleed. No typography, white gaps, dividers, frames, interface elements or overlays.
+
 ## The answering light
 
 The built-in image generator produced `answering-light.png`. The scene uses `web/assets/answering-light.jpg` from tide six onward.

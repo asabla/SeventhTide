@@ -33,6 +33,8 @@ Open http://127.0.0.1:4173. Fastify serves the built game from `web/dist/`. Set 
 
 ## Code quality
 
+For player-facing changes, follow the [UX guide](docs/ux.md) and verify the interaction in the running game.
+
 Run `npm run check` before committing. It checks formatting, type-aware code lint, CSS, HTML, TypeScript, unit tests with coverage, and the production build. Run `npm run format` to apply formatting. Use `npm run lint` or `npm run typecheck` for a focused check.
 
 Oxlint rejects unsafe use of `any`, unhandled promises, import cycles, and unused lint suppressions. TypeScript checks both source and tests, including indexed reads, optional properties, unused parameters, and missing returns. Stylelint checks CSS. HTML Validate checks markup structure and built-in accessibility rules. Prettier checks supported source, configuration, and documentation files. The gate excludes generated bundles and installed packages.
@@ -78,7 +80,7 @@ Phaser supplies the 2D rendering and scene tools the illustrated table needs. Us
 
 On new voyages, the crew shares a deck of 23 cards. This includes one copy of each of the 13 equipment cards added since the original deck. Salvage determines two cards in the deck. The ration locker adds Pass the Tin, spare timber adds Emergency Patch, and dry canvas adds Canvas Sling. Each sailor draws two cards before boarding. Open one of your cards during boarding to compare its raft and water effects. A sailor must hold a ration to play a face that spends one. Each device shows one private hand and the crew’s public plays.
 
-Play a held card to discard it and draw its replacement. Basic actions and ration sharing take the sailor’s turn and keep both cards for later. When the draw pile is empty, the crew reshuffles the discard pile. Saved voyages replay their recorded moves with their original rules version. Open seats become bots on the next turn that needs them.
+Play a held equipment card to discard it and draw its replacement. Action cards such as Lash the timbers and Share a ration take the sailor’s turn and let them keep both equipment cards. When the draw pile is empty, the crew reshuffles the discard pile. Saved voyages replay their recorded moves with their original rules version. Open seats become bots on the next turn that needs them.
 
 ## The answering light
 
@@ -98,7 +100,7 @@ During boarding, each player can volunteer or withdraw their sailor. The host as
 
 Players can act in any order. Bots play after the human turns. If a friend is away, the host can use **Help a waiting sailor** to let a bot take that friend’s turn. The returning friend sees which tide the bot covered and can act again on the next tide. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. The host can reopen the latest room with **Resume voyage with friends**. Guests can rejoin with their invite link. Anyone with that link can play the seat.
 
-During card play, open the signal pennant beside the other header tools. Choose a flag to ask for warmth or brace, or to offer a ration. The Ship’s log marks active signals beside each sailor. On narrow screens the pennant and callouts appear in the sticky raft status strip. Select your raised flag again to lower it. All signals clear when the tide resolves. Bot callouts reflect the crew’s public resources.
+During card play, open the signal pennant beside the other header tools. Choose a flag to ask for warmth or brace, or to offer a ration. The Ship’s log marks active signals beside each sailor. On narrow screens, the log shows a short condition summary and the active callouts. Open it to see every sailor’s cold and rations. Select your raised flag again to lower it. All signals clear when the tide resolves. Bot callouts reflect the crew’s public resources.
 
 ## Durable voyages
 

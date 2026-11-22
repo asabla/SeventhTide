@@ -181,42 +181,42 @@
         <h1 tabindex="-1" id="heading">Seventh Tide</h1>
         <p id="forecast" hidden></p>
       </section>
-      <div id="raft-status" hidden>
-        <div class="raft-status-line">
-          <div class="raft-readout">
-            <p id="raft-condition"></p>
-            <ul
-              id="compact-signals"
-              aria-label="Active crew signals"
-              hidden
-            ></ul>
-          </div>
-          <span id="play-count" hidden></span>
-          <div id="compact-signal-anchor"></div>
-        </div>
-      </div>
       <aside class="log" id="ship-log" aria-labelledby="log-heading">
-        <h2 id="log-heading">Ship’s log</h2>
-        <dl>
-          <div>
-            <dt>Hull</dt>
-            <dd id="hull"></dd>
-          </div>
-          <div>
-            <dt>Brace</dt>
-            <dd id="brace"></dd>
-          </div>
-        </dl>
-        <table class="crew-totals" aria-label="Crew condition">
-          <thead>
-            <tr>
-              <th scope="col">Crew</th>
-              <th scope="col">Cold</th>
-              <th scope="col">Rations</th>
-            </tr>
-          </thead>
-          <tbody id="crew"></tbody>
-        </table>
+        <h2 id="log-heading">
+          <span>Ship’s log</span>
+          <button
+            id="compact-log"
+            type="button"
+            aria-expanded="false"
+            aria-controls="log-page"
+          >
+            <span>Ship’s log</span>
+            <span id="raft-condition"></span>
+          </button>
+        </h2>
+        <ul id="compact-signals" aria-label="Active crew signals" hidden></ul>
+        <div id="log-page">
+          <dl>
+            <div>
+              <dt>Hull</dt>
+              <dd id="hull"></dd>
+            </div>
+            <div>
+              <dt>Brace</dt>
+              <dd id="brace"></dd>
+            </div>
+          </dl>
+          <table class="crew-totals" aria-label="Crew condition">
+            <thead>
+              <tr>
+                <th scope="col">Crew</th>
+                <th scope="col">Cold</th>
+                <th scope="col">Rations</th>
+              </tr>
+            </thead>
+            <tbody id="crew"></tbody>
+          </table>
+        </div>
       </aside>
       <section
         class="table voyage-table"
@@ -321,8 +321,9 @@
       </p>
       <p id="deck-rules" hidden>
         Salvage adds two cards to the shared deck. Each sailor holds two. Play a
-        card and draw its replacement. A move without a card lets you keep both.
-        When the draw pile runs out, shuffle the discard pile.
+        card and draw its replacement. An action card like Lash the timbers lets
+        you keep both equipment cards. When the draw pile runs out, shuffle the
+        discard pile.
       </p>
       <p id="landing-rules" hidden>
         On tide six, the swimmer can play Sounding line to mark a safe channel.
