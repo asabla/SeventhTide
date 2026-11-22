@@ -46,32 +46,33 @@ function currentSignals(
   });
 }
 
-export function crewSignalPanel(onChange: (signal: CrewSignal | null) => void) {
-  const button = select("open-signals");
-  const count = select("signal-count");
-  const dialog = select("crew-signals");
-  if (!(dialog instanceof HTMLDialogElement))
-    throw new Error("Missing crew signals dialog.");
-  const list = select("active-signals");
-  const empty = select("no-signals");
+export function crewSignalTabs(onChange: (signal: CrewSignal) => void) {
+  const list = select("compact-signals");
   const options = select("signal-options");
   const announce = select("signal-announcement");
   const status = select("signal-status");
   const choices = crewSignals.map((signal) => {
-    const choice = element("button", labels[signal]);
+    const choice = element("button", labels[signal], "signal-tag");
     choice.type = "button";
     choice.setAttribute("aria-pressed", "false");
+    choice.setAttribute("aria-describedby", "signal-help");
+    const clear = element("span", "×", "signal-tag-clear");
+    clear.setAttribute("aria-hidden", "true");
+    choice.append(clear);
     choice.addEventListener("click", () => onChange(signal));
     return choice;
   });
-  const clear = element("button", "Clear signal");
-  clear.type = "button";
-  clear.addEventListener("click", () => onChange(null));
-  options.append(...choices, clear);
-  button.addEventListener("click", () => {
-    status.textContent = "";
-    dialog.showModal();
-  });
+  options.prepend(...choices);
+  const narrow = matchMedia("(max-width: 700px)");
+  function placeTabs() {
+    const focused = choices.find((choice) => choice === document.activeElement);
+    select(narrow.matches ? "compact-signal-tabs" : "log-signal-tabs").append(
+      options,
+    );
+    focused?.focus({ preventScroll: true });
+  }
+  narrow.addEventListener("change", placeTabs);
+  placeTabs();
 
   return function renderSignals(
     s: SignalState,
@@ -93,27 +94,21 @@ export function crewSignalPanel(onChange: (signal: CrewSignal | null) => void) {
       const label = labelsBySeat[i] ?? "";
       if (badge && badge.textContent !== label) badge.textContent = label;
     }
-    const active = s.phase === "cards" || s.phase === "event";
     const canSend = online && s.phase === "cards";
-    const show = active && (canSend || lines.length > 0);
-    if (!active && dialog.open) {
-      dialog.close();
-      select("heading").focus();
-    }
-    button.hidden = !show;
-    count.textContent = lines.length ? `(${lines.length})` : "";
+    if (!canSend && options.contains(document.activeElement))
+      select("heading").focus({ preventScroll: true });
     options.hidden = !canSend;
-    for (const [i, choice] of choices.entries())
-      choice.setAttribute(
-        "aria-pressed",
-        String(crewSignals[i] === manual[seat]),
-      );
-    clear.disabled = !manual[seat];
+    list.hidden = !canSend && !lines.length;
+    if (!canSend) status.textContent = "";
+    for (const [i, choice] of choices.entries()) {
+      const pressed = crewSignals[i] === manual[seat];
+      choice.setAttribute("aria-pressed", String(pressed));
+      choice.title = pressed ? "Select again to clear the signal" : "";
+    }
     const message = lines.join(". ");
     if (announce.textContent !== message) {
       announce.textContent = message;
       list.replaceChildren(...lines.map((line) => element("li", line)));
     }
-    empty.hidden = lines.length > 0;
   };
 }
