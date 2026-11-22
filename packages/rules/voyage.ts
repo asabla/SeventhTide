@@ -12,7 +12,16 @@ export { handPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 3;
+export const rulesVersion = 5;
+export type RulesVersion = 1 | 2 | 3 | 4 | 5;
+export function isRulesVersion(value: unknown): value is RulesVersion {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= rulesVersion
+  );
+}
 
 export type Phase = "salvage" | "board" | "cards" | "event" | "won" | "lost";
 
@@ -33,6 +42,7 @@ type TideEvent = [
 ];
 
 export interface Voyage {
+  rulesVersion?: number;
   channelMarked?: boolean;
   deck?: Deck;
   tide: number;
@@ -180,7 +190,7 @@ export function crewMember(voyage: Voyage, index: number) {
 }
 
 export function start(seed: number, version: number = rulesVersion): Voyage {
-  if (version !== 1 && version !== 2 && version !== rulesVersion)
+  if (!isRulesVersion(version))
     throw new Error("Unsupported voyage rules version.");
   let bits = seed >>> 0;
   const random = () => {
@@ -188,7 +198,8 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     return bits / 4294967296;
   };
   return {
-    ...(version === 3 ? { channelMarked: false } : {}),
+    ...(version >= 4 ? { rulesVersion: version } : {}),
+    ...(version >= 3 ? { channelMarked: false } : {}),
     ...(version >= 2
       ? {
           deck: {
@@ -209,7 +220,7 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     salvage: shuffle(salvage, random).slice(0, 2),
     events: [
       ...shuffle(waters, random),
-      version === 3 ? answeringLight : finalTide,
+      version >= 3 ? answeringLight : finalTide,
     ],
     log: ["The ship is going down. Two seats remain on the raft."],
   };
@@ -276,6 +287,7 @@ export function moves(s: Voyage): Move[] {
       for (const card of new Set(s.deck?.hands[i])) {
         const definition = cardInfo(card);
         const effect = i === s.swimmer ? definition.water : definition.raft;
+        if (p.food + (effect.food ?? 0) < 0) continue;
         const option = {
           card,
           actor: i,
@@ -364,7 +376,7 @@ export function play(state: Voyage, moveId: string): Voyage {
       if (action === "spar") cold(i, 1);
     });
     s.log.push("Salvaged " + move.name.toLowerCase() + ".");
-    if (s.deck) deal(s.deck, move.id);
+    if (s.deck) deal(s.deck, move.id, s.rulesVersion ?? 2);
     s.phase = "board";
   } else if (s.phase === "board") {
     s.swimmer = Number(who);
@@ -387,6 +399,14 @@ export function play(state: Voyage, moveId: string): Voyage {
       s.guard += effect.brace ?? 0;
       cold(i, effect.cold ?? 0);
       if (effect.swimmerCold) cold(s.swimmer, effect.swimmerCold);
+      if (effect.swimmerFood)
+        crewMember(s, s.swimmer).food += effect.swimmerFood;
+      const raftCold = effect.raftCold;
+      if (raftCold) {
+        s.crew.forEach((_, index) => {
+          if (index !== s.swimmer) cold(index, raftCold);
+        });
+      }
       if (effect.targetCold) cold(Number(target), effect.targetCold);
       crewMember(s, i).food += effect.food ?? 0;
       replaceCard(s.deck, i, move.card);

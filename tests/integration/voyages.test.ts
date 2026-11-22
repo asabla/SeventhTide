@@ -42,11 +42,10 @@ await test("a returning guest can see the marked landing routes and only the hos
       await pool.end();
     }
   });
-  await pool.query("UPDATE voyages SET seed=$1, moves=$2 WHERE id=$3", [
-    4203543429,
-    history,
-    room.id,
-  ]);
+  await pool.query(
+    "UPDATE voyages SET seed=$1, moves=$2, rules_version=3 WHERE id=$3",
+    [4203543429, history, room.id],
+  );
   const url = base + "/" + room.id;
   const view = await readSnapshot(
     await fetch(url, { headers: { Authorization: "Bearer " + guest } }),
@@ -56,10 +55,12 @@ await test("a returning guest can see the marked landing routes and only the hos
   assert.ok(isRecord(view.event) && Array.isArray(view.event.landingRoutes));
   assert.deepEqual(
     view.event.landingRoutes,
-    moves(history.reduce(play, start(4203543429))).map(({ name, detail }) => ({
-      name,
-      detail,
-    })),
+    moves(history.reduce(play, start(4203543429, 3))).map(
+      ({ name, detail }) => ({
+        name,
+        detail,
+      }),
+    ),
   );
   const land = (token: string) =>
     fetch(url + "/moves", {

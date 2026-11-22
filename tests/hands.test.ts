@@ -27,7 +27,7 @@ await test("version-one fixture preserves the original hands and outcome", () =>
       [0, 0],
     ],
   );
-  assert.throws(() => start(1, 4), /Unsupported/);
+  assert.throws(() => start(1, 6), /Unsupported/);
 });
 
 await test("salvage changes the deck and only the played card is replaced", () => {
@@ -53,6 +53,23 @@ await test("salvage changes the deck and only the played card is replaced", () =
           salvage.id === "canvas" ? 3 : 1,
         ],
       );
+      assert.equal(cards.length, 23);
+      for (const id of [
+        "belt",
+        "anchor",
+        "net",
+        "iron",
+        "block",
+        "kettle",
+        "mitts",
+        "cask",
+        "lantern",
+        "glass",
+        "bell",
+        "hatch",
+        "comb",
+      ])
+        assert.equal(copies(id), 1);
       seen.add(salvage.id);
       const preview = handPreview(deck, 0);
       assert.equal(preview.length, 2);
@@ -73,7 +90,7 @@ await test("salvage changes the deck and only the played card is replaced", () =
           assert.equal(changed[1 - slot], previous[1 - slot]);
           assert.deepEqual(next.deck.discard, [move.card]);
           assert.equal(changed[slot], deck.draw.at(-1));
-          assert.equal(next.deck.draw.length, 3);
+          assert.equal(next.deck.draw.length, 16);
           if (move.card === "hook" && actor === 0)
             assert.equal(next.hull, Math.min(5, state.hull + 2));
           if (move.card === "hook" && actor !== 0) assert.equal(next.guard, 2);
@@ -88,7 +105,7 @@ await test("salvage changes the deck and only the played card is replaced", () =
     }
   }
   assert.equal(seen.size, 3);
-  assert.equal(effects.size, 10);
+  assert.equal(effects.size, 36);
 });
 
 await test("Mara can keep the sounding line on tide five and use it at landfall", () => {
@@ -139,4 +156,185 @@ await test("a voyage draws through its discard pile and replays with the same te
       [1, 0],
     ],
   );
+});
+
+await test("version three replays the original deal after the first tide", () => {
+  const state = [
+    "canvas",
+    "swim-0",
+    "float-0",
+    "lash-1",
+    "lash-2",
+    "hull",
+  ].reduce(play, start(4203543429, 3));
+  assert.deepEqual(state.deck, {
+    random: 262748807,
+    draw: ["line", "line", "wrap", "wrap"],
+    discard: [],
+    hands: [
+      ["patch", "hook"],
+      ["hook", "wrap"],
+      ["hook", "line"],
+    ],
+  });
+  assert.deepEqual(
+    [state.tide, state.hull, state.channelMarked],
+    [2, 2, false],
+  );
+  assert.deepEqual(
+    state.crew.map((p) => [p.cold, p.food]),
+    [
+      [2, 1],
+      [1, 0],
+      [1, 0],
+    ],
+  );
+});
+
+await test("wreck equipment applies each position's effect and replaces the played card", () => {
+  // Totals are hull, brace, Mara's cold, Ivo's cold, and Mara's rations.
+  const examples = [
+    { seed: 938, id: "anchor", raft: [2, 3, 1, 1, 1], water: [3, 1, 0, 1, 1] },
+    { seed: 938, id: "belt", raft: [2, 0, 1, 0, 1], water: [3, 0, 0, 1, 1] },
+    { seed: 524, id: "net", raft: [2, 0, 1, 1, 2], water: [3, 0, 3, 1, 3] },
+  ];
+  for (const example of examples) {
+    for (const swimmer of [0, 1]) {
+      const history = ["locker", "swim-" + swimmer, example.id + "-0"];
+      const state = history.reduce(play, start(example.seed, 4));
+      const mara = crewMember(state, 0);
+      assert.deepEqual(
+        [
+          state.hull,
+          state.guard,
+          mara.cold,
+          crewMember(state, 1).cold,
+          mara.food,
+        ],
+        swimmer === 0 ? example.water : example.raft,
+      );
+      assert.deepEqual(state.deck?.discard, [example.id]);
+      assert.deepEqual(state.acted, [0]);
+    }
+  }
+});
+
+await test("version four preserves the deal and the draw after playing the sea anchor", () => {
+  const state = ["locker", "swim-0", "anchor-0"].reduce(play, start(938, 4));
+  assert.deepEqual(state.deck, {
+    random: 767336635,
+    draw: ["hook", "hook", "line", "line", "wrap", "patch"],
+    discard: ["anchor"],
+    hands: [
+      ["line", "belt"],
+      ["hook", "tin"],
+      ["net", "tin"],
+    ],
+  });
+  assert.deepEqual([state.hull, state.guard, state.acted], [3, 1, [0]]);
+  assert.deepEqual(
+    state.crew.map(({ cold, food }) => [cold, food]),
+    [
+      [0, 1],
+      [1, 1],
+      [1, 1],
+    ],
+  );
+});
+
+await test("all ten equipment cards apply their raft and water effects to the correct sailors", () => {
+  // Each result gives hull, brace, three cold totals and three ration totals.
+  const examples = [
+    {
+      seed: 987,
+      id: "bell",
+      raft: [2, 3, 4, 2, 2, 1, 1, 1],
+      water: [5, 0, 4, 2, 2, 1, 1, 1],
+    },
+    {
+      seed: 987,
+      id: "glass",
+      raft: [2, 2, 2, 2, 2, 0, 1, 1],
+      water: [2, 0, 0, 3, 3, 1, 1, 1],
+    },
+    {
+      seed: 1575,
+      id: "block",
+      raft: [2, 0, 3, 0, 2, 1, 1, 1],
+      water: [4, 0, 2, 2, 2, 0, 1, 1],
+    },
+    {
+      seed: 1575,
+      id: "iron",
+      raft: [4, 0, 2, 2, 2, 0, 1, 1],
+      water: [3, 0, 2, 2, 2, 1, 1, 1],
+    },
+    {
+      seed: 264,
+      id: "mitts",
+      raft: [2, 1, 1, 2, 2, 1, 1, 1],
+      water: [2, 0, 2, 1, 1, 1, 1, 1],
+    },
+    {
+      seed: 264,
+      id: "kettle",
+      raft: [2, 0, 1, 2, 1, 0, 1, 1],
+      water: [2, 0, 0, 2, 2, 0, 1, 1],
+    },
+    {
+      seed: 2891,
+      id: "cask",
+      raft: [2, 0, 2, 2, 2, 2, 2, 1],
+      water: [2, 2, 2, 2, 2, 1, 1, 1],
+    },
+    {
+      seed: 2891,
+      id: "lantern",
+      raft: [2, 1, 2, 1, 2, 1, 1, 1],
+      water: [2, 1, 3, 2, 2, 2, 1, 1],
+    },
+    {
+      seed: 773,
+      id: "hatch",
+      raft: [3, 1, 2, 2, 2, 1, 1, 1],
+      water: [1, 0, 1, 2, 2, 2, 1, 1],
+    },
+    {
+      seed: 773,
+      id: "comb",
+      raft: [2, 0, 3, 2, 2, 3, 1, 1],
+      water: [1, 2, 2, 2, 2, 1, 1, 1],
+    },
+  ];
+  for (const { seed, id, raft, water } of examples) {
+    for (const swimmer of [0, 1]) {
+      const before = ["locker", "swim-" + swimmer].reduce(play, start(seed));
+      before.hull = 2;
+      before.crew.forEach((p) => {
+        p.cold = 2;
+      });
+      const moveId = id + "-0";
+      const after = play(before, moveId);
+      const expected = swimmer === 0 ? water : raft;
+      assert.deepEqual(
+        [
+          after.hull,
+          after.guard,
+          ...after.crew.map((p) => p.cold),
+          ...after.crew.map((p) => p.food),
+        ],
+        expected,
+        moveId,
+      );
+      assert.deepEqual(after.deck?.discard, [id]);
+      assert.deepEqual(after.acted, [0]);
+      crewMember(before, 0).food = 0;
+      assert.equal(
+        moves(before).some((m) => m.id === moveId),
+        expected[5] !== 0,
+      );
+      if (expected[5] === 0)
+        assert.throws(() => play(before, moveId), /unavailable/);
+    }
+  }
 });
