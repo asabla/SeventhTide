@@ -21,6 +21,7 @@ function sail(
   let keeper = -1;
   let sawLine = false;
   while (state.phase !== "won" && state.phase !== "lost") {
+    assert.ok(history.length < 36, JSON.stringify({ seed, history }));
     const hands = state.deck?.hands;
     assert.ok(hands);
     const firstLine = hands.findIndex((hand) => hand.includes("line"));
@@ -50,7 +51,11 @@ function decide(s: Voyage, keeper: number, basicOnly: boolean) {
   }
   if (s.phase === "event") {
     if (s.tide === 7 && s.channelMarked) return "channel";
-    return s.hull > currentEvent(s)[3] - s.guard ? "hull" : "dive";
+    const hullDamage = Math.max(0, currentEvent(s)[3] - s.guard);
+    if (s.hull > hullDamage) return "hull";
+    const alternative = moves(s).find(({ id }) => id !== "hull");
+    assert.ok(alternative);
+    return alternative.id;
   }
   assert.ok(s.phase === "cards" && s.swimmer !== null);
   const options = moves(s).filter((m) => {
