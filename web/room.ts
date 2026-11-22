@@ -82,6 +82,7 @@ function isTideResult(value: unknown) {
     record(value.route) &&
     (value.route.kind === "channel" ||
       value.route.kind === "decoy" ||
+      (value.route.kind === "chain" && typeof value.route.cold === "number") ||
       (value.route.kind === "dive" && typeof value.route.cold === "number") ||
       (value.route.kind === "hull" &&
         typeof value.route.incoming === "number" &&
@@ -117,6 +118,9 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     (value.wake === undefined ||
       value.wake === "following" ||
       value.wake === "drawn-off") &&
+    (value.buoy === undefined ||
+      value.buoy === "chain" ||
+      value.buoy === "echo") &&
     typeof value.hull === "number" &&
     typeof value.guard === "number" &&
     (value.swimmer === null || typeof value.swimmer === "number") &&

@@ -23,6 +23,7 @@ function checkOutcomes(
     board: "VoyageAdrift",
   };
   let count = 0;
+  let chainChecks = 0;
   for (let tide = 1; tide <= 7; tide++) {
     for (const hull of [0, 1, 2, 5]) {
       for (const guard of [0, 1]) {
@@ -64,6 +65,7 @@ function checkOutcomes(
                 }),
               );
               count++;
+              if (move.id === "chain") chainChecks++;
             }
           }
         }
@@ -71,7 +73,10 @@ function checkOutcomes(
     }
   }
   assert.equal(count, 2304);
-  console.log(count + " TypeScript event outcomes agree with Bend.");
+  assert.equal(chainChecks, 144);
+  console.log(
+    `${count} TypeScript event outcomes agree with Bend, including ${chainChecks} Bell Buoy chain choices.`,
+  );
 }
 
 execFileSync("bend", ["PROOF.bend", "--verdict"], { stdio: "inherit" });

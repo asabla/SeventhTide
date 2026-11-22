@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Pool } from "pg";
 import {
+  bellBuoy,
   currentEvent,
   handPreview,
   moves,
@@ -88,6 +89,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
     tide: state.tide,
     channelMarked: state.channelMarked,
     wake: secondWake(state),
+    buoy: bellBuoy(state),
     hull: state.hull,
     crew: state.crew,
     hands: state.crew.map((_, i) =>
