@@ -774,6 +774,106 @@ function resourceChanges(before: Voyage, after: Voyage) {
   return changes.filter(({ amount }) => amount !== 0);
 }
 
+function projectTide(state: Voyage, swimmer: number, move: Move) {
+  const [event, , , incoming, extraCold] = currentEvent(state);
+  let route: TideResult["route"];
+  let ration = swimmerRation;
+  let hull = state.hull;
+  let swimmerColdCost = 0;
+  const find = lockerFind(state);
+  const grip = underRaft(state);
+  if (find && move.id === "haul-locker") {
+    swimmerColdCost = extraCold;
+    route = { kind: "haul-locker", cold: extraCold, find: find.name };
+  } else if (find) {
+    route = { kind: "leave-locker" };
+  } else if (move.id === "hull" && grip) {
+    hull = Math.max(0, hull - incoming);
+    route = { kind: "cut", lost: state.hull - hull };
+  } else if (move.id === "hull") {
+    const blocked = Math.min(incoming, state.guard);
+    hull = Math.max(0, hull - (incoming - blocked));
+    route = { kind: "hull", incoming, blocked, lost: state.hull - hull };
+  } else if (move.id === "dive") {
+    swimmerColdCost = extraCold;
+    route = { kind: "dive", cold: extraCold };
+  } else if (move.id === "decoy") {
+    route = { kind: "decoy" };
+  } else if (move.id === "pry") {
+    route = { kind: "pry" };
+  } else if (move.id === "echo-crossing") {
+    hull = Math.max(0, hull - echoCrossingDamage);
+    route = { kind: "echo-crossing", lost: state.hull - hull };
+  } else if (move.id === "chain") {
+    const cost = chainCost(state);
+    swimmerColdCost = cost.cold;
+    ration = cost.ration;
+    route = { kind: "chain", cold: cost.cold };
+  } else if (move.id === "channel") {
+    route = { kind: "channel" };
+  } else {
+    throw new Error("Unknown tide route: " + move.id);
+  }
+  const exposureCost = route.kind === "decoy" ? shelteredCold : swimmerCold;
+  const exposure: number[] = [];
+  const crew = state.crew.map((sailor, i) => {
+    const inWater = i === swimmer;
+    const beforeExposure = sailor.cold + (inWater ? swimmerColdCost : 0);
+    const cold = Math.max(0, beforeExposure + (inWater ? exposureCost : -1));
+    exposure.push(cold - beforeExposure);
+    return { ...sailor, cold, food: sailor.food + (inWater ? ration : 0) };
+  });
+  const lost = crew.filter((sailor) => sailor.cold >= coldLimit);
+  const outcome: RouteForecast["outcome"] =
+    !hull || lost.length
+      ? "lost"
+      : state.tide === 7
+        ? "won"
+        : route.kind === "haul-locker"
+          ? "recover"
+          : "board";
+  const result: TideResult = {
+    tide: state.tide,
+    event,
+    choice: move.name,
+    swimmer,
+    route,
+    exposure,
+    ration,
+  };
+  return { hull, crew, lost, outcome, result };
+}
+
+export interface RouteForecast {
+  hull: number;
+  cold: number[];
+  ration: number;
+  outcome: "lost" | "won" | "recover" | "board";
+}
+
+export type TideRoute = Pick<Move, "id" | "name" | "detail"> & {
+  forecast: RouteForecast;
+};
+
+export function previewRoutes(state: Voyage): TideRoute[] {
+  const swimmer = state.swimmer;
+  if (state.phase !== "event" || swimmer === null) return [];
+  return moves(state).map((move) => {
+    const { hull, crew, outcome, result } = projectTide(state, swimmer, move);
+    return {
+      id: move.id,
+      name: move.name,
+      detail: move.detail,
+      forecast: {
+        hull,
+        cold: crew.map((sailor) => sailor.cold),
+        ration: result.ration,
+        outcome,
+      },
+    };
+  });
+}
+
 export function play(state: Voyage, moveId: string): Voyage {
   const move = moves(state).find((option) => option.id === moveId);
   if (!move) throw new Error("This move is unavailable.");
@@ -879,56 +979,12 @@ export function play(state: Voyage, moveId: string): Voyage {
     });
     if (s.acted.length === s.crew.length) s.phase = "event";
   } else if (s.phase === "event" && s.swimmer !== null) {
-    const [event, , , incoming, extraCold] = currentEvent(s);
-    let route: TideResult["route"] = { kind: "channel" };
-    let ration = swimmerRation;
-    const find = lockerFind(s);
-    const grip = underRaft(s);
-    if (find && moveId === "haul-locker") {
-      cold(s.swimmer, extraCold);
-      route = { kind: "haul-locker", cold: extraCold, find: find.name };
-    } else if (find) {
-      route = { kind: "leave-locker" };
-    } else if (action === "hull" && grip) {
-      s.hull = Math.max(0, s.hull - incoming);
-      route = { kind: "cut", lost: state.hull - s.hull };
-    } else if (action === "hull") {
-      const blocked = Math.min(incoming, s.guard);
-      s.hull = Math.max(0, s.hull - (incoming - blocked));
-      route = { kind: "hull", incoming, blocked, lost: state.hull - s.hull };
-    } else if (action === "dive") {
-      cold(s.swimmer, extraCold);
-      route = { kind: "dive", cold: extraCold };
-    } else if (action === "decoy") {
-      route = { kind: "decoy" };
-    } else if (action === "pry") {
-      route = { kind: "pry" };
-    } else if (moveId === "echo-crossing") {
-      s.hull = Math.max(0, s.hull - echoCrossingDamage);
-      route = { kind: "echo-crossing", lost: state.hull - s.hull };
-    } else if (action === "chain") {
-      const cost = chainCost(s);
-      cold(s.swimmer, cost.cold);
-      ration = cost.ration;
-      route = { kind: "chain", cold: cost.cold };
-    }
-    const swimmerExposure =
-      route.kind === "decoy" ? shelteredCold : swimmerCold;
-    const exposure = s.crew.map((sailor, i) => {
-      const before = sailor.cold;
-      cold(i, i === s.swimmer ? swimmerExposure : -1);
-      return sailor.cold - before;
-    });
-    crewMember(s, s.swimmer).food += ration;
-    s.tideResult = {
-      tide: s.tide,
-      event,
-      choice: move.name,
-      swimmer: s.swimmer,
-      route,
-      exposure,
-      ration,
-    };
+    const projected = projectTide(state, s.swimmer, move);
+    const { result, lost, outcome } = projected;
+    const { ration } = result;
+    s.hull = projected.hull;
+    s.crew = projected.crew;
+    s.tideResult = result;
     s.log.push(
       move.name +
         ". " +
@@ -937,31 +993,27 @@ export function play(state: Voyage, moveId: string): Voyage {
         ration +
         (ration === 1 ? " ration." : " rations."),
     );
-    if (grip && (s.rulesVersion ?? 1) >= 10) {
-      s.creatureFollowing = route.kind !== "pry";
+    if (underRaft(s) && (s.rulesVersion ?? 1) >= 10) {
+      s.creatureFollowing = result.route.kind !== "pry";
       s.log.push(
         s.creatureFollowing
           ? "Its wake follows the raft."
           : "The grip breaks. Its wake falls behind.",
       );
     }
-    const lost = s.crew.filter((p) => p.cold >= coldLimit);
-    if (!s.hull || lost.length) {
-      s.phase = "lost";
+    s.phase = outcome;
+    if (outcome === "lost") {
       s.log.push(
         !s.hull
           ? "The last timber came loose."
           : lost.map((p) => p.name).join(" and ") + " succumbed to cold.",
       );
-    } else if (s.tide === 7) {
-      s.phase = "won";
+    } else if (outcome === "won") {
       s.log.push("All three reached the rescue vessel.");
-    } else if (route.kind === "haul-locker") {
+    } else if (outcome === "recover") {
       s.guard = 0;
-      s.phase = "recover";
     } else {
       s.tide++;
-      s.phase = "board";
       s.swimmer = null;
     }
   } else if (

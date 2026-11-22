@@ -1,6 +1,6 @@
 # Seventh Tide
 
-Seventh Tide is a cooperative maritime horror card game for browsers and phones. Survive seven tides with two bot crewmates or invite one or two friends to join from their own devices.
+Seventh Tide is a cooperative maritime horror card game designed for a desktop browser. Survive seven tides with two bot crewmates or invite one or two friends to join from their own devices.
 
 ## Set up the development tools
 
@@ -43,7 +43,7 @@ The rule tests must cover at least 95% of lines, 90% of branches, and 95% of fun
 
 ### Simulate voyages
 
-Run `mise exec -- npm run simulate` to check 512 seeds. Use `mise exec -- npm run simulate -- 1024 2048` to check 1,024 seeds from index 2,048. The simulator uses the same seat and bot functions as the game. It runs solo, two-player, three-player, and absent-friend voyages with cautious and random choices. It checks that pending turns advance, each voyage ends within 36 recorded moves, and replay reproduces the exact result. The JSON report includes sample seeds and move histories for rescues and losses. CI runs the same simulation on 256 seeds.
+Run `mise exec -- npm run simulate` to check 512 seeds. Use `mise exec -- npm run simulate -- 1024 2048` to check 1,024 seeds from index 2,048. The simulator uses the same seat and bot functions as the game. It runs solo, two-player, three-player, and absent-friend voyages with cautious and random choices. It checks that pending turns advance, each voyage ends within 37 recorded moves, and replay reproduces the exact result. The JSON report includes sample seeds and move histories for rescues and losses. CI runs the same simulation on 256 seeds.
 
 ### Verify the tide outcome laws
 
@@ -51,7 +51,7 @@ From the repository root, run `mise trust verification/tide/mise.toml` once, the
 
 The [Bend laws](verification/tide/LAWS.bend) cover route availability and resolution for The Second Wake, The Bell Buoy, and The Answering Light. They prove which bell play opens the echo route, how brace changes the chain costs, and which play marks the landing channel. Zero hull or any sailor at five or more cold ends the voyage. A surviving crew lands on tide seven and continues on earlier tides.
 
-The turn model gives each active stage a legal move and starts with a budget of 36 moves. Each move spends one from the budget. A voyage that ends early discards its unused moves. A pending player can act, the host can cover a pending guest, and bots act when the humans finish. The bound counts recorded moves in a launched voyage. It assumes that the host or the player who can act takes the move.
+The turn model gives each active stage a legal move and starts with a budget of 36 moves plus one for a possible equipment swap at The drifting locker. Every move reduces the budget. A voyage that ends early discards its unused moves. A pending player can act, the host can cover a pending guest, and bots act when the humans finish. The bound counts recorded moves in a launched voyage. It assumes that the host or the player who can act takes the move.
 
 Bend proves these properties of the model. The checker compares the model with the TypeScript game on hull and cold boundaries and on replayed states from every rules version. It checks route availability, resources, the next phase, all crew turn orders, and seat permissions. Seeded simulations exercise full voyages separately. The checker compiles its reference modules into a temporary directory and removes them after the comparison.
 
@@ -63,7 +63,7 @@ Bend proves these properties of the model. The checker compares the model with t
 | Rules          | A shared TypeScript package. A seed and a list of legal moves reproduce the voyage. Solo play runs the rules on the device. The voyage API runs the same rules before it records a move.                                         |
 | Build          | npm workspaces, a committed lockfile, strict TypeScript, Vite, and the Node test runner.                                                                                                                                         |
 | Online service | Node.js and Fastify serve the game and expose `GET /api/health`. With PostgreSQL, the server also provides the voyage API. Active rooms poll the API while the tab is visible. WebSockets are planned for future room updates.   |
-| Distribution   | Serve the web build to desktop and phone browsers first. Use Tauri 2 for future installable builds. Native packaging and signing will have their own build jobs.                                                                 |
+| Distribution   | Serve the web build with desktop browsers as the primary platform. Use Tauri 2 for future installable builds. Native packaging and signing will have their own build jobs.                                                       |
 
 Phaser supplies the 2D rendering and scene tools the illustrated table needs. Using TypeScript on both sides lets a rule change apply to solo and co-op together. The client can use generated paintings, sprite sheets, and rendered views of 3D models as ordinary game art. Keep source art and generation prompts in `art/` and ship optimized images from `web/assets/`.
 
@@ -86,7 +86,7 @@ Play a held equipment card to discard it and draw its replacement. Use the crew 
 
 ## The answering light
 
-On tide six, the cutter’s lamp holds steady while a pale light moves against the swell. Play Sounding line as the swimmer to mark a channel to the cutter. The card gives one brace and costs one cold. On tide seven, following the marked channel spares the hull. The swimmer still gains two cold from exposure. Force a landing for up to four hull damage after brace, or scout the reef for four cold in all. The choices show the resulting hull and swimmer cold before the host chooses.
+On tide six, the cutter’s lamp holds steady while a pale light moves against the swell. Play Sounding line as the swimmer to mark a channel to the cutter. The card gives one brace and costs one cold. On tide seven, following the marked channel spares the hull. The swimmer still gains two cold from exposure. Force a landing for up to four hull damage after brace, or scout the reef for four cold in all. Each tide’s route choices forecast the resulting hull and swimmer cold. A warning names any sailor whose cold will be fatal after recovery.
 
 During **The second wake**, hold the line and let brace absorb the pull, or follow the pull and take extra cold on the swimmer. A sailor on the raft can ring the Wreck bell to unlock **Haul in on the echo**. This spares the hull and reduces the swimmer’s exposure from 2 cold to 1. The sailor who rings the bell still takes the card’s cost. The swimmer recovers one ration on every route.
 

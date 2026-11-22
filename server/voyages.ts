@@ -7,6 +7,7 @@ import {
   handPreview,
   moves,
   play,
+  previewRoutes,
   secondWake,
   reefPursuit,
   underRaft,
@@ -67,10 +68,7 @@ function crewChoices(row: Row, state: Voyage) {
 
 function snapshot(row: Row, state: Voyage, token: string) {
   const event = currentEvent(state);
-  const routes =
-    state.phase === "event"
-      ? moves(state).map(({ id, name, detail }) => ({ id, name, detail }))
-      : [];
+  const routes = previewRoutes(state);
   return {
     id: row.id,
     revision: row.revision,

@@ -8,6 +8,7 @@ import {
   crewMember,
   moves,
   play,
+  previewRoutes,
   rulesVersion,
   start,
   type TideResult,
@@ -182,6 +183,22 @@ function checkResolution(
     },
     context,
   );
+  record(resolution);
+  const forecast = previewRoutes(state).find(
+    (route) => route.id === id,
+  )?.forecast;
+  assert.ok(forecast, context);
+  assert.equal(forecast.hull, resolution.hull, context);
+  assert.equal(forecast.cold[swimmer], resolution.swim_cold, context);
+  assert.equal(forecast.cold[first], resolution.first_cold, context);
+  assert.equal(forecast.cold[second], resolution.second_cold, context);
+  assert.equal(forecast.ration, resolution.rations, context);
+  assert.deepEqual(
+    tag(outcomes[forecast.outcome]),
+    resolution.outcome,
+    context,
+  );
+  assert.equal(forecast.outcome, after.phase, context);
   if (state.channelMarked !== undefined && state.tide === 7) {
     const previous = crewMember(state, swimmer);
     const echo = kind === "echo-crossing";

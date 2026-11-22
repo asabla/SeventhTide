@@ -256,3 +256,9 @@ def Laws.reef_lure_uses_the_bells_action():
 
 def Laws.ordinary_raft_bell_adds_brace():
   {==}
+
+def Laws.five_cold_on_raft_can_recover():
+  {==}
+
+def Laws.safe_swimmer_cannot_save_a_raft_sailor_at_six_cold():
+  {==}

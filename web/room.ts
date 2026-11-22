@@ -57,6 +57,21 @@ function isEquipmentPreview(value: unknown) {
   );
 }
 
+function isRouteForecast(value: unknown) {
+  return (
+    record(value) &&
+    typeof value.hull === "number" &&
+    typeof value.ration === "number" &&
+    Array.isArray(value.cold) &&
+    value.cold.length === names.length &&
+    value.cold.every((cold: unknown) => typeof cold === "number") &&
+    (value.outcome === "lost" ||
+      value.outcome === "won" ||
+      value.outcome === "board" ||
+      value.outcome === "recover")
+  );
+}
+
 function isCrewPlay(value: unknown) {
   return (
     record(value) &&
@@ -172,9 +187,10 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
         value.event.routes.every(
           (route: unknown) =>
             record(route) &&
-            (route.id === undefined || typeof route.id === "string") &&
+            typeof route.id === "string" &&
             typeof route.name === "string" &&
-            typeof route.detail === "string",
+            typeof route.detail === "string" &&
+            isRouteForecast(route.forecast),
         ))) &&
     Array.isArray(value.crew) &&
     value.crew.length === names.length &&
