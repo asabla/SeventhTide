@@ -219,6 +219,8 @@ function routeBeats({ route }: TideResult, swimmer: string | undefined) {
     ];
   if (route.kind === "dive")
     return [element("li", `${swimmer} +${route.cold} cold from the event`)];
+  if (route.kind === "decoy")
+    return [element("li", "The echo drew the wake away · 0 hull damage")];
   return [
     element(
       "li",

@@ -111,6 +111,21 @@ body.voyage {
   object-position: 50% 44%;
 }
 
+.voyage .scene[data-wake]:not([data-wake=""]) {
+  height: min(60vh, 460px);
+  mask-image: linear-gradient(black 49%, transparent 100%);
+}
+
+#wake-art {
+  object-position: 62% 54%;
+}
+
+.scene:is([data-wake="following"], [data-wake="drawn-off"])
+  + .voyage-board
+  .forecast {
+  max-width: min(100%, 500px);
+}
+
 #sea {
   position: absolute;
   inset: 0;
@@ -125,6 +140,80 @@ body.voyage {
 #lantern-glows {
   position: absolute;
   z-index: 1;
+}
+
+#wake-motion {
+  position: absolute;
+  z-index: 1;
+}
+
+#wake-motion::before {
+  content: "";
+  position: absolute;
+  inset: 32% 8% auto 46%;
+  height: 20%;
+  border-top: 2px solid #ded9ac7a;
+  border-radius: 60% 74% 0 0;
+  rotate: 14deg;
+  filter: blur(1px);
+  opacity: 0.3;
+  animation: wake-drift 4.8s ease-in-out infinite alternate;
+}
+
+#wake-motion span {
+  position: absolute;
+  inset: 38% 13% auto 57%;
+  height: 19%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #070b09b8, transparent 67%);
+  opacity: 0;
+}
+
+.scene[data-wake="following"][data-reveal] #wake-motion span {
+  animation: wake-pass 2.1s ease-out both;
+}
+
+.scene[data-wake="drawn-off"] #wake-motion::before {
+  animation: wake-recede 1.4s ease-out both;
+}
+
+@keyframes wake-drift {
+  from {
+    transform: translate(5%, 2%) scaleX(0.97);
+    opacity: 0.22;
+  }
+
+  to {
+    transform: translate(-4%, -6%) scaleX(1.03);
+    opacity: 0.48;
+  }
+}
+
+@keyframes wake-pass {
+  0% {
+    transform: translateX(35%) scale(0.79);
+    opacity: 0;
+  }
+
+  38% {
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: translate(-23%, 8%) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes wake-recede {
+  from {
+    opacity: 0.65;
+  }
+
+  to {
+    transform: translate(22%, -20%) scale(0.84);
+    opacity: 0;
+  }
 }
 
 .cutter-glow,
@@ -931,6 +1020,31 @@ a.crew-return {
   background: #101714ed;
 }
 
+#raft-table[data-wake-routes] #choices {
+  width: 100%;
+}
+
+#raft-table[data-wake-routes] #choices > :is(.choices, .route-preview) {
+  width: min(100%, 620px);
+  margin-inline: auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+}
+
+#raft-table[data-wake-routes] #choices > .choices button {
+  background:
+    var(--grain) repeat,
+    var(--paper);
+  border-left: 3px solid #735439;
+  box-shadow: 1px 3px 5px #100f0adc;
+}
+
+#raft-table[data-wake-routes] #choices > .choices button:hover {
+  background:
+    linear-gradient(#ffe3a958, #ffe3a958),
+    var(--grain) repeat,
+    var(--paper);
+}
+
 #tide-result {
   margin: 15px 0;
   padding: 12px 14px;
@@ -1100,6 +1214,16 @@ a.crew-return {
 }
 
 @media (width <= 700px) {
+  .voyage .scene[data-wake]:not([data-wake=""]) {
+    height: min(70vh, 430px);
+  }
+
+  .scene:is([data-wake="following"], [data-wake="drawn-off"])
+    + .voyage-board
+    .forecast {
+    margin-bottom: clamp(44px, 13vw, 78px);
+  }
+
   .wordmark {
     font-size: clamp(1rem, 4.6vw, 1.25rem);
   }
@@ -1203,6 +1327,21 @@ a.crew-return {
     order: 1;
   }
 
+  #raft-table[data-wake-routes] {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  #raft-table[data-wake-routes] #choices > :is(.choices, .route-preview) {
+    grid-template-columns: 1fr;
+    margin: 0 auto 14px;
+  }
+
+  #raft-table[data-wake-routes] #tide-plays {
+    order: 1;
+  }
+
   .played-card {
     min-width: 106px;
   }
@@ -1283,7 +1422,14 @@ a.crew-return {
   .event-arrival,
   .reveal-result li,
   .cutter-glow,
-  .drifting-glow {
+  .drifting-glow,
+  #wake-motion::before,
+  #wake-motion span {
+    animation: none;
+  }
+
+  .scene[data-wake="following"][data-reveal] #wake-motion span,
+  .scene[data-wake="drawn-off"] #wake-motion::before {
     animation: none;
   }
 }

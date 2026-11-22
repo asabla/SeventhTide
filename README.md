@@ -86,6 +86,8 @@ Play a held equipment card to discard it and draw its replacement. Action cards 
 
 On tide six, two lanterns appear at the reef. Play Sounding line as the swimmer to mark a channel to the rescue cutter. The card still gives one brace and costs one cold. On tide seven the host can follow that channel without paying a landing cost. The swimmer still gains two cold from exposure. Without the mark, force a landing for four hull before brace, or scout the reef for two extra cold.
 
+During **The second wake**, hold the line and let brace absorb the pull, or follow the pull and take extra cold on the swimmer. A sailor on the raft can ring the Wreck bell to unlock **Haul in on the echo**. This spares the hull and reduces the swimmer’s exposure from 2 cold to 1. The sailor who rings the bell still takes the card’s cost. The swimmer recovers one ration on every route.
+
 Run `mise exec -- node verification/landing/simulate.ts` to compare spending and saving the line on the same 1,024 starting deals. The output includes replayable voyages and a separate count of landings by crews that never held a line.
 
 ## Play solo or with friends

@@ -1,5 +1,11 @@
 # Art direction
 
+## The second wake
+
+The original [second-wake.png](second-wake.png) supplies the [sea banner](../web/assets/second-wake.webp). Phaser frames the swimmer and the wake. The animation places a moving shadow and a trace of foam over the engraving.
+
+> Create a wide 3:2 landscape title-free scene for Seventh Tide, a late Victorian maritime folk-horror tabletop game. Museum-print antique copperplate engraving and aquatint, realistic anatomy, carbon-black etched lines, desaturated petrol green, worn bone, a trace of lantern amber. First-person view from a very low drifting timber raft at night. No deck in the foreground, only water and the thick taut tether leaving the bottom left edge of the frame and entering the water toward a tiny, fully clothed oilskin swimmer. The swimmer's dark cap and face just above water and the end of the taut hemp tether are in the middle of the image just RIGHT of its center (horizontal 58%, vertical 50%). Behind the swimmer an unnaturally distinct bright crescent wake moves against the softer parallel swell, starting at open water in the upper center and curling around toward the right side of the swimmer. Just beneath the foaming curl a gigantic dark shadow curves through the translucent water, an almost geological shape with a suggestion of ridges. No obvious eyes, mouth, recognizable animal, claws, tentacles above water, or gore. The silhouette of a half-sunk 1890 steamship remains tiny and far off on the hazy horizon. Use a quiet dark left third that can take a title over it in the game. Place the swimmer and uncanny leading part of the wake close in the middle so they can both be seen when cropped down to the middle third on a phone or to a shallow desktop banner. Chiaroscuro, wet hatch marks, tactile engraving and oppressively cold water. Full bleed. No lettering, numerals, letters, border, logos, panels, or interface.
+
 ## Ten finds from the wreck
 
 Each original contains a raft scene on the left and a water scene on the right. The built-in image generator received the common prompt below followed by the scene description for that card.

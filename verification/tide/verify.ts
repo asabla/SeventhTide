@@ -7,12 +7,9 @@ import { pathToFileURL } from "node:url";
 import { moves, play, start } from "../../packages/rules/voyage.ts";
 
 function eventState() {
-  const initial = start(111);
-  const salvage = moves(initial)[0];
-  assert.ok(salvage);
-  return [salvage.id, "swim-1", "float-1", "lash-0", "lash-2"].reduce(
+  return ["locker", "swim-1", "bell-0", "float-1", "lash-2"].reduce(
     play,
-    initial,
+    start(456),
   );
 }
 
@@ -73,7 +70,7 @@ function checkOutcomes(
       }
     }
   }
-  assert.equal(count, 2160);
+  assert.equal(count, 2304);
   console.log(count + " TypeScript event outcomes agree with Bend.");
 }
 

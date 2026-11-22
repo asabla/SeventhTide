@@ -20,6 +20,7 @@ import { cardDrag, cardFace, equipmentCard } from "./cards.ts";
 import {
   start,
   rulesVersion,
+  secondWake,
   handPreview,
   salvagePreview,
   play,
@@ -58,6 +59,9 @@ try {
   state = start(run.seed);
 }
 let paintSea: (() => void) | undefined;
+function wakeIn(voyage: Voyage | RoomSnapshot) {
+  return "events" in voyage ? secondWake(voyage) : voyage.wake;
+}
 const roomId = new URLSearchParams(location.search).get("room");
 const room = roomId ? readRoom(roomId) : null;
 let turn: RoomSnapshot | undefined;
@@ -613,16 +617,14 @@ function renderAssists(s: TableState, players: number) {
   );
 }
 
-function render(
-  previous?: TableState & { channelMarked?: boolean | undefined },
-  origin?: CardOrigin,
-) {
+function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   showPlayMode();
   if (turn && !turn.crewLaunched) {
     renderCrewLobby(turn);
     return;
   }
   const s = turn ?? state;
+  const wake = wakeIn(s);
   const seat = turn?.seat ?? 0;
   const players = turn?.players ?? 1;
   const options = turn?.choices ?? seatMoves(state, seat, players);
@@ -651,16 +653,31 @@ function render(
   if (!keepHand && !tray.hidden && !options.some((move) => move.card))
     trayNote.textContent = "Choose a move below, then use this tray.";
   const sighted = s.channelMarked !== undefined && s.tide >= 6;
-  select("scene").hidden = !sighted;
+  const scene = select("scene");
+  scene.hidden = !sighted && !wake;
+  scene.dataset.wake = wake ?? "";
+  scene.toggleAttribute("data-reveal", Boolean(wake && s.phase === "event"));
+  select("landing-art").hidden = Boolean(wake);
+  select("wake-art").hidden = !wake;
+  table.toggleAttribute(
+    "data-wake-routes",
+    Boolean(wake && s.phase === "event"),
+  );
   select("landing-rules").hidden = s.channelMarked === undefined;
+  select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   const localEvent = room ? null : currentEvent(state);
-  const forecast = turn?.forecast ?? localEvent?.[1] ?? "";
   const phase = s.phase;
+  const eventDescription = turn?.event?.description ?? localEvent?.[2] ?? "";
+  const wakeReveal = wake !== undefined && phase === "event";
+  const forecast = wakeReveal
+    ? eventDescription
+    : (turn?.forecast ?? localEvent?.[1] ?? "");
   const logAtTable = phase === "cards" || phase === "event";
   shipLog.toggleAttribute("data-compact", logAtTable);
   if (!logAtTable || (previous && previous.tide !== s.tide)) setLogOpen(false);
   const clue = select("forecast");
-  clue.hidden = !forecast || (phase !== "cards" && phase !== "board");
+  clue.hidden =
+    !forecast || (!wakeReveal && phase !== "cards" && phase !== "board");
   clue.textContent = forecast;
   select("deck-rules").hidden = !usesCrewDeck();
   const heads = {
@@ -677,8 +694,9 @@ function render(
     board:
       "Choose one swimmer. They gain 2 cold and 1 ration at the end of the tide. Each sailor on the raft sheds 1 cold.",
     cards: "",
-    event:
-      (turn?.event?.description ?? localEvent?.[2] ?? "") + " Choose a route.",
+    event: wakeReveal
+      ? "Choose a route."
+      : eventDescription + " Choose a route.",
     won: "All three sailors survived the seventh tide.",
     lost: s.log.at(-1) ?? "",
   };
@@ -700,7 +718,7 @@ function render(
     instruction =
       phase === "salvage"
         ? `You’re ${s.crew[seat]?.name}. Waiting for the host to choose salvage.`
-        : `${turn.event?.description ?? ""} Waiting for ${s.crew[0]?.name ?? "the host"} to choose a route.`;
+        : `${wakeReveal ? "" : eventDescription + " "}Waiting for ${s.crew[0]?.name ?? "the host"} to choose a route.`;
     if (turn.event) {
       const routes = element("ul", "", "route-preview");
       for (const route of turn.event.routes) {
@@ -819,7 +837,15 @@ function render(
   if (previous) {
     const result =
       s.tideResult?.tide !== previous.tideResult?.tide ? s.tideResult : null;
-    if (
+    if (wake === "drawn-off" && wakeIn(previous) !== "drawn-off")
+      playCue("wake-bell");
+    else if (
+      wake === "following" &&
+      phase === "event" &&
+      previous.phase !== "event"
+    )
+      playCue("wake");
+    else if (
       (s.channelMarked && !previous.channelMarked) ||
       result?.route.kind === "channel"
     )
@@ -953,7 +979,11 @@ for (const [button, id] of [
   button.addEventListener("click", () => dialog.showModal());
 }
 
-soundToggle(select("sound-toggle"), select("sound-state"));
+soundToggle(select("sound-toggle"), select("sound-state"), () => {
+  const s = turn ?? state;
+  const wake = wakeIn(s);
+  return wake === "drawn-off" ? "wake-bell" : wake ? "wake" : "brace";
+});
 
 if (room) {
   window.addEventListener("hashchange", () => {
@@ -1011,6 +1041,9 @@ if (room) {
 // The crew controls are ready before the presentation engine finishes loading.
 void import("./sea.ts")
   .then(({ mountSea }) => {
-    paintSea = mountSea(select("sea"), () => turn ?? state);
+    paintSea = mountSea(select("sea"), () => {
+      const s = turn ?? state;
+      return { tide: s.tide, channelMarked: s.channelMarked, wake: wakeIn(s) };
+    });
   })
   .catch((error: unknown) => console.warn("Sea scene unavailable", error));
