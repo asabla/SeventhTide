@@ -98,7 +98,7 @@ During boarding, each player can volunteer or withdraw their sailor. The host as
 
 Players can act in any order. Bots play after the human turns. If a friend is away, the host can use **Help a waiting sailor** to let a bot take that friend’s turn. The returning friend sees which tide the bot covered and can act again on the next tide. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. The host can reopen the latest room with **Resume voyage with friends**. Guests can rejoin with their invite link. Anyone with that link can play the seat.
 
-During card play, use the signal tabs at the foot of the Ship’s log to ask for warmth or brace, or offer a ration. On narrow screens, the tabs and active signals appear in the raft status strip. Select the active tab again to clear your signal. All signals clear when the tide resolves. Bot callouts reflect the crew’s public resources.
+During card play, open the signal pennant beside the other header tools. Choose a flag to ask for warmth or brace, or to offer a ration. The Ship’s log marks active signals beside each sailor. On narrow screens the pennant and callouts appear in the sticky raft status strip. Select your raised flag again to lower it. All signals clear when the tide resolves. Bot callouts reflect the crew’s public resources.
 
 ## Durable voyages
 

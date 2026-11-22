@@ -121,6 +121,46 @@
             >Sound <small id="sound-state">off</small></span
           >
         </button>
+        <details id="signal-station" hidden>
+          <summary
+            id="signal-flag"
+            class="mast-tool"
+            aria-label="Crew signals"
+            title="Crew signals"
+          >
+            <svg viewBox="0 0 40 40" aria-hidden="true">
+              <ellipse cx="13" cy="35" rx="9" ry="2.5" fill="#3c3020" />
+              <path fill="#b4844b" stroke="#4b3420" d="M7 33h12l3 3H4z" />
+              <path fill="#bd9155" stroke="#493322" d="M10 6h3v28h-3z" />
+              <circle
+                cx="11.5"
+                cy="6"
+                r="2.5"
+                fill="#d6af72"
+                stroke="#6e4b2c"
+              />
+              <path
+                class="signal-flag-cloth"
+                stroke="#472d25"
+                d="M13 10c7-5 14 3 23-2l-7 9 7 7c-10 4-16-4-23 1z"
+              />
+              <path
+                fill="none"
+                stroke="#ead3a6"
+                opacity=".68"
+                d="M16 12c5-2 9 2 14 1m-14 9c5-2 9 2 14 1"
+              />
+              <path fill="none" stroke="#4c3128" d="m8 12 6 2m-6 8 6 2" />
+            </svg>
+            <span aria-hidden="true">Signals</span>
+          </summary>
+          <div id="signal-options" role="group" aria-label="Signal crew">
+            <p id="signal-help" class="signal-announcement">
+              Select your raised signal again to lower it.
+            </p>
+            <p id="signal-status" role="status"></p>
+          </div>
+        </details>
       </div>
     </header>
     <div class="scene" id="scene" hidden>
@@ -142,12 +182,18 @@
         <p id="forecast" hidden></p>
       </section>
       <div id="raft-status" hidden>
-        <p class="raft-status-line">
-          <span id="raft-condition"></span>
+        <div class="raft-status-line">
+          <div class="raft-readout">
+            <p id="raft-condition"></p>
+            <ul
+              id="compact-signals"
+              aria-label="Active crew signals"
+              hidden
+            ></ul>
+          </div>
           <span id="play-count" hidden></span>
-        </p>
-        <div id="compact-signal-tabs"></div>
-        <ul id="compact-signals" aria-label="Active crew signals" hidden></ul>
+          <div id="compact-signal-anchor"></div>
+        </div>
       </div>
       <aside class="log" id="ship-log" aria-labelledby="log-heading">
         <h2 id="log-heading">Ship’s log</h2>
@@ -171,20 +217,6 @@
           </thead>
           <tbody id="crew"></tbody>
         </table>
-        <div id="log-signal-tabs">
-          <div
-            id="signal-options"
-            class="signal-options"
-            role="group"
-            aria-label="Signal crew"
-            hidden
-          >
-            <p id="signal-help" class="signal-announcement">
-              Activate your current signal again to clear it.
-            </p>
-            <p id="signal-status" role="status"></p>
-          </div>
-        </div>
       </aside>
       <section
         class="table voyage-table"

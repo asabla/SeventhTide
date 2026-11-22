@@ -10,7 +10,7 @@ import {
 } from "./room.ts";
 import type { RoomSnapshot } from "../server/voyages.ts";
 import type { CrewSignal } from "../shared/crew-signals.ts";
-import { crewSignalTabs } from "./crew-signals.ts";
+import { crewSignalStation } from "./crew-signals.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
 import { equipmentArt } from "./equipment-art.ts";
 import { element, select } from "./dom.ts";
@@ -93,7 +93,7 @@ resume.type = "button";
 resume.hidden = true;
 roomPanel.before(resume);
 const drag = cardDrag(tray);
-const renderSignals = crewSignalTabs((signal) => void sendSignal(signal));
+const renderSignals = crewSignalStation(sendSignal);
 let selectedMove:
   | { button: HTMLButtonElement; moves: Move[]; targets: HTMLElement }
   | undefined;
@@ -218,17 +218,19 @@ async function refreshRoom() {
 }
 
 async function sendSignal(signal: CrewSignal) {
-  if (!room || turn?.phase !== "cards" || signaling) return;
+  if (!room || turn?.phase !== "cards" || signaling) return false;
   const status = select("signal-status");
   signaling = true;
   status.textContent = "";
   try {
     const selected = signal === turn.signals[turn.seat] ? null : signal;
     setTurn(await readTurn(room, { tide: turn.tide, signal: selected }));
+    return true;
   } catch (error) {
     if (error instanceof TurnConflict) await refreshRoom();
     status.textContent =
       error instanceof Error ? error.message : "Could not send the signal.";
+    return false;
   } finally {
     signaling = false;
   }
