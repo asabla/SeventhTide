@@ -47,76 +47,59 @@ function atTable(s: TableState) {
   return s.phase === "cards" || s.phase === "event";
 }
 
-function playSlots(
+function tidePlays(
   s: TableState,
   view: CrewView,
   previous?: TableState,
   origin?: CardOrigin,
 ) {
-  const table = select("crew-table");
-  table.hidden = !atTable(s);
-  if (table.hidden) return;
+  const section = select("tide-plays");
+  const list = select("crew-plays");
+  section.hidden = !atTable(s) || !s.plays.length;
+  if (section.hidden) {
+    list.replaceChildren();
+    return;
+  }
 
-  const sameTable = previous && atTable(previous) && s.tide === previous.tide;
-  if (sameTable && previous.plays.length === s.plays.length) return;
-
-  const slots = select("crew-plays");
+  const sameTide = previous && atTable(previous) && s.tide === previous.tide;
+  if (!sameTide) list.replaceChildren();
   let playedHere: HTMLElement | undefined;
-  slots.replaceChildren(
-    ...s.crew.map((sailor, i) => {
-      const slot = element("li", "", "crew-slot");
-      const bot = i >= view.players;
-      const role = i === view.seat ? " · You" : bot ? " · Bot" : "";
-      slot.append(
-        element("strong", sailor.name + role),
-        element("small", i === s.swimmer ? "In the water" : "On the raft"),
+  for (const play of s.plays.slice(sameTide ? previous.plays.length : 0)) {
+    const { actor } = play;
+    const role =
+      actor === view.seat ? " · You" : actor >= view.players ? " · Bot" : "";
+    const card = element("li", "", "played-card");
+    const copy = element("div", "", "played-copy");
+    const artwork = play.card && equipmentImage(play.card, actor === s.swimmer);
+    if (artwork) {
+      const image = element("img");
+      image.alt = "";
+      image.src = artwork;
+      card.append(image);
+    }
+    copy.append(
+      element("p", s.crew[actor]?.name + role, "played-by"),
+      element("strong", play.name),
+    );
+    if (play.changes.length) {
+      const changes = element("ul", "", "resource-changes");
+      changes.append(
+        ...play.changes.map((change) => element("li", changeText(s, change))),
       );
-      const play = s.plays.find(({ actor }) => actor === i);
-      if (!play) {
-        slot.append(
-          element(
-            "p",
-            bot
-              ? "Plays after players"
-              : i === view.seat
-                ? "Your move"
-                : "Waiting to play",
-            "empty-slot",
-          ),
-        );
-        return slot;
-      }
-      const card = element("div", "", "played-card");
-      const artwork = play.card && equipmentImage(play.card, i === s.swimmer);
-      if (artwork) {
-        const image = element("img");
-        image.alt = "";
-        image.src = artwork;
-        card.append(image);
-      }
-      card.append(element("strong", play.name));
-      if (play.changes.length) {
-        const changes = element("ul", "", "resource-changes");
-        changes.replaceChildren(
-          ...play.changes.map((change) => element("li", changeText(s, change))),
-        );
-        card.append(changes);
-      } else card.append(element("small", "No resource change"));
-      if (play.markedChannel)
-        card.append(element("small", "Channel marked", "channel-mark"));
+      copy.append(changes);
+    } else if (!play.markedChannel) {
+      copy.append(element("small", "No resource change"));
+    }
+    if (play.markedChannel)
+      copy.append(element("small", "Channel marked", "channel-mark"));
 
-      if (
-        previous &&
-        previous.tide === s.tide &&
-        !(sameTable && previous.plays.some(({ actor }) => actor === i))
-      ) {
-        card.classList.add("card-arrival");
-        if (origin?.id === play.id) playedHere = card;
-      }
-      slot.append(card);
-      return slot;
-    }),
-  );
+    if (sameTide) {
+      card.classList.add("card-arrival");
+      if (origin?.id === play.id) playedHere = card;
+    }
+    card.append(copy);
+    list.append(card);
+  }
   if (
     playedHere &&
     origin &&
@@ -202,7 +185,7 @@ export function renderTable(
   previous?: TableState,
   origin?: CardOrigin,
 ) {
-  playSlots(s, view, previous, origin);
+  tidePlays(s, view, previous, origin);
   tideResult(s, previous);
   const status = select("raft-status");
   status.hidden = s.phase === "salvage";

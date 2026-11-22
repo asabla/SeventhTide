@@ -5,6 +5,58 @@ body.voyage {
 .voyage .mast {
   position: relative;
   z-index: 2;
+  align-items: center;
+  gap: 8px;
+}
+
+.wordmark {
+  font:
+    500 clamp(1.25rem, 3vw, 1.5rem) Georgia,
+    serif;
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.mast-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mast-actions > :where(button) {
+  min-height: 40px;
+  padding: 5px 9px;
+  border: 1px solid #8e7653;
+  background: #17221e;
+  color: #f1d7a6;
+  font-size: 0.87rem;
+}
+
+.mast-actions > :where(button:hover) {
+  background: #2e3b31;
+}
+
+.mast-tool:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mast-tool svg {
+  width: 21px;
+  height: 21px;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mast-tool span {
+  color: inherit;
+  font: 650 0.88rem var(--sans);
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 #sound-state {
@@ -134,6 +186,48 @@ body.voyage {
   color: #f9edd6;
 }
 
+.voyage-dialog {
+  width: min(35rem, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 18px 22px 22px;
+  border: 1px solid #705739;
+  border-left: 7px solid #543729;
+  border-radius: 4px;
+  background:
+    var(--grain) repeat,
+    var(--paper);
+  color: var(--ink);
+  box-shadow:
+    inset 0 0 24px #62472770,
+    0 16px 40px #080c0bbb;
+  color-scheme: light;
+  font: 1rem/1.5 var(--sans);
+}
+
+.voyage-dialog::backdrop {
+  background: #08100ed9;
+}
+
+.dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 9px;
+  border-bottom: 3px double #73684e;
+}
+
+.dialog-heading h2 {
+  font:
+    italic 500 1.6rem Georgia,
+    serif;
+}
+
+:where(.voyage-dialog > p) + p {
+  margin-top: 0.75em;
+}
+
 #instruction,
 #turn-feedback,
 #room-status {
@@ -157,30 +251,17 @@ body.voyage {
   display: none;
 }
 
-.voyage-board[data-playing] #turn-feedback {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
-:where(.voyage .log) details {
-  border-top: 1px solid #8d8060;
-  padding-block: 7px;
-  font-size: 0.88rem;
-}
-
-:where(.voyage .log) details p {
-  margin-top: 6px;
-  line-height: 1.35;
-}
-
 #entries {
-  padding-left: 18px;
-  line-height: 1.4;
+  margin: 0;
+  padding-inline-start: 1.45em;
+}
+
+:where(#entries li) + li {
+  margin-top: 6px;
+}
+
+.voyage .crew-totals {
+  margin-bottom: 0;
 }
 
 :where(#crew) small {
@@ -189,26 +270,40 @@ body.voyage {
   font: 0.75rem var(--sans);
 }
 
-#room-controls label {
+#invite-links label {
   display: block;
-  margin-block: 8px;
+  margin-top: 12px;
 }
 
-#room-controls input {
+#invite-links input {
   width: 100%;
   height: auto;
-  padding: 4px;
+  padding: 6px;
   margin-top: 4px;
 }
 
-:where(#room-controls) button,
-#room-controls a {
+:where(#room-controls, #invite-links) button {
   display: block;
   margin-top: 7px;
 }
 
-#room-controls a {
-  color: inherit;
+#invite-status:not(:empty) {
+  margin-top: 12px;
+}
+
+.crew-return {
+  display: block;
+  width: fit-content;
+  margin: 15px auto 0;
+}
+
+a.crew-return {
+  padding: 7px 10px;
+  border: 1px solid #7f6a4a;
+  border-radius: 3px;
+  background: #e7d6ad;
+  color: var(--ink);
+  font: 650 1rem/1.3 var(--sans);
 }
 
 .resume-room:not([hidden]) {
@@ -342,84 +437,98 @@ body.voyage {
   font: 0.9rem var(--sans);
 }
 
-.play-area#crew-table:not([hidden]) {
-  display: block;
+#tide-plays {
   width: 100%;
-  margin-bottom: 12px;
+  margin: 0 auto 20px;
 }
 
-#crew-table h2 {
-  margin: 0 0 6px;
-  font-size: 1.24rem;
+#tide-plays-heading {
+  width: fit-content;
+  margin: 0 auto 8px;
+  padding: 3px 8px;
+  border-bottom: 1px solid #a48a5f;
+  background: #101714e8;
   color: #edca92;
-}
-
-#tray-note {
-  margin-top: 7px;
-  font: 0.92rem/1.3 var(--sans);
+  font: 650 0.93rem/1.3 var(--sans);
 }
 
 #crew-plays {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 8px;
   padding: 0;
   margin: 0;
-  list-style: none;
+  list-style: "";
 }
 
-.crew-slot {
-  min-width: 0;
-}
-
-.crew-slot > strong {
-  color: #edca92;
-}
-
-.crew-slot > small {
-  display: block;
-  margin-bottom: 5px;
-  color: #e4ded0;
-  font: 0.78rem var(--sans);
-}
-
-.empty-slot,
 .played-card {
-  min-height: 50px;
-  padding: 5px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 0 1 205px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid #ae956d;
   border-radius: 3px;
-  font: 0.84rem/1.25 var(--sans);
+  overflow-wrap: anywhere;
+  background:
+    var(--grain) repeat,
+    var(--paper);
+  color: var(--ink);
+  box-shadow: 1px 3px 6px #101410b0;
+  font: 0.82rem/1.25 var(--sans);
 }
 
-.empty-slot {
-  display: grid;
-  align-items: center;
-  border: 1px dashed #a39673;
+.played-card img {
+  width: clamp(28px, 4vw, 47px);
+  aspect-ratio: 0.85;
+  object-fit: cover;
+  border: 1px solid #7f6a4a;
+  border-radius: 2px;
+}
+
+.played-copy > strong {
+  display: block;
+  font:
+    700 1rem/1.1 Georgia,
+    serif;
+}
+
+.played-by {
+  margin-bottom: 3px;
+  color: #4c4032;
+  font-weight: 700;
+}
+
+#personal-tray:not([hidden]) {
+  display: flex;
+  width: min(100%, 320px);
+  margin: 0 auto;
+}
+
+.tray-slot {
+  flex: 0 0 32px;
+  height: 42px;
+  border: 1px dashed #b4a587;
+  border-radius: 2px;
   background: repeating-linear-gradient(
     45deg,
     #85856b19 0 1px,
     transparent 1px 6px
   );
-  color: #e4ded0;
-  text-align: center;
+  transform: rotate(-4deg);
 }
 
-.played-card {
-  position: relative;
-  overflow-wrap: anywhere;
-  color: var(--ink);
-  background:
-    var(--grain) repeat,
-    var(--paper);
-  border: 1px solid #a39673;
+.ready .tray-slot {
+  border-color: #c5e3d4;
 }
 
-.played-card img {
-  width: 36px;
-  aspect-ratio: 1;
-  object-fit: cover;
-  float: left;
-  margin-right: 5px;
+#tray-note {
+  min-height: 2.6em;
+  margin-top: 2px;
+  font: 0.88rem/1.3 var(--sans);
 }
 
 .resource-changes {
@@ -446,26 +555,23 @@ body.voyage {
 }
 
 .equipment-targets {
-  margin: 0 auto 8px;
-  width: fit-content;
+  margin: 9px auto 8px;
+  width: min(100%, 320px);
+}
+
+.equipment-targets .choices {
+  grid-template-columns: repeat(auto-fit, minmax(min(82px, 100%), 1fr));
+  gap: 6px;
 }
 
 .equipment-targets:empty {
   display: none;
 }
 
-.hand-heading,
-.equipment-targets h3 {
-  text-align: center;
-  text-shadow: 0 2px 4px #040806;
-}
-
 .equipment-targets h3 {
   margin: 0 0 4px;
-}
-
-.hand-heading {
-  font-size: 1.2rem;
+  text-align: center;
+  text-shadow: 0 2px 4px #040806;
 }
 
 .equipment-cards {
@@ -612,6 +718,27 @@ body.voyage {
   display: none;
 }
 
+@media (width <= 550px) {
+  .mast-tool:not([hidden]) {
+    justify-content: center;
+    width: 36px;
+    padding-inline: 3px;
+  }
+
+  .mast-tool span {
+    display: none;
+  }
+
+  .mast-actions > :where(button) {
+    min-height: 36px;
+  }
+
+  #sound-toggle {
+    padding-inline: 6px;
+    white-space: nowrap;
+  }
+}
+
 @media (width <= 700px) {
   .voyage-board {
     grid-template: "forecast" auto "status" auto "log" auto "table" 1fr / minmax(
@@ -634,22 +761,38 @@ body.voyage {
     font: 700 0.9rem var(--sans);
   }
 
-  .played-card img {
-    display: none;
+  .voyage-board[data-table] {
+    grid-template-areas: "forecast" "status" "table" "log";
+    grid-template-rows: auto auto auto 1fr;
+  }
+
+  .played-card {
+    flex-basis: 150px;
+    min-width: 128px;
+  }
+
+  #crew-plays {
+    justify-content: safe center;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    scrollbar-color: #a38c65 #1c221c;
+    scrollbar-width: thin;
   }
 
   .equipment-cards {
     gap: 8px;
-  }
-
-  .play-area#crew-table {
-    padding-inline: 9px;
   }
 }
 
 .card-arrival {
   z-index: 2;
   animation: play-card 340ms cubic-bezier(0.2, 0.78, 0.35, 1);
+}
+
+@media (width <= 700px) {
+  .card-arrival {
+    animation-name: tide-beat;
+  }
 }
 
 @keyframes play-card {
