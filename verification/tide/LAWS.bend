@@ -1,5 +1,7 @@
 import Base
 import ./Tide.bend as Tide
+import ./Encounter.bend as Encounter
+import ./Progress.bend as Progress
 
 law broken_raft:
   for exposed: Bool
@@ -18,3 +20,102 @@ law safe_crew_continues:
 law safe_crew_lands:
   for timber: Nat
   { Tide.finish(1n+timber, False{}, True{}) == Tide.VoyageRescued{} : Tide.Outcome }
+
+law wake_exposes_decoy:
+  for since: Nat
+  for marked: Bool
+  { Encounter.routes(Encounter.SecondWake{}, 6n+since, Encounter.RaftBell{}, marked) == Encounter.Routes{True{}, False{}, True{}, False{}} : Encounter.Routes }
+
+law wake_without_bell:
+  for version: Nat
+  for marked: Bool
+  { Encounter.routes(Encounter.SecondWake{}, version, Encounter.Silent{}, marked) == Encounter.Routes{False{}, False{}, True{}, False{}} : Encounter.Routes }
+
+law wake_bell_underwater:
+  for version: Nat
+  for marked: Bool
+  { Encounter.routes(Encounter.SecondWake{}, version, Encounter.SwimmerBell{}, marked) == Encounter.Routes{False{}, False{}, True{}, False{}} : Encounter.Routes }
+
+law legacy_wake_keeps_routes:
+  for ring: Encounter.Ring
+  for marked: Bool
+  { Encounter.routes(Encounter.SecondWake{}, 5n, ring, marked) == Encounter.Routes{False{}, False{}, True{}, False{}} : Encounter.Routes }
+
+law echo_shelters_swimmer:
+  for brace: Nat
+  for incoming: Nat
+  for dive_cold: Nat
+  { Encounter.effects(Encounter.Decoy{}, brace, incoming, dive_cold) == Encounter.Effects{0n, 0n, 1n, 1n} : Encounter.Effects }
+
+law buoy_routes:
+  for since: Nat
+  for ring: Encounter.Ring
+  for marked: Bool
+  { Encounter.routes(Encounter.BellBuoy{}, 7n+since, ring, marked) == Encounter.Routes{False{}, True{}, False{}, False{}} : Encounter.Routes }
+
+law legacy_buoy_keeps_routes:
+  for ring: Encounter.Ring
+  for marked: Bool
+  { Encounter.routes(Encounter.BellBuoy{}, 6n, ring, marked) == Encounter.Routes{False{}, False{}, True{}, False{}} : Encounter.Routes }
+
+law buoy_braced_chain:
+  for brace: Nat
+  for incoming: Nat
+  for dive_cold: Nat
+  { Encounter.effects(Encounter.Chain{}, 1n+brace, incoming, dive_cold) == Encounter.Effects{0n, 1n, 2n, 2n} : Encounter.Effects }
+
+law buoy_false_bell:
+  for incoming: Nat
+  for dive_cold: Nat
+  { Encounter.effects(Encounter.Chain{}, 0n, incoming, dive_cold) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+
+law hull_route_always_available:
+  for plan: Encounter.Routes
+  { Encounter.allowed(Encounter.Hull{}, plan) == True{} : Bool }
+
+law fatal_cold:
+  for excess: Nat
+  { Encounter.fatal(5n+excess) == True{} : Bool }
+
+law four_cold_is_safe:
+  { Encounter.fatal(4n) == False{} : Bool }
+
+law each_stage_has_a_move:
+  for stage: Progress.Stage
+  { Progress.accepts(stage, Progress.fallback(stage)) == True{} : Bool }
+
+law host_can_play:
+  for ready: Bool
+  { Progress.crew_access(True{}, Progress.HostSeat{}, ready) == Progress.Access{True{}, False{}, False{}} : Progress.Access }
+
+law guest_can_play_or_be_covered:
+  for ready: Bool
+  { Progress.crew_access(True{}, Progress.GuestSeat{}, ready) == Progress.Access{True{}, True{}, False{}} : Progress.Access }
+
+law bot_plays_after_humans:
+  { Progress.crew_access(True{}, Progress.BotSeat{}, True{}) == Progress.Access{False{}, True{}, True{}} : Progress.Access }
+
+law completed_seat_cannot_act:
+  for role: Progress.Role
+  for ready: Bool
+  { Progress.crew_access(False{}, role, ready) == Progress.Access{False{}, False{}, False{}} : Progress.Access }
+
+law accepted_move_spends_one:
+  for stage: Progress.Stage
+  for later: Nat
+  for verdict: Tide.Outcome
+  { Progress.remaining(stage, later) == 1n+Progress.budget_after(Progress.advance(stage, later, verdict)) : Nat }
+
+law surviving_tide_returns_to_boarding:
+  for later: Nat
+  { Progress.advance(Progress.Resolution{}, 1n+later, Tide.VoyageAdrift{}) == Progress.Continue{Progress.Boarding{}, later} : Progress.Step }
+
+law loss_stops_play:
+  for later: Nat
+  { Progress.advance(Progress.Resolution{}, later, Tide.VoyageLost{}) == Progress.Stop{Progress.later_budget(later)} : Progress.Step }
+
+law rescue_stops_play:
+  { Progress.advance(Progress.Resolution{}, 0n, Tide.VoyageRescued{}) == Progress.Stop{0n} : Progress.Step }
+
+law start_budget:
+  { Progress.remaining(Progress.Salvage{}, 6n) == 36n : Nat }

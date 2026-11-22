@@ -49,9 +49,11 @@ Run `mise exec -- npm run simulate` to check 512 seeds. Use `mise exec -- npm ru
 
 From the repository root, run `mise trust verification/tide/mise.toml` once, then `mise -C verification/tide run verify`. The verification configuration pins Bend and Lean for macOS and Linux. The GitHub Actions job `tide-laws` runs the same verification command.
 
-The laws in `verification/tide/LAWS.bend` describe the outcome after all event effects have resolved. Zero hull or any sailor at five or more cold ends the voyage. A surviving crew lands on tide seven and continues on earlier tides. Bend checks the model with the independent kernel. The verification script then compares the model with the phase returned by the TypeScript game rules on boundary cases. This comparison covers outcome selection. The rule tests cover how cards and events change the resources used to select the outcome.
+The [Bend laws](verification/tide/LAWS.bend) cover route availability and resolution for The Second Wake and The Bell Buoy. They prove which bell play opens the echo route and how brace changes the swimmer’s cold and ration costs. Zero hull or any sailor at five or more cold ends the voyage. A surviving crew lands on tide seven and continues on earlier tides.
 
-The game imports only the TypeScript rules. The checker generates its reference module in a temporary directory and removes it after the comparison.
+The turn model gives each active stage a legal move and starts with a budget of 36 moves. Each move spends one from the budget. A voyage that ends early discards its unused moves. A pending player can act, the host can cover a pending guest, and bots act when the humans finish. The bound counts recorded moves in a launched voyage. It assumes that the host or the player who can act takes the move.
+
+Bend proves these properties of the model. The checker compares the model with the TypeScript game on hull and cold boundaries and on replayed states from every rules version. It checks route availability, resources, the next phase, all crew turn orders, and seat permissions. Seeded simulations exercise full voyages separately. The checker compiles its reference modules into a temporary directory and removes them after the comparison.
 
 ## Technology decisions
 

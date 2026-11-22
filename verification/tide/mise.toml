@@ -21,5 +21,5 @@ linux-arm64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{
 linux-x64 = { url = "https://github.com/leanprover/lean4/releases/download/v{{ version }}/lean-{{ version }}-linux.tar.zst", checksum = "sha256:caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b" }
 
 [tasks.verify]
-description = "Check the Bend tide laws and compare them with the game rules"
+description = "Prove the Bend encounter and progress laws and compare them with the game rules"
 run = "node verify.ts"
