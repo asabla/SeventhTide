@@ -12,7 +12,7 @@ import type { RoomSnapshot } from "../server/voyages.ts";
 import type { CrewSignal } from "../shared/crew-signals.ts";
 import { crewSignalStation } from "./crew-signals.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
-import { deckTool, equipmentArt } from "./equipment-art.ts";
+import { deckTool, equipmentArt, salvageArt } from "./equipment-art.ts";
 import { element, select } from "./dom.ts";
 import { renderTable, type CardOrigin, type TableState } from "./table.ts";
 import { playCue, soundToggle } from "./sound.ts";
@@ -105,7 +105,6 @@ const feedback = select("turn-feedback");
 const deckSide = select("deck-side");
 const assist = select("crew-assist");
 let deferredCover = "";
-const roomPanel = select("room-panel");
 const modePanel = select("mode-panel");
 const crewLobby = select("crew-lobby");
 const launchButton = select("launch-voyage");
@@ -116,10 +115,7 @@ const startSolo = select("start-solo");
 const openEntries = select("open-entries");
 const openRules = select("open-rules");
 const openInvites = select("open-invites");
-const resume = element("button", "Resume voyage with friends", "resume-room");
-resume.type = "button";
-resume.hidden = true;
-roomPanel.before(resume);
+const resume = select("resume-room");
 const drag = cardDrag(tray);
 const renderSignals = crewSignalStation(sendSignal);
 compactLog.addEventListener("click", () =>
@@ -390,12 +386,8 @@ function salvageChoices(options: Move[]) {
   const spread = element("div", "", "salvage-spread");
   for (const move of options) {
     const choice = element("div", "", "salvage-choice");
-    const art = element(
-      "span",
-      "",
-      "item equipment-salvage salvage-art " + move.id,
-    );
-    art.setAttribute("aria-hidden", "true");
+    const art = salvageArt(move.id);
+    art.classList.add("salvage-art");
     const face = cardFace("button", move.name, art);
     face.classList.add("salvage-card");
     face.type = "button";
@@ -913,6 +905,21 @@ function crewPortrait(seat: number) {
   return portrait;
 }
 
+function crewSeat(
+  tag: "li" | "section",
+  name: string,
+  role: string,
+  i: number,
+) {
+  const seat = element(tag, "", "crew-seat");
+  seat.append(
+    crewPortrait(i),
+    element(tag === "li" ? "strong" : "h3", name, "crew-seat-name"),
+    element("p", role, "crew-seat-role"),
+  );
+  return seat;
+}
+
 function boarding(s: Pick<Voyage, "crew">) {
   const board = element("section", "", "boarding");
   board.setAttribute("aria-label", "Pass the swimmer’s line");
@@ -921,10 +928,10 @@ function boarding(s: Pick<Voyage, "crew">) {
   const mySeat = turn?.seat ?? 0;
   const players = turn?.players ?? 1;
   s.crew.forEach((sailor, i) => {
-    const seat = element("section", "", "boarding-seat");
     const role = [jobs[i], i === mySeat ? "You" : i >= players ? "Bot" : ""]
       .filter(Boolean)
       .join(" · ");
+    const seat = crewSeat("section", sailor.name, role, i);
     const offered = element("span", "Volunteered", "volunteer-mark");
     offered.hidden = true;
     const projected = sailor.cold + swimmerCold;
@@ -943,19 +950,13 @@ function boarding(s: Pick<Voyage, "crew">) {
         "signal-announcement",
       ),
     );
-    seat.append(
-      crewPortrait(i),
-      element("h3", sailor.name),
-      element("p", role, "boarding-role"),
-      cold,
-      offered,
-    );
+    seat.append(cold, offered);
     if (projected >= coldLimit)
       seat.append(element("p", "Needs warmth", "exposure-warning"));
     if (scouts.includes(i))
       seat.append(element("p", "Can mark channel", "channel-mark"));
 
-    const controls = element("div", "", "boarding-controls");
+    const controls = element("div", "", "crew-seat-controls");
     if (mySeat === 0) {
       const assign = element("button", "Send " + sailor.name, "assign-swimmer");
       assign.type = "button";
@@ -1004,14 +1005,14 @@ function boarding(s: Pick<Voyage, "crew">) {
       face.append(effects);
       faces.append(face);
     }
-    equipment.append(element("h2", "Your hand"), faces);
+    equipment.append(faces);
     board.append(equipment);
   }
   return board;
 }
 
 function updateBoarding(board: HTMLElement, choices: Move[]) {
-  board.querySelectorAll(".boarding-seat").forEach((seat, i) => {
+  board.querySelectorAll(".crew-seat").forEach((seat, i) => {
     const offered = turn?.volunteers.includes(i) ?? false;
     const mark = seat.querySelector<HTMLElement>(".volunteer-mark");
     if (mark) mark.hidden = !offered;
@@ -1030,6 +1031,7 @@ function updateBoarding(board: HTMLElement, choices: Move[]) {
 function showPlayMode() {
   modePanel.hidden = !showLobby;
   const ready = !showLobby && (!room || Boolean(turn?.crewLaunched));
+  table.toggleAttribute("data-muster", !ready);
   shipLog.hidden = !ready;
   choiceArea.hidden = !ready;
   crewLobby.hidden = !turn || turn.crewLaunched;
@@ -1457,11 +1459,11 @@ function renderCrewLobby(snapshot: RoomSnapshot) {
   const host = snapshot.seat === 0;
   if (!list.childElementCount) {
     snapshot.crew.forEach((sailor, seat) => {
-      const row = element("li", "", "lobby-seat");
-      const name = sailor.name + (seat === snapshot.seat ? " · You" : "");
+      const role = jobs[seat] + (seat === snapshot.seat ? " · You" : "");
+      const row = crewSeat("li", sailor.name, role, seat);
       const status = element("span", "", "lobby-seat-status");
       status.setAttribute("aria-live", "polite");
-      row.append(element("strong", name), status);
+      row.append(status);
       const field = inviteFields[seat - 1];
       if (host && field) {
         const copy = element("button", "Copy " + sailor.name + "’s link");
@@ -1474,7 +1476,9 @@ function renderCrewLobby(snapshot: RoomSnapshot) {
             return select("invite-status");
           }),
         );
-        row.append(copy);
+        const controls = element("div", "", "crew-seat-controls");
+        controls.append(copy);
+        row.append(controls);
       }
       list.append(row);
     });
@@ -1609,7 +1613,13 @@ if (room) {
     saveRun();
   }
   resume.hidden = !savedHostRoom();
+  select("start-crew").append(
+    ...state.crew.map((sailor, i) =>
+      crewSeat("li", sailor.name, jobs[i] + (i === 0 ? " · You" : ""), i),
+    ),
+  );
   startSolo.addEventListener("click", () => {
+    select("room-status").textContent = "";
     showLobby = false;
     render();
     select("heading").focus();
@@ -1621,7 +1631,7 @@ if (room) {
   });
   window.addEventListener("pageshow", (event) => {
     if (event.persisted) {
-      select("room-controls").removeAttribute("inert");
+      modePanel.inert = false;
       select("room-status").textContent = "";
       resume.hidden = !savedHostRoom();
     }
@@ -1630,12 +1640,14 @@ if (room) {
     ["host-two", 2],
     ["host-three", 3],
   ] as const) {
-    select(id).addEventListener("click", () => {
-      select("room-controls").setAttribute("inert", "");
+    const button = select(id);
+    button.addEventListener("click", () => {
+      modePanel.inert = true;
       select("room-status").textContent = "Opening a crew room…";
       void hostRoom(players).catch((error: unknown) => {
-        select("room-controls").removeAttribute("inert");
+        modePanel.inert = false;
         showRoomError(error);
+        button.focus();
       });
     });
   }

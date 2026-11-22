@@ -64,8 +64,9 @@ export function equipmentImage(
   return artwork[card]?.[water ? "water" : "raft"];
 }
 
-function salvageArt(item: "locker" | "spar" | "canvas") {
-  const art = element("span", "", "item equipment-salvage " + item);
+export function salvageArt(item: string) {
+  const art = element("span", "", "equipment-salvage");
+  art.dataset.salvage = item;
   art.setAttribute("aria-hidden", "true");
   return art;
 }

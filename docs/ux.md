@@ -19,6 +19,8 @@ Give the tool rail its own space beside the hand. Use crew portraits when the pl
 
 Give a featured encounter the center of the raft during resolution. Put its response choices ahead of the record of played cards. Guests see the choices and their costs while the host decides. Place each guest’s named pennant below the cost of the route they recommend. During boarding, let the host choose a swimmer from the crew portrait cards. Show the player’s equipment below the crew. Keep the latest tide recap in Voyage entries and mark the current phase with a knot on the header rope.
 
+Use the same crew portraits on the launch table, in the room, and when choosing the swimmer. Put solo play and the two invitation options on the launch table. In a room, show which sailors have joined, which seats are open, and which ones are bots. Place the invitation on its sailor’s portrait card.
+
 Reuse the closest approved surface before making a new one. Inspect illustrations at the actual rendered size against the nearby card art. A new asset must read clearly in its crop and depict the action it represents.
 
 ## Verify in the running game
