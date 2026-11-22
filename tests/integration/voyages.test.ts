@@ -131,7 +131,9 @@ await test("the Second Wake route is public after the bell and only the host can
   assert.ok(
     event.event.routes.some(
       (route: unknown) =>
-        isRecord(route) && route.name === "Haul in on the echo",
+        isRecord(route) &&
+        route.id === "decoy" &&
+        route.name === "Haul in on the echo",
     ),
   );
   assert.equal((await act(guest, event.revision, "decoy")).status, 422);

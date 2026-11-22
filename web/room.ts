@@ -133,6 +133,7 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
         value.event.routes.every(
           (route: unknown) =>
             record(route) &&
+            (route.id === undefined || typeof route.id === "string") &&
             typeof route.name === "string" &&
             typeof route.detail === "string",
         ))) &&
