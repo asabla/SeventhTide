@@ -131,18 +131,19 @@ function tidePlays(
 }
 
 function tideResult(s: TableState, previous?: TableState) {
-  const section = select("tide-result");
+  const panel = select("tide-result");
+  const detail = select("tide-result-detail");
   const result = s.tideResult;
-  section.hidden =
+  panel.hidden =
     !result || (s.phase !== "board" && s.phase !== "won" && s.phase !== "lost");
-  if (!result || section.hidden) {
-    section.replaceChildren();
+  if (!result || panel.hidden) {
+    detail.replaceChildren();
     return;
   }
-  if (section.dataset.tide === String(result.tide) && section.childElementCount)
+  if (panel.dataset.tide === String(result.tide) && detail.childElementCount)
     return;
-  section.dataset.tide = String(result.tide);
-  section.classList.toggle(
+  panel.dataset.tide = String(result.tide);
+  panel.classList.toggle(
     "reveal-result",
     Boolean(previous && previous.tideResult?.tide !== result.tide),
   );
@@ -173,10 +174,10 @@ function tideResult(s: TableState, previous?: TableState) {
       element("p", result.event),
       details,
     );
-    section.replaceChildren(receipt);
+    detail.replaceChildren(receipt);
   } else {
     const loss = s.phase === "lost" ? lossDetails(s) : [];
-    section.replaceChildren(
+    detail.replaceChildren(
       element("h3", `Tide ${result.tide} result`),
       ...loss,
       element("p", `${result.event} · ${result.choice}`),

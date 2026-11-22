@@ -283,7 +283,17 @@
           aria-label="Waiting for crew"
           hidden
         ></section>
-        <div id="tide-result" aria-live="polite" hidden></div>
+        <div id="tide-result" hidden>
+          <div id="tide-result-detail" aria-live="polite"></div>
+          <div id="voyage-closeout" hidden>
+            <a id="leave-voyage" class="crew-return" href="./" hidden
+              >Leave voyage</a
+            >
+            <button id="choose-crew" class="crew-return" type="button" hidden>
+              Choose your crew
+            </button>
+          </div>
+        </div>
         <div id="play-space">
           <div id="personal-tray" class="play-area" hidden>
             <button
