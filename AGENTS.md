@@ -8,6 +8,7 @@ Follow the [mise setup](README.md#set-up-the-development-tools) in a fresh check
 
 - Implement voyage rules in `packages/rules/`. Solo play and the voyage API use the same rules. The API filters legal moves by crew seat and boarding volunteers. The client displays the available choices and their costs. Follow the [voyage rules skill](.agents/skills/seventh-tide-voyage-rules/SKILL.md) when a change affects game rules or replay.
 - Keep card text and controls in HTML. Use Phaser for the sea scene. Follow the [game art skill](.agents/skills/seventh-tide-game-art/SKILL.md) when adding or replacing illustrations.
+- Follow the [UX skill](.agents/skills/seventh-tide-ux/SKILL.md) and [UX guide](docs/ux.md) for changes to player-facing design, assets, or behavior. Visually inspect and exercise each changed interaction in the running game before calling it complete.
 - For browser interaction and verification, use the built-in Browser. Use Playwright only when the user explicitly requests it.
 
 ## Verification
