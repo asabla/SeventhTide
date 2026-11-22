@@ -187,6 +187,7 @@ body.voyage {
     [data-wake]:not([data-wake=""]),
     [data-buoy]:not([data-buoy=""]),
     [data-grip],
+    [data-locker],
     [data-landing]:not([data-landing=""])
   ) {
   height: min(60vh, 460px);
@@ -203,6 +204,10 @@ body.voyage {
 
 #grip-art {
   object-position: 61% 52%;
+}
+
+#locker-art {
+  object-position: 64% 53%;
 }
 
 #approach-art {
@@ -224,7 +229,7 @@ body.voyage {
   max-width: min(100%, 500px);
 }
 
-.scene[data-grip] + .voyage-board .forecast {
+.scene:is([data-grip], [data-locker]) + .voyage-board .forecast {
   max-width: min(100%, 565px);
 }
 
@@ -1698,8 +1703,112 @@ body.voyage {
     serif;
 }
 
-.encounter-decision[data-encounter="grip"] .route-cost {
+.encounter-decision:is([data-encounter="grip"], [data-encounter="locker"])
+  .route-cost {
   white-space: pre-line;
+}
+
+.locker-decision,
+.locker-stow {
+  display: grid;
+  grid-template-columns: clamp(126px, 23vw, 172px) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(12px, 3vw, 32px);
+  width: min(100%, 660px);
+  margin: 0 auto;
+}
+
+.locker-stow {
+  align-items: end;
+  grid-template-columns: clamp(126px, 23vw, 172px) minmax(0, 1fr);
+  row-gap: 12px;
+}
+
+.locker-stow:not(:has(.locker-hand)) {
+  grid-template-columns: minmax(0, 172px);
+  justify-content: center;
+}
+
+.locker-prize {
+  margin: 0;
+  transform: rotate(-2.5deg);
+}
+
+.locker-prize figcaption {
+  padding-block-end: 5px;
+  color: #f4d5a4;
+  font:
+    italic 700 0.95rem/1.2 Georgia,
+    serif;
+  text-align: center;
+  text-shadow: 0 2px 5px #0a0e09;
+}
+
+.locker-hand {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: clamp(6px, 2vw, 18px);
+}
+
+.locker-card.card {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 4px;
+  width: min(100%, 170px);
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(7px, 1.3vw, 12px);
+  transform: none;
+  text-align: left;
+  font-size: clamp(0.75rem, 1.25vw, 0.88rem);
+}
+
+.locker-card.card > strong {
+  font-size: clamp(0.99rem, 1.75vw, 1.26rem);
+  overflow-wrap: anywhere;
+}
+
+.locker-card > :is(img, .equipment-salvage) {
+  width: 100%;
+  aspect-ratio: 1.45;
+  object-fit: cover;
+}
+
+.locker-effect {
+  display: grid;
+  width: 100%;
+  padding-top: 3px;
+  border-top: 1px solid #705a3b66;
+  line-height: 1.18;
+}
+
+.locker-effect small,
+.locker-swap {
+  font:
+    700 0.71rem/1.3 Georgia,
+    serif;
+  color: #684b29;
+}
+
+.locker-swap {
+  align-self: stretch;
+  margin-top: auto;
+  padding-top: 5px;
+  text-align: center;
+}
+
+.locker-stow button.locker-card:is(:hover, :focus-visible) {
+  transform: translateY(-4px);
+  outline: 2px solid #e8be7d;
+  outline-offset: 2px;
+}
+
+.locker-stow .locker-keep {
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin-top: 4px;
 }
 
 .encounter-decision
@@ -1914,13 +2023,12 @@ body.voyage {
   border-top: 1px solid #8367428c;
 }
 
-.crew-return:not([hidden]) {
+:is(.crew-return, .locker-keep):not([hidden]) {
   display: grid;
   place-items: center;
   width: min(100%, 242px);
   min-height: 44px;
   aspect-ratio: 5.35;
-  margin-top: -10px;
   padding: 8px 30px;
   border: 0;
   background:
@@ -1937,11 +2045,15 @@ body.voyage {
   text-shadow: 0 1px 2px #070a08;
 }
 
-.crew-return:active {
+.crew-return {
+  margin-top: -10px;
+}
+
+:is(.crew-return, .locker-keep):active {
   translate: 0 1px;
 }
 
-.crew-return:not([hidden]):is(:hover, :focus-visible) {
+:is(.crew-return, .locker-keep):not([hidden]):is(:hover, :focus-visible) {
   filter: drop-shadow(1px 4px 4px #100d09a8) brightness(1.12);
 }
 
@@ -2079,7 +2191,8 @@ body.voyage {
     .scene:is(
       [data-wake]:not([data-wake=""]),
       [data-buoy]:not([data-buoy=""]),
-      [data-grip]
+      [data-grip],
+      [data-locker]
     ) {
     height: min(70vh, 430px);
   }
@@ -2089,11 +2202,38 @@ body.voyage {
       [data-wake="drawn-off"],
       [data-buoy="chain"],
       [data-buoy="echo"],
-      [data-grip]
+      [data-grip],
+      [data-locker]
     )
     + .voyage-board
     .forecast {
     margin-bottom: clamp(44px, 13vw, 78px);
+  }
+
+  .locker-decision .encounter-decision {
+    grid-auto-flow: row;
+    justify-items: stretch;
+    gap: 12px;
+  }
+
+  .locker-decision .encounter-decision::before {
+    display: none;
+  }
+
+  .locker-decision .encounter-response {
+    grid-template-columns: 46px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    place-items: center start;
+    column-gap: 8px;
+    text-align: left;
+  }
+
+  .locker-decision .encounter-response img {
+    grid-row: 1 / span 2;
+  }
+
+  .locker-decision .route-pennants {
+    grid-column: 2;
   }
 
   .scene[data-landing]:not([data-landing=""]) + .voyage-board .forecast {

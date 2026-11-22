@@ -397,6 +397,129 @@ await test("friends see the tools set by each seat and the host commits the unlo
   assert.deepEqual(after.tideResult.route, { kind: "pry" });
 });
 
+await test("the locker reveal is public and a guest swap can only settle once", async (t) => {
+  const { address } = await launch(t);
+  const base = address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 2 }),
+    }),
+  );
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const host = room.token;
+  const guest: unknown = room.invites[0];
+  assert.ok(typeof guest === "string");
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  const history =
+    "spar swim-0 float-0 line-1 lash-2 hull swim-0 feed-0-0 lash-1 line-2 hull swim-1 feed-0-1 anchor-1 patch-2".split(
+      " ",
+    );
+  await pool.query("UPDATE voyages SET seed=0, moves=$1 WHERE id=$2", [
+    history,
+    room.id,
+  ]);
+  const url = base + "/" + room.id;
+  const read = (token: string) =>
+    fetch(url, { headers: { Authorization: "Bearer " + token } }).then(
+      readSnapshot,
+    );
+  const send = (token: string, route: string, method: string, body: object) =>
+    fetch(url + "/" + route, {
+      method,
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+  const decision = await read(host);
+  const friend = await read(guest);
+  assert.ok(isRecord(friend.lockerFind));
+  assert.equal(friend.lockerFind.id, "line");
+  assert.deepEqual(friend.lockerFind, decision.lockerFind);
+  assert.equal(
+    (
+      await send(guest, "route-recommendation", "PUT", {
+        expectedRevision: decision.revision,
+        routeId: "haul-locker",
+      })
+    ).status,
+    200,
+  );
+  const waiting = await readSnapshot(
+    await send(host, "moves", "POST", {
+      expectedRevision: decision.revision,
+      moveId: "haul-locker",
+    }),
+  );
+  assert.equal(waiting.phase, "recover");
+  assert.deepEqual(waiting.choices, []);
+  assert.deepEqual(waiting.routeRecommendations, [null, null, null]);
+  assert.ok(Array.isArray(waiting.hands));
+  assert.deepEqual(waiting.hands[1], []);
+  assert.deepEqual(waiting.assistSeats, [1]);
+  const choosing = await read(guest);
+  assert.deepEqual(
+    choosing.choices.map(({ id }) => id),
+    ["stow-kettle", "stow-patch", "keep-hand"],
+  );
+  assert.equal(
+    (
+      await send(host, "moves", "POST", {
+        expectedRevision: waiting.revision,
+        moveId: "stow-patch",
+      })
+    ).status,
+    422,
+  );
+
+  const responses = await Promise.all([
+    send(guest, "moves", "POST", {
+      expectedRevision: waiting.revision,
+      moveId: "stow-patch",
+    }),
+    send(host, "moves", "POST", {
+      expectedRevision: waiting.revision,
+      assistSailor: 1,
+    }),
+  ]);
+  assert.deepEqual(
+    responses.map(({ status }) => status).toSorted((a, b) => a - b),
+    [200, 409],
+  );
+  const after = await read(guest);
+  assert.equal(after.revision, waiting.revision + 1);
+  assert.equal(after.tide, 4);
+  assert.equal(after.phase, "board");
+  assert.equal(after.lockerFind, undefined);
+  assert.ok(Array.isArray(after.hands) && Array.isArray(after.hands[1]));
+  const cards: unknown[] = after.hands[1];
+  assert.deepEqual(
+    cards.map((card) => {
+      assert.ok(isRecord(card));
+      return card.id;
+    }),
+    ["kettle", "line"],
+  );
+  assert.ok(isRecord(after.tideResult));
+  assert.deepEqual(after.tideResult.route, {
+    kind: "haul-locker",
+    cold: 1,
+    find: "Sounding line",
+    stowed: true,
+  });
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

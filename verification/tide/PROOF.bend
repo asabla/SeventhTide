@@ -99,6 +99,8 @@ def Laws.each_stage_has_a_move(stage):
       {==}
     case Progress.Resolution{}:
       {==}
+    case Progress.Recovery{}:
+      {==}
 
 def Laws.host_can_play(ready):
   {==}
@@ -125,6 +127,16 @@ def Laws.accepted_move_spends_one(stage, later, verdict):
     case Progress.OnePlay{}:
       {==}
     case Progress.Resolution{}:
+      match later verdict:
+        case 0n Tide.VoyageAdrift{}:
+          {==}
+        case 1n+rest Tide.VoyageAdrift{}:
+          {==}
+        case _ Tide.VoyageLost{}:
+          {==}
+        case _ Tide.VoyageRescued{}:
+          {==}
+    case Progress.Recovery{}:
       match later verdict:
         case 0n Tide.VoyageAdrift{}:
           {==}
@@ -184,3 +196,30 @@ def Laws.missing_hook_closes_pry(version, line):
       {==}
     case False{}:
       {==}
+
+def Laws.locker_has_two_routes(since, ring, marked, line, hook):
+  {==}
+
+def Laws.old_voyage_cannot_haul():
+  {==}
+
+def Laws.hauling_costs_one_extra_cold(brace, incoming, extra):
+  {==}
+
+def Laws.leaving_costs_normal_exposure(brace, incoming, extra):
+  {==}
+
+def Laws.surviving_haul_opens_recovery(later):
+  {==}
+
+def Laws.fatal_haul_cannot_open_recovery(later):
+  {==}
+
+def Laws.leaving_skips_recovery(later):
+  {==}
+
+def Laws.reserve_covers_haul(later):
+  {==}
+
+def Laws.recovery_voyage_budget():
+  {==}

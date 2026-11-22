@@ -82,6 +82,19 @@ const replays = [
       "swim-0 feed-0-0 mitts-1 lash-2 hull",
     ],
   },
+  {
+    versions: [9],
+    seed: 0,
+    history: [
+      "spar",
+      "swim-0 float-0 line-1 lash-2 hull",
+      "swim-0 feed-0-0 lash-1 line-2 hull",
+      "swim-1 feed-0-1 anchor-1 patch-2 haul-locker stow-patch",
+      "swim-0 lantern-0 feed-1-0 lash-2 dive",
+      "swim-2 feed-0-2 line-1 float-2 dive",
+      "swim-0 feed-0-0 bell-1 feed-2-1 hull",
+    ],
+  },
 ];
 
 const seats = [0, 1, 2];
@@ -116,6 +129,9 @@ function stageOf(state: Voyage) {
       );
       assert.ok(state.swimmer !== null);
       return tag("Resolution");
+    case "recover":
+      assert.ok(state.swimmer !== null);
+      return tag("Recovery");
     default:
       throw new Error("The voyage already ended.");
   }
@@ -184,12 +200,21 @@ function checkFallback(
         context,
       );
       break;
+    case "recover":
+      assert.deepEqual(fallback, tag("KeepHand"), context);
+      assert.ok(
+        legal.some(({ id }) => id === "keep-hand"),
+        context,
+      );
+      break;
   }
   for (const players of [1, 2, 3]) {
     if (state.phase === "board") {
       checkBoardingSeats(state, players, context);
     } else if (state.phase === "cards") {
       checkCrewSeats(call, state, legal, waiting, players, context);
+    } else if (state.phase === "recover") {
+      checkRecoverySeats(call, state, legal, players, context);
     } else {
       assert.deepEqual(seatMoves(state, 0, players), legal, context);
       for (const guest of seats.slice(1, players)) {
@@ -197,6 +222,44 @@ function checkFallback(
       }
     }
   }
+}
+
+function checkRecoverySeats(
+  call: BendCall,
+  state: Voyage,
+  legal: Move[],
+  players: number,
+  context: string,
+) {
+  const cover: number[] = [];
+  let automatic = false;
+  for (const seat of seats) {
+    const role =
+      seat === 0 ? "HostSeat" : seat < players ? "GuestSeat" : "BotSeat";
+    const access = call("crew_access", seat === state.swimmer, tag(role), true);
+    record(access);
+    if (access.cover) cover.push(seat);
+    if (access.automatic) automatic = true;
+    if (seat < players)
+      assert.deepEqual(
+        seatMoves(state, seat, players),
+        access.direct ? legal : [],
+        context,
+      );
+  }
+  assert.deepEqual(assistSeats(state, 0, players), cover, context);
+  const result = finishBotTurns(state, players);
+  assert.equal(result.history.length, Number(automatic), context);
+  assert.deepEqual(result.state, result.history.reduce(play, state), context);
+}
+
+function lockerAhead(state: Voyage) {
+  return (
+    state.phase !== "recover" &&
+    state.events
+      .slice(state.tide - 1)
+      .some(([name]) => name === "The drifting locker")
+  );
 }
 
 function checkCrewSeats(
@@ -273,17 +336,31 @@ function checkEdge(
       : after.phase === "won"
         ? tag("VoyageRescued")
         : tag("VoyageAdrift");
-  const next = call("advance", stage, later, verdict);
-  const budget = call("remaining", stage, later);
+  const lockerDecision =
+    before.phase === "event" &&
+    before.events[before.tide - 1]?.[0] === "The drifting locker";
+  const next = lockerDecision
+    ? call("locker_advance", later, verdict, move.id === "haul-locker")
+    : call("advance", stage, later, verdict);
+  const reserved = lockerAhead(before);
+  const remainingReserve = reserved && !lockerDecision;
+  const budget = call("voyage_remaining", stage, later, reserved);
   assert.ok(typeof budget === "number", context);
-  assert.ok(budget >= 1 && budget <= 36, context);
-  assert.equal(call("budget_after", next), budget - 1, context);
+  assert.ok(budget >= 1 && budget <= 37, context);
+  const remaining = call("budget_after", next);
+  assert.ok(typeof remaining === "number", context);
+  assert.equal(
+    remaining + Number(remainingReserve),
+    budget - (lockerDecision && after.phase !== "recover" ? 2 : 1),
+    context,
+  );
   if (after.phase === "won" || after.phase === "lost") {
     assert.equal(before.phase, "event", context);
     assert.equal(after.tide, before.tide, context);
-    assert.deepEqual(next, { $: "Stop", unused: budget - 1 }, context);
+    assert.deepEqual(next, { $: "Stop", unused: remaining }, context);
     assert.deepEqual(moves(after), [], context);
   } else {
+    assert.equal(lockerAhead(after), remainingReserve, context);
     assert.deepEqual(
       next,
       { $: "Continue", stage: stageOf(after), later: laterTides(after) },
@@ -318,8 +395,9 @@ export function checkProgress(call: BendCall) {
     assert.ok(legal.length > 0, context);
     checkFallback(call, state, legal, context);
     for (const move of legal) {
-      checkEdge(call, state, move, context + " / " + move.id);
+      const after = checkEdge(call, state, move, context + " / " + move.id);
       edges++;
+      if (after.phase === "recover") checkState(after, version);
     }
   }
 

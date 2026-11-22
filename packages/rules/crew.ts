@@ -1,6 +1,7 @@
 import {
   coldLimit,
   currentEvent,
+  lockerFind,
   moves,
   play,
   secondWake,
@@ -9,6 +10,7 @@ import {
   type Move,
   type Voyage,
 } from "./voyage.ts";
+import { cardInfo, type CardId } from "./hands.ts";
 
 export function seatMoves(
   state: Voyage,
@@ -17,7 +19,7 @@ export function seatMoves(
   volunteers: readonly number[] = [],
 ) {
   const available = moves(state);
-  if (state.phase === "cards")
+  if (state.phase === "cards" || state.phase === "recover")
     return available.filter(({ actor }) => actor === seat);
   if (seat !== 0) return [];
   if (state.phase !== "board" || !volunteers.length) return available;
@@ -39,10 +41,49 @@ function humansPlayed(state: Voyage, players: number) {
 }
 
 export function assistSeats(state: Voyage, seat: number, players: number) {
-  if (state.phase !== "cards" || seat !== 0) return [];
+  if (seat !== 0) return [];
+  if (state.phase === "recover")
+    return state.swimmer !== null && state.swimmer > 0 ? [state.swimmer] : [];
+  if (state.phase !== "cards") return [];
   const ready = humansPlayed(state, players);
   return state.crew.flatMap((_, i) =>
     i > 0 && (i < players || ready) && !state.acted.includes(i) ? [i] : [],
+  );
+}
+
+function equipmentValue(state: Voyage, card: CardId) {
+  const { water, raft } = cardInfo(card);
+  const value = (effect: typeof water) =>
+    (effect.brace ?? 0) * 2 +
+    (effect.hull ?? 0) * (state.hull < 4 ? 5 : 2) +
+    (effect.food ?? 0) * 3 +
+    (effect.swimmerFood ?? 0) * 3 -
+    ((effect.cold ?? 0) +
+      (effect.swimmerCold ?? 0) +
+      2 * (effect.raftCold ?? 0) +
+      (effect.targetCold ?? 0)) *
+      3;
+  const channel = card === "line" && !state.channelMarked ? 6 : 0;
+  return (value(water) + value(raft)) / 2 + channel;
+}
+
+export function recoveryGain(state: Voyage, move: Move) {
+  const find = lockerFind(state);
+  if (
+    state.phase !== "recover" ||
+    !move.card ||
+    !find ||
+    state.swimmer === null
+  )
+    return 0;
+  const hand = state.deck?.hands[state.swimmer] ?? [];
+  const duplicate =
+    Number(hand.includes(find.id)) -
+    Number(hand.filter((card) => card === move.card).length > 1);
+  return (
+    equipmentValue(state, find.id) -
+    equipmentValue(state, move.card) -
+    3 * duplicate
   );
 }
 
@@ -74,11 +115,25 @@ function conditionScore(state: Voyage, exposure: boolean) {
 
 function routeScore(event: Voyage) {
   return Math.max(
-    ...moves(event).map(({ id }) => conditionScore(play(event, id), false)),
+    ...moves(event).map(({ id }) => {
+      const next = play(event, id);
+      return (
+        conditionScore(next, false) +
+        (next.phase === "recover"
+          ? Math.max(...moves(next).map((move) => recoveryGain(next, move)))
+          : 0)
+      );
+    }),
   );
 }
 
 export function botMove(state: Voyage, sailor: number): Move | undefined {
+  if (state.phase === "recover")
+    return seatMoves(state, sailor, state.crew.length).toSorted(
+      (left, right) =>
+        recoveryGain(state, right) - recoveryGain(state, left) ||
+        Number(Boolean(left.card)) - Number(Boolean(right.card)),
+    )[0];
   if (state.phase !== "cards") return undefined;
   const grip = underRaft(state);
   const incoming = grip ? 0 : currentEvent(state)[3];
@@ -102,6 +157,15 @@ export function botMove(state: Voyage, sailor: number): Move | undefined {
 
 export function finishBotTurns(state: Voyage, players: number) {
   const history: string[] = [];
+  if (
+    state.phase === "recover" &&
+    state.swimmer !== null &&
+    state.swimmer >= players
+  ) {
+    const move = botMove(state, state.swimmer);
+    if (!move) throw new Error("The bot swimmer has no recovery move.");
+    return { state: play(state, move.id), history: [move.id] };
+  }
   if (state.phase === "cards" && humansPlayed(state, players)) {
     for (let sailor = players; sailor < state.crew.length; sailor++) {
       if (state.acted.includes(sailor)) continue;

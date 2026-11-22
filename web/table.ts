@@ -144,9 +144,11 @@ function tideResult(s: TableState, previous?: TableState) {
     detail.replaceChildren();
     return;
   }
-  if (target.dataset.tide === String(result.tide) && target.childElementCount)
-    return;
-  target.dataset.tide = String(result.tide);
+  const stowed =
+    result.route.kind === "haul-locker" ? result.route.stowed : undefined;
+  const resultKey = [result.tide, stowed].join(":");
+  if (target.dataset.result === resultKey && target.childElementCount) return;
+  target.dataset.result = resultKey;
   panel.classList.toggle(
     "reveal-result",
     Boolean(previous && previous.tideResult?.tide !== result.tide),
@@ -255,6 +257,23 @@ function routeBeats(
     return [element("li", `The timber went with it · ${route.lost} hull lost`)];
   if (route.kind === "pry")
     return [element("li", "The grip broke · 0 hull damage, 0 extra cold")];
+  if (route.kind === "leave-locker")
+    return [element("li", "The locker drifted away · No extra cold")];
+  if (route.kind === "haul-locker") {
+    const beats = [
+      element("li", `${swimmer} +${route.cold} cold from the haul`),
+    ];
+    if (route.stowed !== undefined)
+      beats.push(
+        element(
+          "li",
+          route.stowed
+            ? `${swimmer} stowed ${route.find}`
+            : `${swimmer} kept both cards`,
+        ),
+      );
+    return beats;
+  }
   return [
     element(
       "li",

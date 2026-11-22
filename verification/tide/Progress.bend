@@ -9,12 +9,14 @@ type Stage is Data:
   TwoPlays{}
   OnePlay{}
   Resolution{}
+  Recovery{}
 
 type Action is Data:
   TakeSalvage{}
   TakeLine{}
   CrewAction{}
   TakeHull{}
+  KeepHand{}
 
 type Role is Data:
   HostSeat{}
@@ -51,6 +53,8 @@ def accepts(stage: Stage, action: Action) -> Bool:
       True{}
     case Resolution{} TakeHull{}:
       True{}
+    case Recovery{} KeepHand{}:
+      True{}
     case _ _:
       False{}
 
@@ -69,6 +73,8 @@ def fallback(stage: Stage) -> Action:
       CrewAction{}
     case Resolution{}:
       TakeHull{}
+    case Recovery{}:
+      KeepHand{}
 
 def later_budget(later: Nat) -> Nat:
   match later:
@@ -91,10 +97,26 @@ def remaining(stage: Stage, later: Nat) -> Nat:
       2n+later_budget(later)
     case Resolution{}:
       1n+later_budget(later)
+    case Recovery{}:
+      1n+later_budget(later)
+
+def voyage_remaining(stage: Stage, later: Nat, locker_ahead: Bool) -> Nat:
+  match locker_ahead:
+    case True{}:
+      1n+remaining(stage, later)
+    case False{}:
+      remaining(stage, later)
 
 type Step is Data:
   Continue{stage: Stage, later: Nat}
   Stop{unused: Nat}
+
+def after_tide(later: Nat, verdict: Tide.Outcome) -> Step:
+  match later verdict:
+    case 1n+rest Tide.VoyageAdrift{}:
+      Continue{Boarding{}, rest}
+    case _ _:
+      Stop{later_budget(later)}
 
 # Resources determine the tide verdict. Turn order is independent of the
 # selected supplies, swimmer and cards.
@@ -111,11 +133,16 @@ def advance(stage: Stage, later: Nat, verdict: Tide.Outcome) -> Step:
     case OnePlay{}:
       Continue{Resolution{}, later}
     case Resolution{}:
-      match later verdict:
-        case 1n+rest Tide.VoyageAdrift{}:
-          Continue{Boarding{}, rest}
-        case _ _:
-          Stop{later_budget(later)}
+      after_tide(later, verdict)
+    case Recovery{}:
+      after_tide(later, verdict)
+
+def locker_advance(later: Nat, verdict: Tide.Outcome, haul: Bool) -> Step:
+  match later verdict haul:
+    case 1n+rest Tide.VoyageAdrift{} True{}:
+      Continue{Recovery{}, 1n+rest}
+    case _ _ _:
+      after_tide(later, verdict)
 
 def budget_after(step: Step) -> Nat:
   match step:

@@ -23,6 +23,7 @@ import {
   bellBuoy,
   secondWake,
   underRaft,
+  lockerFind,
   handPreview,
   salvagePreview,
   play,
@@ -361,6 +362,8 @@ function act(id: string, source?: HTMLElement) {
   }
   saveRun();
   render(previous, origin);
+  if (state.phase === "recover" || previous?.phase === "recover")
+    select("heading").focus();
   paintSea?.();
   select("heading").focus();
 }
@@ -688,7 +691,7 @@ function routeChart(routes: readonly TideRoute[], canChoose: boolean) {
 function encounterDecision(
   routes: readonly TideRoute[],
   canChoose: boolean,
-  encounter: "wake" | "buoy" | "reef" | "grip",
+  encounter: "wake" | "buoy" | "reef" | "grip" | "locker",
 ) {
   const scene = element("section", "", "encounter-decision");
   scene.dataset.encounter = encounter;
@@ -699,6 +702,7 @@ function encounterDecision(
       buoy: "Respond to the bell buoy",
       reef: "Choose the landing route",
       grip: "Break the grip on the raft",
+      locker: "Decide what to do with the locker",
     }[encounter],
   );
   for (const route of routes) {
@@ -723,13 +727,74 @@ function encounterDecision(
             : id === "decoy"
               ? "bell"
               : "line";
-    const art = equipmentArt(card, id === "dive" || id === "chain");
+    const art =
+      encounter === "locker"
+        ? deckTool(id === "haul-locker" ? "haul" : "float")
+        : equipmentArt(card, id === "dive" || id === "chain");
     const choice = routeOption(route, "encounter-response", canChoose, art);
     if (id === "channel" || id === "pry")
       choice.setAttribute("data-marked", "");
     scene.append(choice);
   }
   return scene;
+}
+
+type LockerGear = NonNullable<ReturnType<typeof lockerFind>>;
+
+function lockerCard(gear: LockerGear, swap?: Move) {
+  const face = cardFace(
+    swap ? "button" : "div",
+    gear.name,
+    equipmentArt(gear.id, false),
+  );
+  face.classList.add("locker-card");
+  for (const [role, text] of [
+    ["On the raft", gear.raft],
+    ["In the water", gear.water],
+  ] as const) {
+    const line = element("span", "", "locker-effect");
+    line.append(element("small", role), element("span", text));
+    face.append(line);
+  }
+  if (swap && face instanceof HTMLButtonElement) {
+    face.type = "button";
+    face.setAttribute("aria-label", swap.name);
+    face.setAttribute(
+      "aria-description",
+      `On the raft. ${gear.raft} In the water. ${gear.water}`,
+    );
+    face.append(element("small", "Swap this card", "locker-swap"));
+    face.addEventListener("click", () => act(swap.id));
+  }
+  return face;
+}
+
+function lockerPrize(find: LockerGear) {
+  const prize = element("figure", "", "locker-prize");
+  prize.append(element("figcaption", "In the locker"), lockerCard(find));
+  return prize;
+}
+
+function recoverEquipment(seat: number, find: LockerGear, options: Move[]) {
+  const recovery = element("section", "", "locker-stow");
+  recovery.setAttribute("aria-label", "Stow recovered equipment");
+  const prize = lockerPrize(find);
+  recovery.append(prize);
+  if (!options.length) {
+    return recovery;
+  }
+  const hand = element("div", "", "locker-hand");
+  const cards = turn?.hands[seat] ?? handPreview(state.deck, seat);
+  for (const option of options) {
+    const card = cards.find(({ id }) => id === option.card);
+    if (card) hand.append(lockerCard(card, option));
+  }
+  if (hand.childElementCount) recovery.append(hand);
+  const keep = element("button", "Keep both cards", "locker-keep");
+  keep.type = "button";
+  keep.addEventListener("click", () => act("keep-hand"));
+  recovery.append(keep);
+  return recovery;
 }
 
 function renderGrip(grip: ReturnType<typeof underRaft>, show: boolean) {
@@ -904,9 +969,11 @@ function renderAssists(
   players: number,
   status: string,
 ) {
-  const sailors = s.acted.includes(0) ? (turn?.assistSeats ?? []) : [];
+  const recovering = s.phase === "recover";
+  const sailors =
+    recovering || s.acted.includes(0) ? (turn?.assistSeats ?? []) : [];
   const key = sailors.length
-    ? `${turn?.id}:${s.tide}:${sailors.join(",")}`
+    ? `${turn?.id}:${s.tide}:${s.phase}:${sailors.join(",")}`
     : "";
   const deferred = key !== "" && deferredCover === key;
   const view = deferred ? key + ":waiting" : key;
@@ -922,7 +989,10 @@ function renderAssists(
   const waiting = sailors.filter((i) => i < players);
   const controls = element("div", "", "waiting-controls");
   if (deferred) {
-    const reopen = element("button", "Let a bot take a turn?");
+    const reopen = element(
+      "button",
+      recovering ? "Let a bot choose what to stow?" : "Let a bot take a turn?",
+    );
     reopen.type = "button";
     reopen.addEventListener("click", () => {
       deferredCover = "";
@@ -934,7 +1004,9 @@ function renderAssists(
     const sailor =
       waiting.length === 1 ? s.crew[waiting[0] ?? -1]?.name : undefined;
     const question = sailor
-      ? `Let a bot play for ${sailor} this tide?`
+      ? recovering
+        ? `Let a bot stow the find for ${sailor}?`
+        : `Let a bot play for ${sailor} this tide?`
       : waiting.length
         ? "Should a bot cover a crewmate this tide?"
         : "Let the bots finish the tide?";
@@ -955,7 +1027,11 @@ function renderAssists(
       const name = s.crew[i]?.name ?? "";
       const cover = element(
         "button",
-        i < players ? `Cover ${name} this turn` : `Let ${name} play`,
+        recovering
+          ? "Let a bot choose"
+          : i < players
+            ? `Cover ${name} this turn`
+            : `Let ${name} play`,
       );
       cover.type = "button";
       cover.addEventListener("click", () => void sendMove({ assistSailor: i }));
@@ -975,11 +1051,17 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const wake = wakeIn(s);
   const buoy = buoyIn(s);
   const grip = "events" in s ? underRaft(s) : s.underRaft;
+  const find = "events" in s ? lockerFind(s) : s.lockerFind;
   const landing = landingAt(s);
   const phase = s.phase;
   const phaseRope = select("phase-rope");
   phaseRope.hidden = showLobby;
-  const current = phase === "won" || phase === "lost" ? "end" : phase;
+  const current =
+    phase === "won" || phase === "lost"
+      ? "end"
+      : phase === "recover"
+        ? "event"
+        : phase;
   for (const knot of phaseRope.children) {
     if (!(knot instanceof HTMLElement)) continue;
     const step = knot.dataset.phase;
@@ -991,8 +1073,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const seat = turn?.seat ?? 0;
   const routeFocus =
     seat > 0 &&
-    previous?.phase === "event" &&
-    phase !== "event" &&
+    (previous?.phase === "event" || previous?.phase === "recover") &&
+    phase !== previous.phase &&
     choiceArea.contains(document.activeElement);
   const players = turn?.players ?? 1;
   const options = turn?.choices ?? seatMoves(state, seat, players);
@@ -1003,8 +1085,12 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     previous?.phase === "board" &&
     s.phase === "board" &&
     previous.tide === s.tide;
+  const keepRecovery =
+    previous?.phase === "recover" &&
+    phase === "recover" &&
+    previous.tide === s.tide;
   renderedHand = hand;
-  if (!keepHand && !keepBoard) {
+  if (!keepHand && !keepBoard && !keepRecovery) {
     clearSelection();
     deckSide.querySelector(".crew-actions")?.remove();
     choiceArea.replaceChildren();
@@ -1026,8 +1112,9 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const seaWake = seeLights ? undefined : wake;
   const seaBuoy = seeLights ? undefined : buoy;
   const seaGrip = Boolean(!seeLights && grip && phase !== "board");
-  const encounter =
-    landing === "reef"
+  const encounter = find
+    ? "locker"
+    : landing === "reef"
       ? "reef"
       : grip
         ? "grip"
@@ -1037,10 +1124,11 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
             ? "wake"
             : undefined;
   const scene = select("scene");
-  scene.hidden = !seeLights && !seaWake && !seaBuoy && !seaGrip;
+  scene.hidden = !seeLights && !seaWake && !seaBuoy && !seaGrip && !find;
   scene.dataset.wake = seaWake ?? "";
   scene.dataset.buoy = seaBuoy ?? "";
   scene.toggleAttribute("data-grip", seaGrip);
+  scene.toggleAttribute("data-locker", Boolean(find));
   scene.dataset.landing = seeLights ? landing : "";
   scene.dataset.landfall = phase === "won" || phase === "lost" ? phase : "";
   scene.toggleAttribute(
@@ -1053,23 +1141,26 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("wake-art").hidden = !seaWake;
   select("buoy-art").hidden = !seaBuoy;
   select("grip-art").hidden = !seaGrip;
+  select("locker-art").hidden = !find;
   renderGrip(grip, phase === "cards");
   table.toggleAttribute("data-routes", phase === "event");
   table.toggleAttribute(
     "data-encounter",
-    Boolean(encounter && phase === "event"),
+    Boolean(encounter && (phase === "event" || phase === "recover")),
   );
   select("landing-rules").hidden = s.channelMarked === undefined;
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   select("buoy-rules").hidden = (s.rulesVersion ?? 1) < 7;
   select("grip-rules").hidden = (s.rulesVersion ?? 1) < 8;
+  select("locker-rules").hidden = (s.rulesVersion ?? 1) < 9;
   const localEvent = room ? null : currentEvent(state);
   const eventDescription = turn?.event?.description ?? localEvent?.[2] ?? "";
   const choosingRoute = phase === "event";
   const forecast = choosingRoute
     ? eventDescription
     : (turn?.forecast ?? localEvent?.[1] ?? "");
-  const logAtTable = phase === "cards" || phase === "event";
+  const logAtTable =
+    phase === "cards" || phase === "event" || phase === "recover";
   shipLog.toggleAttribute("data-compact", logAtTable);
   if (!logAtTable || (previous && previous.tide !== s.tide)) setLogOpen(false);
   const clue = select("forecast");
@@ -1082,6 +1173,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     board: "Who will swim?",
     cards: turn?.forecastTitle ?? localEvent?.[0] ?? "Play the crew’s hand",
     event: turn?.event?.title ?? localEvent?.[0] ?? "",
+    recover: "Stow the find",
     won: "Three souls ashore",
     lost: "Lost at sea",
   };
@@ -1091,6 +1183,11 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     board: "",
     cards: "",
     event: encounter ? "" : "Choose a route.",
+    recover: options.some(({ card }) => card)
+      ? "Choose a card to swap."
+      : options.length
+        ? "You already carry this equipment."
+        : `${s.crew[s.swimmer ?? -1]?.name} is choosing what to stow.`,
     won:
       landing === "reef" ? "" : "All three sailors survived the seventh tide.",
     lost: s.log.at(-1) ?? "",
@@ -1165,11 +1262,16 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   } else if (phase === "event") {
     const routes = options.length ? options : (turn?.event?.routes ?? []);
     if (buoy) choiceArea.append(buoyCadence(buoy));
-    choiceArea.append(
-      encounter
-        ? encounterDecision(routes, options.length > 0, encounter)
-        : routeChart(routes, options.length > 0),
-    );
+    const decision = encounter
+      ? encounterDecision(routes, options.length > 0, encounter)
+      : routeChart(routes, options.length > 0);
+    if (find) {
+      const locker = element("div", "", "locker-decision");
+      locker.append(lockerPrize(find), decision);
+      choiceArea.append(locker);
+    } else choiceArea.append(decision);
+  } else if (phase === "recover" && find) {
+    if (!keepRecovery) choiceArea.append(recoverEquipment(seat, find, options));
   } else if (options.length) choiceArea.append(buttons(options));
   renderRouteRecommendations();
   if (routeFocus) select("heading").focus({ preventScroll: true });

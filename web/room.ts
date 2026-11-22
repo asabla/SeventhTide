@@ -47,6 +47,16 @@ function sailor(value: unknown) {
   );
 }
 
+function isEquipmentPreview(value: unknown) {
+  return (
+    record(value) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.raft === "string" &&
+    typeof value.water === "string"
+  );
+}
+
 function isCrewPlay(value: unknown) {
   return (
     record(value) &&
@@ -82,6 +92,12 @@ function isTideResult(value: unknown) {
     record(value.route) &&
     (value.route.kind === "channel" ||
       value.route.kind === "pry" ||
+      value.route.kind === "leave-locker" ||
+      (value.route.kind === "haul-locker" &&
+        typeof value.route.cold === "number" &&
+        typeof value.route.find === "string" &&
+        (value.route.stowed === undefined ||
+          typeof value.route.stowed === "boolean")) ||
       (value.route.kind === "cut" && typeof value.route.lost === "number") ||
       value.route.kind === "decoy" ||
       (value.route.kind === "chain" && typeof value.route.cold === "number") ||
@@ -116,7 +132,7 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     Array.isArray(value.coveredSeats) &&
     value.coveredSeats.every(sailor) &&
     typeof value.phase === "string" &&
-    ["salvage", "board", "cards", "event", "lost", "won"].includes(
+    ["salvage", "board", "cards", "event", "recover", "lost", "won"].includes(
       value.phase,
     ) &&
     typeof value.tide === "number" &&
@@ -132,6 +148,7 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
       (record(value.underRaft) &&
         typeof value.underRaft.line === "boolean" &&
         typeof value.underRaft.hook === "boolean")) &&
+    (value.lockerFind === undefined || isEquipmentPreview(value.lockerFind)) &&
     typeof value.hull === "number" &&
     typeof value.guard === "number" &&
     (value.swimmer === null || typeof value.swimmer === "number") &&
@@ -164,15 +181,7 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     Array.isArray(value.hands) &&
     value.hands.length === names.length &&
     value.hands.every(
-      (hand: unknown) =>
-        Array.isArray(hand) &&
-        hand.every(
-          (card: unknown) =>
-            record(card) &&
-            typeof card.name === "string" &&
-            typeof card.water === "string" &&
-            typeof card.raft === "string",
-        ),
+      (hand: unknown) => Array.isArray(hand) && hand.every(isEquipmentPreview),
     ) &&
     Array.isArray(value.choices) &&
     value.choices.every(
