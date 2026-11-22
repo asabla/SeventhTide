@@ -10,7 +10,7 @@ import {
 } from "./room.ts";
 import type { RoomSnapshot } from "../server/voyages.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
-import { equipmentImage } from "./equipment-art.ts";
+import { equipmentArt } from "./equipment-art.ts";
 import { element, select } from "./dom.ts";
 import { renderTable, type CardOrigin, type TableState } from "./table.ts";
 import { playCue, soundToggle } from "./sound.ts";
@@ -70,7 +70,7 @@ if (!(trayButton instanceof HTMLButtonElement))
   throw new Error("Missing card control");
 const placeCard = trayButton;
 const trayNote = select("tray-note");
-const trayHint = trayNote.textContent;
+const trayHint = trayNote.textContent.trim();
 const choiceArea = select("choices");
 const roomPanel = select("room-panel");
 const modePanel = select("mode-panel");
@@ -84,23 +84,23 @@ resume.type = "button";
 resume.hidden = true;
 roomPanel.before(resume);
 const drag = cardDrag(tray);
-let selectedCard:
+let selectedMove:
   | { button: HTMLButtonElement; moves: Move[]; targets: HTMLElement }
   | undefined;
 
-function clearCardSelection() {
+function clearSelection() {
   drag.cancel();
-  selectedCard?.button.setAttribute("aria-pressed", "false");
-  selectedCard?.targets.replaceChildren();
-  selectedCard = undefined;
+  selectedMove?.button.setAttribute("aria-pressed", "false");
+  selectedMove?.targets.replaceChildren();
+  selectedMove = undefined;
   placeCard.disabled = true;
   tray.classList.remove("ready");
   trayNote.textContent = trayHint;
 }
 
-function playSelectedCard() {
-  if (!selectedCard || sending) return;
-  const { button, moves: variants, targets } = selectedCard;
+function playSelection() {
+  if (!selectedMove || sending) return;
+  const { button, moves: variants, targets } = selectedMove;
   const first = variants[0];
   if (!first) return;
   if (variants.length === 1) {
@@ -109,7 +109,11 @@ function playSelectedCard() {
   }
   const options = element("div", "", "choices");
   for (const move of variants) {
-    const target = element("button", move.name.split(" · ").at(-1));
+    const name = move.name
+      .split(" · ")
+      .at(-1)
+      ?.replace(/^Share with /, "");
+    const target = element("button", name);
     target.type = "button";
     target.addEventListener("click", () => act(move.id, button));
     options.append(target);
@@ -120,7 +124,22 @@ function playSelectedCard() {
   options.querySelector("button")?.focus();
 }
 
-placeCard.addEventListener("click", playSelectedCard);
+placeCard.addEventListener("click", playSelection);
+
+function selectMove(
+  button: HTMLButtonElement,
+  name: string,
+  moves: Move[],
+  targets: HTMLElement,
+) {
+  selectedMove?.button.setAttribute("aria-pressed", "false");
+  targets.replaceChildren();
+  selectedMove = { button, moves, targets };
+  button.setAttribute("aria-pressed", "true");
+  trayNote.textContent = `${name} selected.`;
+  placeCard.disabled = false;
+  tray.classList.add("ready");
+}
 
 function showRoomError(error: unknown) {
   select("room-status").textContent =
@@ -297,38 +316,16 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
       const variants = actorOptions.filter(
         (move) => move.card && move.card === card.id,
       );
-      const image = card.id ? equipmentImage(card.id, water) : undefined;
       const button = equipmentCard(
         card.name,
         variants[0]?.detail ?? (water ? card.water : card.raft),
-        image,
+        equipmentArt(card.id, water),
       );
-      const salvage =
-        card.id === "tin"
-          ? "locker"
-          : card.id === "patch"
-            ? "spar"
-            : card.id === "wrap"
-              ? "canvas"
-              : undefined;
-      if (salvage) {
-        const art = element("span", "", "item equipment-salvage " + salvage);
-        art.setAttribute("aria-hidden", "true");
-        button.firstElementChild?.after(art);
-      }
       if (variants.length) {
         drag.connect(
           button,
-          () => {
-            selectedCard?.button.setAttribute("aria-pressed", "false");
-            targets.replaceChildren();
-            selectedCard = { button, moves: variants, targets };
-            button.setAttribute("aria-pressed", "true");
-            trayNote.textContent = `${card.name} selected.`;
-            placeCard.disabled = false;
-            tray.classList.add("ready");
-          },
-          playSelectedCard,
+          () => selectMove(button, card.name, variants, targets),
+          playSelection,
           () => placeCard.focus(),
         );
       } else {
@@ -337,15 +334,49 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
       }
       deck.append(button);
     }
-    section.append(targets, deck);
-    const basic = element("details", "", "basic-actions");
-    basic.append(
-      element("summary", "Basic actions"),
-      buttons(actorOptions.filter((move) => !move.card)),
+    const actions = element("div", "", "hand-actions");
+    actions.setAttribute("role", "group");
+    actions.setAttribute("aria-label", "Moves that keep both cards");
+    const shares: Move[] = [];
+    for (const move of actorOptions) {
+      if (move.card) continue;
+      if (move.id.startsWith("feed-")) shares.push(move);
+      else
+        actions.append(actionChoice(move.name, move.detail, [move], targets));
+    }
+    if (shares.length)
+      actions.append(
+        actionChoice(
+          "Share a ration",
+          "Spend 1 ration. The chosen sailor sheds 2 cold.",
+          shares,
+          targets,
+        ),
+      );
+    const canPlayCard = actorOptions.some((move) => move.card);
+    section.append(
+      targets,
+      ...(canPlayCard ? [deck, actions] : [actions, deck]),
     );
-    section.append(basic);
   } else section.append(buttons(actorOptions));
   return section;
+}
+
+function actionChoice(
+  name: string,
+  detail: string,
+  options: Move[],
+  targets: HTMLElement,
+) {
+  const button = element("button", "", "action-slip");
+  button.type = "button";
+  button.setAttribute("aria-pressed", "false");
+  button.append(element("strong", name), element("small", detail));
+  button.addEventListener("click", () => {
+    selectMove(button, name, options, targets);
+    placeCard.focus();
+  });
+  return button;
 }
 
 function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
@@ -485,14 +516,17 @@ function render(
   const keepHand = hand !== undefined && hand === renderedHand;
   renderedHand = hand;
   if (!keepHand) {
-    clearCardSelection();
+    clearSelection();
     choiceArea.replaceChildren();
   }
   showPlayMode();
   select("heading")
     .closest("main")
     ?.toggleAttribute("data-table", s.phase === "cards" || s.phase === "event");
-  tray.hidden = s.phase !== "cards" || !options.some((move) => move.card);
+  tray.hidden = s.phase !== "cards" || !options.length || !usesCrewDeck();
+  choiceArea.parentElement?.toggleAttribute("data-hand", !tray.hidden);
+  if (!keepHand && !tray.hidden && !options.some((move) => move.card))
+    trayNote.textContent = "Choose a move below, then use this tray.";
   const sighted = s.channelMarked !== undefined && s.tide >= 6;
   select("scene").hidden = !sighted;
   select("landing-rules").hidden = s.channelMarked === undefined;

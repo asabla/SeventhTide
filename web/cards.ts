@@ -1,21 +1,32 @@
 import { element } from "./dom.ts";
 
-export function equipmentCard(name: string, detail: string, image?: string) {
+export function cardFace<K extends "button" | "div">(
+  tag: K,
+  name: string,
+  art?: HTMLElement,
+) {
+  const face = element(tag, "", "card");
+  face.append(element("strong", name));
+  if (art) face.append(art);
+  return face;
+}
+
+export function cardImage(src: string) {
+  const art = element("img");
+  art.src = src;
+  art.alt = "";
+  art.draggable = false;
+  return art;
+}
+
+export function equipmentCard(name: string, detail: string, art?: HTMLElement) {
   const [action, effect, ...rest] = detail.split(/(?<=\.)\s+/);
   const costs = rest.filter(
     (line) => !line.startsWith("Mark the safe channel"),
   );
-  const button = element("button", "", "card");
+  const button = cardFace("button", name, art);
   button.type = "button";
   button.setAttribute("aria-pressed", "false");
-  button.append(element("strong", name));
-  if (image) {
-    const art = element("img");
-    art.src = image;
-    art.alt = "";
-    art.draggable = false;
-    button.append(art);
-  }
   button.append(
     element("span", action, "action"),
     element("span", effect, "effect"),

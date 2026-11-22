@@ -21,10 +21,27 @@
           title="Voyage entries"
           hidden
         >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <svg viewBox="0 0 40 40" aria-hidden="true">
             <path
-              d="M7 3h12v15H7a2 2 0 0 0 0 4h12M7 3a2 2 0 0 0-2 2v15m4-17v15m3-11h4m-4 4h4M8 20h11"
+              fill="#301c13"
+              stroke="#21160f"
+              d="M10 3h21l3 3v29H11a5 5 0 0 1-5-5V9a6 6 0 0 1 4-6Z"
             />
+            <path
+              fill="#ecce95"
+              stroke="#634a2f"
+              d="M11 28h21v9H11a4.5 4.5 0 1 1 0-9Z"
+            />
+            <path fill="#633d26" stroke="#c09a62" d="M12 4h20v24H12z" />
+            <path fill="#442919" d="M7 9a5 5 0 0 1 5-5v24a5 5 0 0 0-5 3Z" />
+            <path
+              fill="none"
+              stroke="#ac8151"
+              d="M8 10h4m-4 12h4m1 10h16m-16 2h12"
+            />
+            <path fill="#dec189" stroke="#332116" d="M16 10h12v11H16z" />
+            <path fill="none" stroke="#675035" d="M19 14h6m-6 3h6" />
+            <path fill="#9f563c" d="M22 31h4v8l-2-2-2 2Z" />
           </svg>
           <span aria-hidden="true">Entries</span>
         </button>
@@ -37,8 +54,21 @@
           title="Voyage rules"
           hidden
         >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M5 3h9l5 5v13H5V3Zm9 0v5h5M8 9h2m-2 4h8m-8 4h6" />
+          <svg viewBox="0 0 40 40" aria-hidden="true">
+            <path fill="#4e3422" stroke="#321e12" d="m7 6 24 2 3 27-26 2Z" />
+            <path fill="#b98d57" stroke="#52402e" d="m11 6 20 2 2 25-23 3Z" />
+            <path
+              fill="#e9cb96"
+              stroke="#665035"
+              d="M9 3h17l7 7v22H9a3 3 0 0 0-3 2V7a4 4 0 0 1 3-4Z"
+            />
+            <path fill="#c19b67" stroke="#76583a" d="M26 3v8h7Z" />
+            <path
+              fill="none"
+              stroke="#947048"
+              d="M12 8h9m-9 8h15m-15 4h15m-15 4h10m-10 4h13"
+            />
+            <path fill="none" stroke="#f1dcab" d="M9 5v25" />
           </svg>
           <span aria-hidden="true">Rules</span>
         </button>
@@ -51,15 +81,45 @@
           title="Crew invites"
           hidden
         >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="m10 8 3.2-3.2a4 4 0 0 1 5.7 5.7L16 13.4M14 16l-3.2 3.2a4 4 0 0 1-5.7-5.7L8 10.6m1 4.4 6-6"
-            />
+          <svg viewBox="0 0 40 40" aria-hidden="true">
+            <path fill="#785536" stroke="#2d2017" d="M5 11 34 8l2 23-29 3Z" />
+            <path fill="#d9b67d" stroke="#685035" d="M4 9 34 7l2 22-30 3Z" />
+            <path fill="none" stroke="#98724a" d="m6 31 12-12m16 10L22 18" />
+            <path fill="#eed1a0" stroke="#76583a" d="m4 9 15 13L34 7Z" />
+            <circle cx="19" cy="23" r="5" fill="#8c3e2d" stroke="#5b291e" />
+            <circle cx="19" cy="23" r="2.5" fill="none" stroke="#b5674f" />
           </svg>
           <span aria-hidden="true">Invites</span>
         </button>
-        <button id="sound-toggle" type="button" aria-pressed="false">
-          Sound <span id="sound-state" aria-hidden="true">off</span>
+        <button
+          id="sound-toggle"
+          class="mast-tool"
+          type="button"
+          aria-label="Sound"
+          aria-pressed="false"
+          title="Sound"
+        >
+          <svg viewBox="0 0 40 40" aria-hidden="true">
+            <circle cx="20" cy="20" r="16" fill="#483421" stroke="#1e180f" />
+            <circle cx="20" cy="19" r="14" fill="#ba8a4d" stroke="#e2b979" />
+            <circle cx="20" cy="19" r="10.5" fill="#362c20" stroke="#6e4828" />
+            <path fill="#efd29a" d="M12 17h4l5-4v12l-5-4h-4Z" />
+            <path
+              class="sound-wave"
+              fill="none"
+              stroke="#efd29a"
+              d="M24 16q4 3 0 6"
+            />
+            <path
+              class="sound-muted"
+              fill="none"
+              stroke="#efd29a"
+              d="m24 17 4 4m0-4-4 4"
+            />
+          </svg>
+          <span aria-hidden="true"
+            >Sound <small id="sound-state">off</small></span
+          >
         </button>
       </div>
     </header>
@@ -134,16 +194,16 @@
             id="place-card"
             class="drop-surface"
             type="button"
-            aria-label="Play selected equipment card"
+            aria-label="Play selected move"
             aria-describedby="tray-note"
             disabled
           ></button>
           <span class="water" aria-hidden="true"><i></i><i></i></span>
           <span class="tray-slot" aria-hidden="true"></span>
           <div class="play-note">
-            <h2>Play a card</h2>
+            <h2>Make your play</h2>
             <p id="tray-note" role="status">
-              Drag a card here, or select one and use this tray.
+              Drag a card here, or select a move and use this tray.
             </p>
           </div>
         </div>
@@ -190,9 +250,9 @@
         raft reaches 0 hull after the tide resolves.
       </p>
       <p id="deck-rules" hidden>
-        Salvage adds two cards to the shared deck. Each sailor holds two. Play
-        one and draw its replacement, or use a basic action and keep both. When
-        the draw pile runs out, shuffle the discard pile.
+        Salvage adds two cards to the shared deck. Each sailor holds two. Play a
+        card and draw its replacement. A move without a card lets you keep both.
+        When the draw pile runs out, shuffle the discard pile.
       </p>
       <p id="landing-rules" hidden>
         On tide six, the swimmer can play Sounding line to mark a safe channel.

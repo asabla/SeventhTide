@@ -6,7 +6,8 @@ import {
   type Voyage,
 } from "@seventh-tide/rules";
 import { element, select } from "./dom.ts";
-import { equipmentImage } from "./equipment-art.ts";
+import { cardFace } from "./cards.ts";
+import { actionArt, equipmentArt } from "./equipment-art.ts";
 
 export type TableState = Pick<
   Voyage,
@@ -68,37 +69,35 @@ function tidePlays(
     const { actor } = play;
     const role =
       actor === view.seat ? " · You" : actor >= view.players ? " · Bot" : "";
-    const card = element("li", "", "played-card");
-    const copy = element("div", "", "played-copy");
-    const artwork = play.card && equipmentImage(play.card, actor === s.swimmer);
-    if (artwork) {
-      const image = element("img");
-      image.alt = "";
-      image.src = artwork;
-      card.append(image);
-    }
-    copy.append(
-      element("p", s.crew[actor]?.name + role, "played-by"),
-      element("strong", play.name),
+    const slot = element("li", "", "played-card");
+    const [name, target] = play.name.split(" · ");
+    const face = cardFace(
+      "div",
+      name ?? play.name,
+      play.card
+        ? equipmentArt(play.card, actor === s.swimmer)
+        : actionArt(play.id),
     );
+    face.classList.add("table-card");
+    if (target) face.append(element("span", "For " + target, "action"));
     if (play.changes.length) {
       const changes = element("ul", "", "resource-changes");
       changes.append(
         ...play.changes.map((change) => element("li", changeText(s, change))),
       );
-      copy.append(changes);
+      face.append(changes);
     } else if (!play.markedChannel) {
-      copy.append(element("small", "No resource change"));
+      face.append(element("small", "No resource change", "resource-changes"));
     }
     if (play.markedChannel)
-      copy.append(element("small", "Channel marked", "channel-mark"));
+      face.append(element("small", "Channel marked", "channel-mark"));
 
     if (sameTide) {
-      card.classList.add("card-arrival");
-      if (origin?.id === play.id) playedHere = card;
+      slot.classList.add("card-arrival");
+      if (origin?.id === play.id) playedHere = slot;
     }
-    card.append(copy);
-    list.append(card);
+    slot.append(face, element("p", s.crew[actor]?.name + role, "played-by"));
+    list.append(slot);
   }
   if (
     playedHere &&

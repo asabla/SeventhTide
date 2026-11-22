@@ -1,4 +1,6 @@
 import type { Move } from "@seventh-tide/rules";
+import { cardImage } from "./cards.ts";
+import { element } from "./dom.ts";
 import lineRaft from "./assets/line-raft.jpg";
 import lineWater from "./assets/line-water.jpg";
 import hookRaft from "./assets/boathook-raft.jpg";
@@ -29,6 +31,8 @@ import hatchRaft from "./assets/hatch-raft.webp";
 import hatchWater from "./assets/hatch-water.webp";
 import combRaft from "./assets/comb-raft.webp";
 import combWater from "./assets/comb-water.webp";
+import haul from "./assets/haul-the-line.jpg";
+import sound from "./assets/sound-the-depths.jpg";
 
 const artwork: Partial<
   Record<NonNullable<Move["card"]>, { raft: string; water: string }>
@@ -55,4 +59,29 @@ export function equipmentImage(
   water: boolean,
 ) {
   return artwork[card]?.[water ? "water" : "raft"];
+}
+
+function salvageArt(item: "locker" | "spar" | "canvas") {
+  const art = element("span", "", "item equipment-salvage " + item);
+  art.setAttribute("aria-hidden", "true");
+  return art;
+}
+
+export function equipmentArt(card: Move["card"], water: boolean) {
+  if (!card) return undefined;
+  if (card === "tin") return salvageArt("locker");
+  if (card === "patch") return salvageArt("spar");
+  if (card === "wrap") return salvageArt("canvas");
+  const image = equipmentImage(card, water);
+  return image ? cardImage(image) : undefined;
+}
+
+export function actionArt(id: string) {
+  const action = id.split("-", 1)[0];
+  if (action === "feed") return salvageArt("locker");
+  if (action === "lash") return salvageArt("spar");
+  if (action === "float") return cardImage(beltWater);
+  if (action === "haul") return cardImage(haul);
+  if (action === "sound") return cardImage(sound);
+  return undefined;
 }
