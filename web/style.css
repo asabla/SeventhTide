@@ -675,58 +675,45 @@ body.voyage {
 }
 
 .boarding {
-  width: min(100%, 620px);
+  width: min(100%, 660px);
   margin-inline: auto;
-  padding: 17px clamp(10px, 2.5vw, 24px) 9px;
-  border: 1px solid #78674b;
-  border-radius: 5px;
-  background: #151e19 url("./assets/wet-tray.webp") center / 100% 100%;
-  box-shadow: 2px 7px 12px #080d0ab3;
-  color: #f3e4c6;
 }
 
-.boarding-scale {
-  padding: 2px 5px 9px;
-  color: #ddc7a2;
+.boarding-scale,
+.boarding-equipment h2 {
+  width: fit-content;
+  margin: 0 auto 13px;
+  padding: 4px 14px;
+  background: #11201de8;
+  color: #f2dcac;
   font:
-    italic 0.91rem/1.3 Georgia,
+    italic 1rem/1.35 Georgia,
     serif;
   text-align: center;
 }
 
 .boarding-crew {
-  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 3px;
-  isolation: isolate;
-}
-
-.boarding-crew::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: clamp(28px, 4.6vw, 44px) 0 auto;
-  height: 9px;
-  border-block: 1px solid #60482f;
-  border-radius: 4px;
-  background:
-    linear-gradient(#31221960, #c09c6670 35%, #23160f4d 80%),
-    repeating-linear-gradient(
-      118deg,
-      #96754d 0 2px,
-      #4d3827 2px 3px,
-      #ab8b5b 3px 5px
-    );
-  box-shadow: 0 3px 3px #080907ad;
+  gap: clamp(5px, 1.2vw, 14px);
 }
 
 .boarding-seat {
-  min-width: 0;
+  position: relative;
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  padding: clamp(4px, 0.8vw, 9px);
+  border: 3px double #8b7251;
+  border-radius: 6px;
+  background:
+    var(--grain) repeat,
+    var(--paper);
+  box-shadow:
+    inset 0 0 11px #70543466,
+    2px 6px 8px #080c0bc9;
+  color: var(--ink);
   text-align: center;
 }
 
@@ -762,149 +749,161 @@ body.voyage {
   background-image: url("./assets/nell.webp");
 }
 
-.boarding-seat:has(
-    :where(
-      .assign-swimmer:hover,
-      .volunteer-swim:hover,
-      :focus-visible,
-      .volunteer-mark:not([hidden])
-    )
-  )
-  .crew-portrait {
-  border-color: #f2c984;
-  box-shadow:
-    0 0 12px #d4a75380,
-    0 3px 6px #0a0c08;
+.boarding-seat .crew-portrait {
+  width: 100%;
+  aspect-ratio: 1.4;
+  border: 1px solid #836943;
+  border-radius: 2px;
+  background-position: center 39%;
+  box-shadow: none;
+}
+
+.boarding-seat:has(button:where(:hover, :focus-visible):not([hidden])) {
+  outline: 2px solid #f4ce86;
+  outline-offset: 1px;
 }
 
 .boarding-seat h3 {
   margin: 0;
-  color: #fae4bb;
-  font-size: 1.23rem;
+  font:
+    700 clamp(1.05rem, 2vw, 1.45rem)/1.1 Georgia,
+    serif;
 }
 
 .boarding-role,
 .boarding-cold {
-  font: 650 0.83rem/1.3 var(--sans);
+  font: 600 0.83rem/1.3 var(--sans);
 }
 
 .boarding-role {
-  color: #d1b888;
+  color: #58432c;
 }
 
 .boarding-cold {
-  margin: 5px 0 4px;
-  font-size: 0.95rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0 5px;
+  margin: 8px 0;
+  padding-block: 4px;
+  border-block: 1px solid #81664473;
+  font-size: 1rem;
   font-variant-numeric: tabular-nums;
 }
 
-.boarding-seat :is(.volunteer-mark, .exposure-warning, .channel-mark) {
-  color: #e9c383;
-  font:
-    italic 0.76rem/1.25 Georgia,
-    serif;
+.cold-label {
+  font-size: 0.8rem;
+}
+
+.boarding-seat :is(.volunteer-mark, .channel-mark, .exposure-warning) {
+  color: #624216;
+  font: bold 0.83rem/1.2 var(--sans);
 }
 
 .boarding-seat .exposure-warning {
-  color: #ffb89a;
+  color: #792f20;
 }
 
 .boarding-controls {
-  display: grid;
-  justify-items: center;
   margin-top: auto;
-  padding-top: 5px;
 }
 
 .boarding-controls :where(button) {
+  width: 100%;
   min-height: 44px;
-  padding: 4px 8px;
-  border: 1px solid #ad8b58;
+  margin-top: 4px;
+  padding: 4px;
+  border: 1px solid #735d39;
   border-radius: 2px;
-  background: linear-gradient(#544531, #2d2920 50%, #3c3021);
-  box-shadow:
-    inset 0 0 3px #ddbc7d73,
-    0 2px 3px #0a0e0b;
-  color: #fae0af;
+  background: #273d37;
+  color: #fff1cd;
   font:
-    700 0.85rem/1.13 Georgia,
+    bold clamp(0.85rem, 1.6vw, 1rem)/1.2 Georgia,
     serif;
   text-align: center;
 }
 
 .boarding-controls :where(button:hover, button:focus-visible) {
-  background: #5a492f;
+  background: #344d43;
 }
 
-.boarding-controls :where(button + button:not([hidden])) {
-  margin-top: 4px;
+/* The portrait, name and footer form one assignment target. */
+.assign-swimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.volunteer-swim {
+  position: relative;
 }
 
 .boarding-equipment {
-  margin: 8px 0 0;
-  border-top: 1px solid #a88a50a6;
-}
-
-.boarding-equipment summary {
-  min-height: 44px;
-  padding: 4px 4px 3px;
-  color: #f0d0a3;
-  font:
-    italic 0.92rem/1.3 Georgia,
-    serif;
-}
-
-.boarding-equipment summary :is(img, .equipment-salvage) {
-  display: inline-block;
-  width: 29px;
-  height: 29px;
-  margin-left: 6px;
-  border: 1px solid #b1905d;
-  border-radius: 2px;
-  object-fit: cover;
-  vertical-align: middle;
+  margin: 22px auto 0;
 }
 
 .boarding-equipment-faces {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 5px 4px 9px;
+  grid-template-columns: repeat(2, minmax(0, 185px));
+  gap: 12px;
+  justify-content: center;
 }
 
-.boarding-equipment-faces section {
-  padding: 7px 8px;
-  border-top: 1px solid #927b54;
-  color: #eadbc1;
+.boarding-equipment-faces .card {
+  cursor: auto;
+  touch-action: auto;
+  user-select: text;
+  transform: rotate(-1deg);
 }
 
-.boarding-equipment-faces h3 {
-  margin: 0;
-  font-size: 1rem;
+.boarding-equipment-faces :is(img, .equipment-salvage) {
+  aspect-ratio: 1.8;
 }
 
 .boarding-equipment-faces dl {
   display: block;
-  margin: 5px 0 0;
+  margin: 0;
   border: 0;
 }
 
 .boarding-equipment-faces dl div {
   display: block;
-  padding: 6px 0 0;
+  padding: 5px 0;
   border: 0;
 }
 
-.boarding-equipment-faces dt {
-  color: #dbbd89;
-  font:
-    italic 0.81rem Georgia,
-    serif;
+.boarding-equipment-faces dl div + div {
+  border-top: 1px solid #876d4e80;
 }
 
 .boarding-equipment-faces dd {
-  margin-top: 1px;
-  font: 0.83rem/1.3 var(--sans);
+  font: 0.88rem/1.3 var(--sans);
+}
+
+.boarding-equipment-faces dt {
+  margin-bottom: 2px;
+  font:
+    italic 700 0.84rem/1.25 Georgia,
+    serif;
+}
+
+.action-hand {
+  display: flex;
+  justify-content: center;
+  gap: clamp(5px, 1.2vw, 14px);
+  max-width: 590px;
+  margin: 18px auto;
+}
+
+.action-hand .card {
+  flex: 1 1 0;
+  max-width: 185px;
+  transform: rotate(-1deg);
+}
+
+:is(.boarding-equipment-faces, .action-hand) .card:nth-child(2) {
+  transform: rotate(1deg);
 }
 
 #tide-plays {
@@ -1162,6 +1161,11 @@ body.voyage {
 .deck-tool {
   width: var(--deck-tool-size, 49px);
   object-fit: cover;
+}
+
+.action-hand .deck-tool {
+  border-radius: 2px;
+  box-shadow: none;
 }
 
 .crew-tool-copy {
@@ -1753,29 +1757,18 @@ body.voyage {
   filter: drop-shadow(1px 4px 4px #100d09a8) brightness(1.12);
 }
 
-#raft-table[data-boarding] > #tide-result {
-  order: 1;
-  width: min(100%, 620px);
-  margin: 12px auto 0;
-  padding: 0;
-  border-left-width: 3px;
+#last-tide {
+  margin-bottom: 14px;
+  padding-block: 8px;
+  border-bottom: 1px solid #8e7655;
 }
 
-#tide-result :where(.tide-receipt) summary {
+.tide-receipt summary {
   min-height: 44px;
-  padding: 10px 12px;
-  color: #4e3824;
+  align-content: center;
   font:
-    italic 1rem/1.3 Georgia,
+    bold 1rem/1.3 Georgia,
     serif;
-}
-
-.tide-receipt > :is(p, ol) {
-  padding-inline: 12px;
-}
-
-.tide-receipt > ol {
-  padding-bottom: 10px;
 }
 
 .tide-beats {
