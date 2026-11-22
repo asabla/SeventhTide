@@ -1,5 +1,69 @@
 # Art direction
 
+## Ten finds from the wreck
+
+Each original contains a raft scene on the left and a water scene on the right. The built-in image generator received the common prompt below followed by the scene description for that card.
+
+> Seventh Tide, a gritty 1890 maritime folk horror card game. One 2:1 landscape diptych, two independent square copperplate engravings side by side, edge to edge, cut exactly at the midpoint for separate game illustrations. Raft on the left, water on the right. The same distinctive piece of equipment dominates both squares, recognizable as a silhouette on a small card. Different close camera angles, authentic material detail, short strokes of carbon-black ink, pools of deep sea green, worn bone paper, restrained amber. Human hands, salt corrosion, wet cloth, oppressive light. Full bleed. No lettering, numerals, border, labels, or interface.
+
+**Caulking iron** · [Original](iron.png) · [Raft](../web/assets/iron-raft.webp) · [Water](../web/assets/iron-water.webp)
+
+> A broad blunt fan-shaped caulking iron. Left, a shipwright packs pale oakum tight in a seam between black raft planks with the iron. Right, a swimmer hooks the flat iron into a loose plank and presses a pale plug into a leak below the waterline.
+
+**Snatch block** · [Original](block.png) · [Raft](../web/assets/block-raft.webp) · [Water](../web/assets/block-water.webp)
+
+> One large black wooden pulley block with a brass wheel and hemp rope. Left, the crew hangs the block above the raft edge hauling a swimmer's sling. Right, the swimmer pulls a timber into alignment with the block half submerged; distinct broad round sheave and oval cheek.
+
+**Galley kettle** · [Original](kettle.png) · [Raft](../web/assets/kettle-raft.webp) · [Water](../web/assets/kettle-water.webp)
+
+> A battered round copper kettle with a bent spout and loop handle. Left, steam from the dented kettle on a tiny ship's brazier warms a deckhand's fingers. Right, the swimmer holds the stoppered buoyant kettle against their chest, cheek to its dull copper.
+
+**Tarred mitts** · [Original](mitts.png) · [Raft](../web/assets/mitts-raft.webp) · [Water](../web/assets/mitts-water.webp)
+
+> Two heavy dark sailmaker's mittens with broad tarred leather palms and cream stitched cuffs. Left, sailor in the mittens holds wet jagged timbers steady while foam strikes the raft. Right, a swimmer wearing one mitten pushes the spare pale-lined mitten up on a raft gunwale to a waiting bare hand.
+
+**Breaker cask** · [Original](cask.png) · [Raft](../web/assets/cask-raft.webp) · [Water](../web/assets/cask-water.webp)
+
+> A squat oval coopered water breaker, with two big black iron hoops and a bung. Left, a sailor taps the little cask beside a bowl on deck. Right, a swimmer clings to the buoyant cask lashed crosswise against the raft.
+
+**Storm lantern** · [Original](lantern.png) · [Raft](../web/assets/lantern-raft.webp) · [Water](../web/assets/lantern-water.webp)
+
+> An old brass storm lantern with distinctive wire cage and amber flame. Left, a deckhand lifts the lamp over the gunwale to guide the swimmer along a sheltered passage. Right, the swimmer raises the lantern from the waves and its light reveals a floating ration tin.
+
+**Black-glass float** · [Original](glass.png) · [Raft](../web/assets/glass-raft.webp) · [Water](../web/assets/glass-water.webp)
+
+> Single large spherical near-black glass fishing float in sparse tarred rope netting. Left, the crew hangs the sphere over a rough spar as a fender, in its polished surface an eye-like reflection. Right, swimmer clutches the eerie mirrored glass sphere in foam, face half reflected in it.
+
+**Wreck bell** · [Original](bell.png) · [Raft](../web/assets/bell-raft.webp) · [Water](../web/assets/bell-water.webp)
+
+> A broad bronze ship's bell with a torn lanyard, covered in barnacles. Left the deckhand sounds it to bring the crew together as a swell builds, pale ghost ship on horizon. Right underwater the swimmer levers the ponderous bell against a loose hull timber, strange concentric ripples.
+
+**Hatch cover** · [Original](hatch.png) · [Raft](../web/assets/hatch-raft.webp) · [Water](../web/assets/hatch-water.webp)
+
+> A heavy square wooden hatch with broad cross-cleats and an iron ring. Left the deckhand fastens the hatch across two splitting raft beams with a rope. Right the swimmer pushes the flat floating hatch beneath a small wooden provision box.
+
+**Bone comb** · [Original](comb.png) · [Raft](../web/assets/comb-raft.webp) · [Water](../web/assets/comb-water.webp)
+
+> An old whalebone comb with widely spaced pale teeth, a ship carved into its curved spine. Left a sailor snags a mass of stranded kelp with it, black strands trailing food-bearing shellfish. Right a swimmer works the bone teeth through a snarled bridle, freeing the line from beneath the raft. Unsettling faint white shapes in the depths.
+
+## Cork belt, Sea anchor and Drift net
+
+The built-in generator received this common prompt followed by the scene for each plate. The left and right panels supply the 560-pixel raft and water exports in `web/assets/`.
+
+> A landscape 2:1 diptych for Seventh Tide, two independent equal square illustrations side by side with a clean cut at the exact middle. Close-up 1890 maritime folk horror copperplate engraving, carbon-black and muted deep sea green on worn warm bone paper. Broad silhouettes with hand-cut crosshatching on material edges; composition readable at phone thumbnail size. Raft at left, waterline at right. One distinctive piece of gear per diptych. No text, no lettering, no frames or card borders.
+
+[belt.png](belt.png) · [Raft](../web/assets/belt-raft.webp) · [Water](../web/assets/belt-water.webp)
+
+> A lifesaving cork belt, a loop of chunky old oblong pale cork blocks threaded side by side on tarred cord. Left: a gloved sailor on a raft cuts the belt's frayed binding free from a splintered timber and passes the belt over the side. Right: a tired swimmer floating on his back cradles the same bright block belt across his chest, keeping his nose above the black tide. Strong horizontal shapes, a faint second wake beyond.
+
+[anchor.png](anchor.png) · [Raft](../web/assets/anchor-raft.webp) · [Water](../web/assets/anchor-water.webp)
+
+> A sea anchor is a conical open-mouthed canvas drogue with a rope bridle, NOT a metal anchor. Left: viewed from the raft a sailor pays out the taut bridle, its big wet canvas cone deployed in foam behind the timbers. Right: from just below the waterline a swimmer hooks their forearm through the bridle and takes shelter behind the open canvas cone. The frayed triangular sailcloth drogue, stitches and hemp lines must read clearly. An unexplained current pulls across the swell.
+
+[net.png](net.png) · [Raft](../web/assets/net-raft.webp) · [Water](../web/assets/net-water.webp)
+
+> A small salvage drift net, clearly visible broad diamond mesh, rough black hemp knots, three distinctive cork floats and one dented ration tin. Left: close-up of the sailor's raw hands levering a bundled net with a heavy provision tin over a timber edge that is starting to split. Right: cold swimmer reaching into the spread diamond mesh beneath the surface, two silvery old provision tins snared in it, one in hand. A faint impossible hand-shaped shadow beyond the net. Focus on net mesh and tin at thumbnail size.
+
 The first study uses maritime copperplate engravings, black water, muted sea green, and a single warm light. Use silhouettes that remain clear on a phone. Keep all names, rules, and costs in the interface so a balance change does not require another illustration.
 
 The originals were created with the built-in image generator. Keep each full-size PNG in this directory with its final prompt. The game uses the JPEG exports below.

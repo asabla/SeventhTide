@@ -10,6 +10,7 @@ import {
 } from "./room.ts";
 import type { RoomSnapshot } from "../server/voyages.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
+import { equipmentImage } from "./equipment-art.ts";
 import lanterns from "./assets/answering-light.jpg";
 import firstWater from "./assets/first-water.jpg";
 import {
@@ -186,12 +187,18 @@ function buttons(options: Move[]) {
         : "action-art haul";
       btn.append(element("span", "", "engraving"));
     }
-    if (move.card === "line") {
-      btn.className =
-        move.actor === (turn ?? state).swimmer
-          ? "action-art sound"
-          : "action-art haul";
-      btn.append(element("span", "", "engraving"));
+    if (move.card) {
+      const image = equipmentImage(
+        move.card,
+        move.actor === (turn ?? state).swimmer,
+      );
+      if (image) {
+        btn.className = "action-art";
+        const art = element("img", "", "engraving");
+        art.alt = "";
+        art.src = image;
+        btn.append(art);
+      }
     }
     const copy = element("span");
     copy.append(
@@ -385,9 +392,22 @@ function render() {
         if (usesCrewDeck()) {
           const held =
             (turn ? turn.hands[i] : handPreview(state.deck, i)) ?? [];
+          const playableCards = hand.filter((move) => move.card);
           choices.append(
             element("p", "In hand · " + held.map((c) => c.name).join(" / ")),
-            buttons(hand.filter((o) => o.card)),
+            buttons(playableCards),
+          );
+          for (const card of held) {
+            if (
+              card.id &&
+              !playableCards.some((move) => move.card === card.id)
+            ) {
+              choices.append(
+                element("small", card.name + " requires 1 ration to play."),
+              );
+            }
+          }
+          choices.append(
             element("h4", "Basic actions"),
             buttons(hand.filter((o) => !o.card)),
           );
