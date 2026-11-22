@@ -79,12 +79,18 @@ export function equipmentArt(card: Move["card"], water: boolean) {
   return image ? cardImage(image) : undefined;
 }
 
-export function actionArt(id: string) {
-  const action = id.split("-", 1)[0];
-  if (action === "feed") return cardImage(ration);
-  if (action === "lash") return cardImage(lash);
-  if (action === "float") return cardImage(float);
-  if (action === "haul") return cardImage(haul);
-  if (action === "sound") return cardImage(sound);
-  return undefined;
+const toolIllustrations: Record<string, string> = {
+  feed: ration,
+  lash,
+  float,
+  haul,
+  sound,
+};
+
+export function deckTool(id: string) {
+  const image = toolIllustrations[id.split("-", 1)[0] ?? ""];
+  if (!image) return undefined;
+  const art = cardImage(image);
+  art.className = "deck-tool";
+  return art;
 }

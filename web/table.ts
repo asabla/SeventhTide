@@ -7,7 +7,7 @@ import {
 } from "@seventh-tide/rules";
 import { element, select } from "./dom.ts";
 import { cardFace } from "./cards.ts";
-import { actionArt, equipmentArt } from "./equipment-art.ts";
+import { deckTool, equipmentArt } from "./equipment-art.ts";
 
 export type TableState = Pick<
   Voyage,
@@ -79,14 +79,20 @@ function tidePlays(
     const [name, target] = play.id.startsWith("feed-")
       ? ["Share a ration", play.name.replace(/^Share with /, "")]
       : play.name.split(" · ");
-    const face = cardFace(
-      "div",
-      name ?? play.name,
-      play.card
-        ? equipmentArt(play.card, actor === s.swimmer)
-        : actionArt(play.id),
-    );
-    face.classList.add("table-card");
+    const face = play.card
+      ? cardFace(
+          "div",
+          name ?? play.name,
+          equipmentArt(play.card, actor === s.swimmer),
+        )
+      : element("div");
+    if (play.card) face.classList.add("table-card");
+    else {
+      face.className = "table-tool";
+      const art = deckTool(play.id);
+      if (art) face.append(art);
+      face.append(element("strong", name ?? play.name));
+    }
     if (target) face.append(element("span", "For " + target, "action"));
     if (play.changes.length) {
       const changes = element("ul", "", "resource-changes");
@@ -160,14 +166,23 @@ function tideResult(s: TableState, previous?: TableState) {
   });
   details.append(exposure);
 
-  const heading = element("h3", `Tide ${result.tide} result`);
-  const loss = s.phase === "lost" ? lossDetails(s) : [];
-  section.replaceChildren(
-    heading,
-    ...loss,
-    element("p", `${result.event} · ${result.choice}`),
-    details,
-  );
+  if (s.phase === "board") {
+    const receipt = element("details", "", "tide-receipt");
+    receipt.append(
+      element("summary", `Tide ${result.tide} · ${result.choice}`),
+      element("p", result.event),
+      details,
+    );
+    section.replaceChildren(receipt);
+  } else {
+    const loss = s.phase === "lost" ? lossDetails(s) : [];
+    section.replaceChildren(
+      element("h3", `Tide ${result.tide} result`),
+      ...loss,
+      element("p", `${result.event} · ${result.choice}`),
+      details,
+    );
+  }
 }
 
 function lossDetails(s: TableState) {
