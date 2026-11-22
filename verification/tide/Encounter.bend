@@ -69,6 +69,13 @@ def grip_open(line: Bool, hook: Bool, version: Nat) -> Bool:
     case _ _ _:
       False{}
 
+def grip_haul_cost(brace: Nat, version: Nat) -> Nat:
+  match brace version:
+    case 2n+_ 13n+_:
+      1n
+    case _ _:
+      2n
+
 def can_haul(water: Water, version: Nat) -> Bool:
   match water version:
     case DriftingLocker{} 9n+_:

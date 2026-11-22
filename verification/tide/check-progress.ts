@@ -83,7 +83,7 @@ const replays = [
     ],
   },
   {
-    versions: [9, 10, 11, 12],
+    versions: [9, 10, 11, 12, 13],
     seed: 0,
     history: [
       "spar",

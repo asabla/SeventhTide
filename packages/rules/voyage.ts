@@ -13,8 +13,9 @@ export { handPreview, equipmentPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 12;
-export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+export const rulesVersion = 13;
+export type RulesVersion =
+  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -354,6 +355,11 @@ export function currentEvent(voyage: Voyage) {
   const grip = underRaft(voyage);
   if (grip) {
     event = [...raftGrip];
+    if ((voyage.rulesVersion ?? 1) >= 13) {
+      event[1] =
+        "Rig both tools to pry it loose. Gain 2 brace to haul the swimmer with less cold.";
+      if (voyage.guard >= 2) event[4] = 1;
+    }
     if (voyage.phase === "board")
       event[1] = "The timbers creak beneath the swell.";
     if (grip.line && grip.hook)
@@ -569,7 +575,7 @@ function gripMoves(
   swimmer: number,
   { line, hook }: NonNullable<ReturnType<typeof underRaft>>,
 ): Move[] {
-  const [, , , timber, extraCold] = raftGrip;
+  const [, , , timber, extraCold] = currentEvent(s);
   const sailor = crewMember(s, swimmer);
   const exposure = (extra = 0) => {
     const cold = sailor.cold + swimmerCold + extra;
