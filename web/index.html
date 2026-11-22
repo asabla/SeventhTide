@@ -175,6 +175,7 @@
       >
         <p id="room-status" role="status"></p>
         <p id="instruction" aria-live="polite"></p>
+        <p id="seat-notice" role="status"></p>
         <div id="mode-panel" class="mode-panel" hidden>
           <details id="room-panel">
             <summary>Play with friends</summary>
@@ -190,6 +191,17 @@
             <small>You play Mara. Two bots join your crew.</small>
           </button>
         </div>
+        <section
+          class="crew-lobby"
+          id="crew-lobby"
+          aria-label="Crew seats"
+          hidden
+        >
+          <ul id="lobby-seats"></ul>
+          <button id="launch-voyage" type="button" hidden>Begin voyage</button>
+          <a href="./" class="crew-lobby-back">Back to Seventh Tide</a>
+          <p id="lobby-copy-status" role="status"></p>
+        </section>
         <section id="tide-plays" aria-labelledby="tide-plays-heading" hidden>
           <h2 id="tide-plays-heading">Played this tide</h2>
           <ol id="crew-plays" aria-live="polite"></ol>

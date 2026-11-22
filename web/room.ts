@@ -93,6 +93,13 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     record(value) &&
     typeof value.id === "string" &&
     typeof value.revision === "number" &&
+    typeof value.crewLaunched === "boolean" &&
+    typeof value.crewRevision === "number" &&
+    Array.isArray(value.joinedSeats) &&
+    value.joinedSeats.every(sailor) &&
+    (value.assistedTide === null || typeof value.assistedTide === "number") &&
+    Array.isArray(value.coveredSeats) &&
+    value.coveredSeats.every(sailor) &&
     typeof value.phase === "string" &&
     ["salvage", "board", "cards", "event", "lost", "won"].includes(
       value.phase,
@@ -197,7 +204,7 @@ export async function hostRoom(players: number) {
   const response = await fetch("/api/voyages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ players }),
+    body: JSON.stringify({ players, prepareCrew: true }),
   });
   if (!response.ok)
     throw new Error(
@@ -224,24 +231,28 @@ export type RoomAction =
 
 export async function readTurn(
   room: Room,
-  move?: RoomAction & { expectedRevision: number },
+  action?: "seat" | "launch" | (RoomAction & { expectedRevision: number }),
 ): Promise<RoomSnapshot> {
   const path = "/api/voyages/" + encodeURIComponent(room.id);
-  const headers = {
-    Authorization: "Bearer " + room.token,
-    "Content-Type": "application/json",
-  };
+  const move = typeof action === "object" ? action : undefined;
   const volunteer = move && "offer" in move;
-  const response = await fetch(
-    move ? path + (volunteer ? "/volunteers" : "/moves") : path,
-    move
-      ? {
-          method: volunteer ? "PUT" : "POST",
-          headers,
-          body: JSON.stringify(move),
-        }
-      : { headers },
-  );
+  const endpoint =
+    typeof action === "string"
+      ? action
+      : move
+        ? volunteer
+          ? "volunteers"
+          : "moves"
+        : "";
+  const headers: Record<string, string> = {
+    Authorization: "Bearer " + room.token,
+  };
+  if (move) headers["Content-Type"] = "application/json";
+  const response = await fetch(endpoint ? path + "/" + endpoint : path, {
+    method: move && !volunteer ? "POST" : endpoint ? "PUT" : "GET",
+    headers,
+    ...(move ? { body: JSON.stringify(move) } : {}),
+  });
   if (response.status === 409 || response.status === 422)
     throw new TurnConflict(
       "The crew made another choice. Check the latest turn and choose again.",

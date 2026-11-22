@@ -30,6 +30,7 @@ export interface CardOrigin {
 interface CrewView {
   seat: number;
   players: number;
+  coveredSeats: number[];
 }
 
 function signed(value: number) {
@@ -67,8 +68,13 @@ function tidePlays(
   let playedHere: HTMLElement | undefined;
   for (const play of s.plays.slice(sameTide ? previous.plays.length : 0)) {
     const { actor } = play;
-    const role =
-      actor === view.seat ? " · You" : actor >= view.players ? " · Bot" : "";
+    const role = view.coveredSeats.includes(actor)
+      ? " · Bot cover"
+      : actor === view.seat
+        ? " · You"
+        : actor >= view.players
+          ? " · Bot"
+          : "";
     const slot = element("li", "", "played-card");
     const [name, target] = play.name.split(" · ");
     const face = cardFace(
