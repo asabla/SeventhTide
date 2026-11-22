@@ -33,6 +33,9 @@ import combRaft from "./assets/comb-raft.webp";
 import combWater from "./assets/comb-water.webp";
 import haul from "./assets/haul-the-line.jpg";
 import sound from "./assets/sound-the-depths.jpg";
+import lash from "./assets/lash-the-timbers.webp";
+import ration from "./assets/share-a-ration.webp";
+import float from "./assets/float-on-the-line.webp";
 
 const artwork: Partial<
   Record<NonNullable<Move["card"]>, { raft: string; water: string }>
@@ -78,9 +81,9 @@ export function equipmentArt(card: Move["card"], water: boolean) {
 
 export function actionArt(id: string) {
   const action = id.split("-", 1)[0];
-  if (action === "feed") return salvageArt("locker");
-  if (action === "lash") return salvageArt("spar");
-  if (action === "float") return cardImage(beltWater);
+  if (action === "feed") return cardImage(ration);
+  if (action === "lash") return cardImage(lash);
+  if (action === "float") return cardImage(float);
   if (action === "haul") return cardImage(haul);
   if (action === "sound") return cardImage(sound);
   return undefined;

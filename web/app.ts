@@ -12,11 +12,11 @@ import type { RoomSnapshot } from "../server/voyages.ts";
 import type { CrewSignal } from "../shared/crew-signals.ts";
 import { crewSignalStation } from "./crew-signals.ts";
 import { parseSavedRun, type SavedRun } from "./saved-run.ts";
-import { equipmentArt } from "./equipment-art.ts";
+import { actionArt, equipmentArt } from "./equipment-art.ts";
 import { element, select } from "./dom.ts";
 import { renderTable, type CardOrigin, type TableState } from "./table.ts";
 import { playCue, soundToggle } from "./sound.ts";
-import { cardDrag, equipmentCard } from "./cards.ts";
+import { cardDrag, cardFace, equipmentCard } from "./cards.ts";
 import {
   start,
   rulesVersion,
@@ -84,6 +84,7 @@ const crewLobby = select("crew-lobby");
 const launchButton = select("launch-voyage");
 const inviteFields: HTMLInputElement[] = [];
 const shipLog = select("ship-log");
+const compactLog = select("compact-log");
 const startSolo = select("start-solo");
 const openEntries = select("open-entries");
 const openRules = select("open-rules");
@@ -94,9 +95,23 @@ resume.hidden = true;
 roomPanel.before(resume);
 const drag = cardDrag(tray);
 const renderSignals = crewSignalStation(sendSignal);
+compactLog.addEventListener("click", () =>
+  setLogOpen(!shipLog.hasAttribute("data-open")),
+);
+shipLog.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && shipLog.hasAttribute("data-open")) {
+    setLogOpen(false);
+    compactLog.focus({ preventScroll: true });
+  }
+});
 let selectedMove:
   | { button: HTMLButtonElement; moves: Move[]; targets: HTMLElement }
   | undefined;
+
+function setLogOpen(open: boolean) {
+  shipLog.toggleAttribute("data-open", open);
+  compactLog.setAttribute("aria-expanded", String(open));
+}
 
 function clearSelection() {
   drag.cancel();
@@ -146,7 +161,8 @@ function selectMove(
   targets.replaceChildren();
   selectedMove = { button, moves, targets };
   button.setAttribute("aria-pressed", "true");
-  trayNote.textContent = `${name} selected.`;
+  trayNote.textContent =
+    `${name} selected.` + (moves[0]?.card ? "" : " Keep both equipment cards.");
   placeCard.disabled = false;
   tray.classList.add("ready");
 }
@@ -374,7 +390,9 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
           button,
           () => selectMove(button, card.name, variants, targets),
           playSelection,
-          () => placeCard.focus(),
+          (event) => {
+            if (event.detail === 0) placeCard.focus();
+          },
         );
       } else {
         button.disabled = true;
@@ -382,7 +400,7 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
       }
       deck.append(button);
     }
-    const actions = element("div", "", "hand-actions");
+    const actions = element("div", "", "equipment-cards reserve-cards");
     actions.setAttribute("role", "group");
     actions.setAttribute("aria-label", "Moves that keep both cards");
     const shares: Move[] = [];
@@ -396,15 +414,16 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
       actions.append(
         actionChoice(
           "Share a ration",
-          "Spend 1 ration. The chosen sailor sheds 2 cold.",
+          "The chosen sailor sheds 2 cold. Spend 1 ration.",
           shares,
           targets,
         ),
       );
     const canPlayCard = actorOptions.some((move) => move.card);
+    const groups = canPlayCard ? [deck, actions] : [actions, deck];
     section.append(
       targets,
-      ...(canPlayCard ? [deck, actions] : [actions, deck]),
+      ...groups.filter((group) => group.childElementCount),
     );
   } else section.append(buttons(actorOptions));
   return section;
@@ -416,14 +435,34 @@ function actionChoice(
   options: Move[],
   targets: HTMLElement,
 ) {
-  const button = element("button", "", "action-slip");
+  const [effect, cost = ""] = detail.split(/(?<=\.)\s+/);
+  const button = cardFace("button", name, actionArt(options[0]?.id ?? ""));
   button.type = "button";
   button.setAttribute("aria-pressed", "false");
-  button.append(element("strong", name), element("small", detail));
-  button.addEventListener("click", () => {
-    selectMove(button, name, options, targets);
-    placeCard.focus();
-  });
+  button.append(element("span", effect, "effect"));
+  if (cost)
+    button.append(
+      element(
+        "span",
+        "Cost · " +
+          cost.replace(/^The trailing line strains the raft for /, "Lose "),
+        "cost",
+      ),
+    );
+  drag.connect(
+    button,
+    () => selectMove(button, name, options, targets),
+    playSelection,
+    () => {
+      const bounds = tray.getBoundingClientRect();
+      const top = matchMedia("(max-width: 700px)").matches
+        ? shipLog.getBoundingClientRect().bottom
+        : 0;
+      if (bounds.top < top || bounds.bottom > innerHeight)
+        tray.scrollIntoView({ block: "center" });
+      placeCard.focus({ preventScroll: true });
+    },
+  );
   return button;
 }
 
@@ -617,6 +656,9 @@ function render(
   const localEvent = room ? null : currentEvent(state);
   const forecast = turn?.forecast ?? localEvent?.[1] ?? "";
   const phase = s.phase;
+  const logAtTable = phase === "cards" || phase === "event";
+  shipLog.toggleAttribute("data-compact", logAtTable);
+  if (!logAtTable || (previous && previous.tide !== s.tide)) setLogOpen(false);
   const clue = select("forecast");
   clue.hidden = !forecast || (phase !== "cards" && phase !== "board");
   clue.textContent = forecast;

@@ -51,8 +51,7 @@ export function crewSignalStation(
 ) {
   const control = select("signal-station");
   const flag = select("signal-flag");
-  const mast = control.parentElement;
-  if (!(control instanceof HTMLDetailsElement) || !mast)
+  if (!(control instanceof HTMLDetailsElement))
     throw new Error("Missing signal station.");
   const station = control;
   const list = select("compact-signals");
@@ -83,17 +82,6 @@ export function crewSignalStation(
     return choice;
   });
   options.prepend(...choices);
-  const narrow = matchMedia("(max-width: 700px)");
-  const compact = select("compact-signal-anchor");
-  function placeStation() {
-    const focused = document.activeElement;
-    const anchor = narrow.matches ? compact : mast;
-    anchor?.append(station);
-    if (focused instanceof HTMLElement && station.contains(focused))
-      focused.focus({ preventScroll: true });
-  }
-  narrow.addEventListener("change", placeStation);
-  placeStation();
   document.addEventListener("pointerdown", (event) => {
     if (
       station.open &&
@@ -120,7 +108,7 @@ export function crewSignalStation(
     });
     const notes = s.crew.flatMap(({ name }, i) => {
       const signal = signals[i];
-      return signal ? [{ signal, text: `${name}: ${labels[signal]}` }] : [];
+      return signal ? [{ signal, text: `${name} · ${labels[signal]}` }] : [];
     });
     for (const [i, row] of Array.from(select("crew").children).entries()) {
       const badge = row.querySelector(".crew-signal-label");
@@ -135,7 +123,7 @@ export function crewSignalStation(
       select("heading").focus({ preventScroll: true });
     station.hidden = !canSend;
     station.dataset.signal = manual[seat] ?? "";
-    list.hidden = !canSend && !notes.length;
+    list.hidden = !notes.length;
     if (!canSend) {
       closeStation();
       status.textContent = "";

@@ -76,7 +76,9 @@ function tidePlays(
           ? " · Bot"
           : "";
     const slot = element("li", "", "played-card");
-    const [name, target] = play.name.split(" · ");
+    const [name, target] = play.id.startsWith("feed-")
+      ? ["Share a ration", play.name.replace(/^Share with /, "")]
+      : play.name.split(" · ");
     const face = cardFace(
       "div",
       name ?? play.name,
@@ -234,14 +236,8 @@ export function renderTable(
 ) {
   tidePlays(s, view, previous, origin);
   tideResult(s, previous);
-  const status = select("raft-status");
-  status.hidden = s.phase === "salvage";
   const swimmer = s.swimmer === null ? undefined : s.crew[s.swimmer];
-  const stats = [`Hull ${s.hull}/${maxHull}`];
-  if (atTable(s)) stats.push(`Brace ${s.guard}`);
+  const stats = [`Hull ${s.hull}/${maxHull}`, `Brace ${s.guard}`];
   if (swimmer) stats.push(`${swimmer.name} ${swimmer.cold}/${coldLimit} cold`);
   select("raft-condition").textContent = stats.join(" · ");
-  const count = select("play-count");
-  count.hidden = s.phase !== "cards";
-  count.textContent = `${s.plays.length}/${s.crew.length} played`;
 }

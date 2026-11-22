@@ -81,7 +81,7 @@ export function cardDrag(tray: HTMLElement) {
     button: HTMLButtonElement,
     select: () => void,
     drop: () => void,
-    focusTray: () => void,
+    onSelectClick: (event: MouseEvent) => void,
   ) {
     let suppressClick = false;
     button.addEventListener("pointerdown", (event) => {
@@ -138,7 +138,7 @@ export function cardDrag(tray: HTMLElement) {
     button.addEventListener("click", (event) => {
       if (button.disabled || (event.detail !== 0 && suppressClick)) return;
       select();
-      if (event.detail === 0) focusTray();
+      onSelectClick(event);
     });
   }
 
