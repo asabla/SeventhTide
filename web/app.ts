@@ -77,6 +77,7 @@ const room = roomId ? readRoom(roomId) : null;
 let turn: RoomSnapshot | undefined;
 let sending = false;
 let signaling = false;
+let recommending = false;
 let refreshing = false;
 let connectionFailed = false;
 let showLobby = !room && run.history.length === 0;
@@ -228,6 +229,7 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
     next.offerRevision === previous.offerRevision
   ) {
     renderSignals(next, next.seat, next.players, true, next.signals);
+    renderRouteRecommendations();
     return;
   }
   render(previous, origin);
@@ -281,6 +283,28 @@ async function sendSignal(signal: CrewSignal) {
     return false;
   } finally {
     signaling = false;
+  }
+}
+
+async function recommendRoute(id: string) {
+  if (!room || turn?.phase !== "event" || turn.seat === 0 || recommending)
+    return;
+  const { revision, seat, routeRecommendations } = turn;
+  recommending = true;
+  select("room-status").textContent = "";
+  try {
+    setTurn(
+      await readTurn(room, {
+        expectedRevision: revision,
+        routeId: routeRecommendations[seat] === id ? null : id,
+      }),
+    );
+  } catch (error) {
+    if (error instanceof TurnConflict) await refreshRoom();
+    if (turn?.phase === "event" && turn.revision === revision)
+      showRoomError(error);
+  } finally {
+    recommending = false;
   }
 }
 
@@ -571,21 +595,89 @@ function actionChoice(
 
 type TideRoute = Pick<Move, "name" | "detail"> & { id?: string };
 
+function routeOption(
+  { id, name, detail }: TideRoute,
+  className: string,
+  canChoose: boolean,
+  art?: HTMLElement,
+) {
+  const guest = Boolean(turn && turn.seat > 0);
+  const option = element(
+    id && (canChoose || guest) ? "button" : "div",
+    "",
+    className,
+  );
+  const cost = element("span", detail);
+  if (art) option.append(art);
+  option.append(element("strong", name), cost);
+  if (id && option instanceof HTMLButtonElement) {
+    option.type = "button";
+    if (guest) {
+      cost.id = "route-cost-" + id;
+      option.setAttribute("aria-label", "Recommend " + name);
+      option.setAttribute("aria-describedby", cost.id);
+      option.addEventListener("click", () => void recommendRoute(id));
+    } else option.addEventListener("click", () => act(id));
+  }
+  if (id && turn && turn.players > 1) {
+    const pennants = element("span", "", "route-pennants");
+    pennants.dataset.route = id;
+    pennants.setAttribute("aria-hidden", "true");
+    option.append(pennants);
+  }
+  return option;
+}
+
+function renderRouteRecommendations() {
+  const snapshot = turn?.phase === "event" ? turn : undefined;
+  for (const slot of choiceArea.querySelectorAll<HTMLElement>(
+    ".route-pennants",
+  )) {
+    const route = slot.dataset.route;
+    const supporters =
+      snapshot?.crew.flatMap(({ name }, seat) =>
+        snapshot.routeRecommendations[seat] === route ? [{ name, seat }] : [],
+      ) ?? [];
+    const pressed =
+      snapshot &&
+      snapshot.seat > 0 &&
+      snapshot.routeRecommendations[snapshot.seat] === route;
+    if (snapshot && snapshot.seat > 0)
+      slot.parentElement?.setAttribute(
+        "aria-pressed",
+        String(Boolean(pressed)),
+      );
+    const seats = supporters.map(({ seat }) => seat).join(" ");
+    if (slot.dataset.supporters === seats) continue;
+    slot.dataset.supporters = seats;
+    slot.replaceChildren(
+      ...supporters.map(({ name, seat }) => {
+        const pennant = element("span", name, "signal-pennant route-pennant");
+        pennant.dataset.seat = String(seat);
+        return pennant;
+      }),
+    );
+  }
+  const message =
+    snapshot?.crew
+      .flatMap(({ name }, seat) => {
+        const route = snapshot.event?.routes.find(
+          ({ id }) => id === snapshot.routeRecommendations[seat],
+        );
+        return route ? [`${name} recommends ${route.name}.`] : [];
+      })
+      .join(" ") ?? "";
+  const announcement = select("route-announcement");
+  if (announcement.textContent !== message) announcement.textContent = message;
+}
+
 function routeChart(routes: readonly TideRoute[], canChoose: boolean) {
   const chart = element("section", "", "route-chart");
   chart.setAttribute("aria-label", "Tide routes");
   const stops = element("ul", "", "chart-stops");
   for (const route of routes) {
-    const { id } = route;
     const row = element("li");
-    const stop = id && canChoose ? element("button") : element("div");
-    stop.className = "chart-stop";
-    stop.append(element("strong", route.name), element("span", route.detail));
-    if (stop instanceof HTMLButtonElement && id) {
-      stop.type = "button";
-      stop.addEventListener("click", () => act(id));
-    }
-    row.append(stop);
+    row.append(routeOption(route, "chart-stop", canChoose));
     stops.append(row);
   }
   chart.append(element("div", "", "chart-engraving"), stops);
@@ -607,10 +699,8 @@ function encounterDecision(
       reef: "Choose the landing route",
     }[encounter],
   );
-  for (const { id, name, detail } of routes) {
-    const choice = canChoose && id ? element("button") : element("div");
-    choice.className = "encounter-response";
-    if (id === "channel") choice.setAttribute("data-marked", "");
+  for (const route of routes) {
+    const { id } = route;
     const card =
       encounter === "reef"
         ? id === "channel"
@@ -626,12 +716,8 @@ function encounterDecision(
             ? "bell"
             : "line";
     const art = equipmentArt(card, id === "dive" || id === "chain");
-    if (art) choice.append(art);
-    choice.append(element("strong", name), element("span", detail));
-    if (choice instanceof HTMLButtonElement && id) {
-      choice.type = "button";
-      choice.addEventListener("click", () => act(id));
-    }
+    const choice = routeOption(route, "encounter-response", canChoose, art);
+    if (id === "channel") choice.setAttribute("data-marked", "");
     scene.append(choice);
   }
   return scene;
@@ -871,6 +957,11 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   }
   select("voyage-closeout").hidden = phase !== "won" && phase !== "lost";
   const seat = turn?.seat ?? 0;
+  const routeFocus =
+    seat > 0 &&
+    previous?.phase === "event" &&
+    phase !== "event" &&
+    choiceArea.contains(document.activeElement);
   const players = turn?.players ?? 1;
   const options = turn?.choices ?? seatMoves(state, seat, players);
   const hand =
@@ -977,7 +1068,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     instruction =
       phase === "salvage"
         ? `You’re ${s.crew[seat]?.name}. Waiting for the host to choose salvage.`
-        : `Waiting for ${s.crew[0]?.name ?? "the host"} to choose a route.`;
+        : `Recommend a route to ${s.crew[0]?.name ?? "the host"}. Select it again to withdraw.`;
   }
   let turnText = "";
   if (phase === "cards") {
@@ -1035,6 +1126,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
         : routeChart(routes, options.length > 0),
     );
   } else if (options.length) choiceArea.append(buttons(options));
+  renderRouteRecommendations();
+  if (routeFocus) select("heading").focus({ preventScroll: true });
   const prompt = select("instruction");
   if (prompt.textContent !== instruction) prompt.textContent = instruction;
   const crew = select("crew");

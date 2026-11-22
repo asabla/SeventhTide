@@ -103,6 +103,11 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     value.signals.every(
       (signal: unknown) => signal === null || isCrewSignal(signal),
     ) &&
+    Array.isArray(value.routeRecommendations) &&
+    value.routeRecommendations.length === names.length &&
+    value.routeRecommendations.every(
+      (route: unknown) => route === null || typeof route === "string",
+    ) &&
     Array.isArray(value.joinedSeats) &&
     value.joinedSeats.every(sailor) &&
     (value.assistedTide === null || typeof value.assistedTide === "number") &&
@@ -250,16 +255,24 @@ export async function readTurn(
     | "seat"
     | "launch"
     | (RoomAction & { expectedRevision: number })
-    | { tide: number; signal: CrewSignal | null },
+    | { tide: number; signal: CrewSignal | null }
+    | { expectedRevision: number; routeId: string | null },
 ): Promise<RoomSnapshot> {
   const path = "/api/voyages/" + encodeURIComponent(room.id);
   const move = typeof action === "object" ? action : undefined;
   const volunteer = move && "offer" in move;
   const signaling = move && "signal" in move;
+  const recommending = move && "routeId" in move;
   let endpoint = "";
   if (typeof action === "string") endpoint = action;
   else if (move)
-    endpoint = signaling ? "signal" : volunteer ? "volunteers" : "moves";
+    endpoint = recommending
+      ? "route-recommendation"
+      : signaling
+        ? "signal"
+        : volunteer
+          ? "volunteers"
+          : "moves";
   const headers: Record<string, string> = {
     Authorization: "Bearer " + room.token,
   };
@@ -271,9 +284,11 @@ export async function readTurn(
   });
   if (response.status === 409 || response.status === 422)
     throw new TurnConflict(
-      signaling
-        ? "The tide changed. Check the crew signals and try again."
-        : "The crew made another choice. Check the latest turn and choose again.",
+      recommending
+        ? "The route decision changed. Check the latest tide."
+        : signaling
+          ? "The tide changed. Check the crew signals and try again."
+          : "The crew made another choice. Check the latest turn and choose again.",
     );
   if (response.status === 401 || response.status === 404)
     throw new Error(

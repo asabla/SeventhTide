@@ -108,6 +108,8 @@ Players can act in any order. Bots play after the human turns. After the host pl
 
 During card play, open the signal pennant beside the other header tools. Choose a flag to ask for warmth or brace, or to offer a ration. The Ship’s log marks active signals beside each sailor. On narrow screens, the log shows a short condition summary and the active callouts. Open it to see every sailor’s cold and rations. Select your raised flag again to lower it. All signals clear when the tide resolves. Bot callouts reflect the crew’s public resources.
 
+When the tide calls for a route, each friend can select a route to place their pennant beside it. Select a different route to move your pennant, or select the same route again to withdraw it. The host chooses when to commit, and the tide clears the pennants.
+
 ## Durable voyages
 
 The browser saves solo voyages on the device. To enable the voyage API, set `DATABASE_URL` when starting Fastify. On startup, the server applies pending migrations in a transaction. The database user needs permission to create and alter the game tables. For a local database, install Docker with the Compose plugin and start the Docker engine. After building the game, run these commands from the repository root.
@@ -119,15 +121,16 @@ DATABASE_URL=postgres://seventh_tide:local-development@127.0.0.1:55432/seventh_t
 
 The database uses a named volume. Use `docker compose stop db` to stop it between sessions.
 
-| Request                            | Result                                                                                                                                                                                                      |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/voyages`                | Creates a voyage at revision zero. Returns its ID, current state, legal choices, and an owner token.                                                                                                        |
-| `GET /api/voyages/{id}`            | Replays the recorded moves and returns the current state and choices.                                                                                                                                       |
-| `PUT /api/voyages/{id}/seat`       | Marks the authenticated seat as joined and returns the current room.                                                                                                                                        |
-| `PUT /api/voyages/{id}/launch`     | Lets the host begin a prepared voyage and returns the first choices.                                                                                                                                        |
-| `PUT /api/voyages/{id}/signal`     | Sets or clears a signal for the authenticated seat during card play.                                                                                                                                        |
-| `POST /api/voyages/{id}/moves`     | Accepts a JSON body such as `{"expectedRevision":0,"moveId":"locker"}`. Select a move ID from the current choices. Returns the new state and revision.                                                      |
-| `PUT /api/voyages/{id}/volunteers` | Offers or withdraws a sailor during crew boarding. Send the current `expectedRevision`, a sailor index from `offerSeats`, and `offer` (`true` to volunteer, `false` to withdraw). Returns the updated room. |
+| Request                                      | Result                                                                                                                                                                                                      |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/voyages`                          | Creates a voyage at revision zero. Returns its ID, current state, legal choices, and an owner token.                                                                                                        |
+| `GET /api/voyages/{id}`                      | Replays the recorded moves and returns the current state and choices.                                                                                                                                       |
+| `PUT /api/voyages/{id}/seat`                 | Marks the authenticated seat as joined and returns the current room.                                                                                                                                        |
+| `PUT /api/voyages/{id}/launch`               | Lets the host begin a prepared voyage and returns the first choices.                                                                                                                                        |
+| `PUT /api/voyages/{id}/signal`               | Sets or clears a signal for the authenticated seat during card play.                                                                                                                                        |
+| `PUT /api/voyages/{id}/route-recommendation` | Sets a guest’s recommendation for the current decision. Send `expectedRevision` and an available `routeId`, or `null` to withdraw.                                                                          |
+| `POST /api/voyages/{id}/moves`               | Accepts a JSON body such as `{"expectedRevision":0,"moveId":"locker"}`. Select a move ID from the current choices. Returns the new state and revision.                                                      |
+| `PUT /api/voyages/{id}/volunteers`           | Offers or withdraws a sailor during crew boarding. Send the current `expectedRevision`, a sailor index from `offerSeats`, and `offer` (`true` to volunteer, `false` to withdraw). Returns the updated room. |
 
 To create a single-owner voyage with two bots, send the create request without a body. Send `{"players":2,"prepareCrew":true}` to create a two-player room that starts in the lobby. Use `3` for three players. Omit `prepareCrew` to start at salvage. The host receives one private token per guest in `invites`. For all subsequent requests, send the seat token in the `Authorization: Bearer <token>` header. The server stores token digests. It filters choices and checks each request against the caller’s seat.
 
