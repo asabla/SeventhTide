@@ -523,6 +523,101 @@ await test("a stored version-one room can rejoin and complete all seven tides", 
   assert.equal(expected.phase, "won");
 });
 
+await test("prepare a crew, launch with an open seat, and restore a covered turn on rejoin", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 3, prepareCrew: true }),
+    }),
+  );
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const host = room.token;
+  const invites: unknown[] = room.invites;
+  const [ivo, nell] = invites;
+  assert.ok(typeof ivo === "string" && typeof nell === "string");
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  await pool.query("UPDATE voyages SET seed = 318 WHERE id = $1", [room.id]);
+  const url = base + "/" + room.id;
+  const read = async (token: string) =>
+    readSnapshot(
+      await fetch(url, { headers: { Authorization: "Bearer " + token } }),
+    );
+  const put = (token: string, endpoint: "seat" | "launch") =>
+    fetch(url + "/" + endpoint, {
+      method: "PUT",
+      headers: { Authorization: "Bearer " + token },
+    });
+  const act = (
+    token: string,
+    expectedRevision: number,
+    action: { moveId: string } | { assistSailor: number },
+  ) =>
+    fetch(url + "/moves", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ expectedRevision, ...action }),
+    });
+
+  assert.equal(room.crewLaunched, false);
+  assert.deepEqual(room.joinedSeats, [0]);
+  assert.deepEqual(room.choices, []);
+  assert.equal((await act(host, 0, { moveId: "locker" })).status, 422);
+  assert.equal((await put(ivo, "launch")).status, 403);
+
+  const joins = await Promise.all([put(ivo, "seat"), put(ivo, "seat")]);
+  for (const join of joins) {
+    assert.equal(join.status, 200);
+    const guest = await readSnapshot(join);
+    assert.equal(guest.seat, 1);
+    assert.deepEqual(guest.invites, []);
+    assert.deepEqual(guest.joinedSeats, [0, 1]);
+    assert.equal(guest.crewRevision, 1);
+  }
+  assert.deepEqual((await read(host)).joinedSeats, [0, 1]);
+  const launched = await readSnapshot(await put(host, "launch"));
+  assert.equal(launched.crewLaunched, true);
+  assert.equal(launched.revision, 0);
+  assert.equal(launched.crewRevision, 2);
+  assert.deepEqual(launched.joinedSeats, [0, 1]);
+  assert.equal((await readSnapshot(await put(host, "launch"))).crewRevision, 2);
+
+  assert.equal((await act(host, 0, { moveId: "locker" })).status, 200);
+  assert.equal((await act(host, 1, { moveId: "swim-0" })).status, 200);
+  assert.equal((await act(host, 2, { moveId: "line-0" })).status, 200);
+  assert.equal((await act(host, 3, { assistSailor: 1 })).status, 200);
+  const returned = await readSnapshot(await put(ivo, "seat"));
+  assert.equal(returned.assistedTide, 1);
+  assert.deepEqual(returned.coveredSeats, [1]);
+  assert.deepEqual(returned.choices, []);
+  assert.deepEqual(returned.acted, [0, 1]);
+  const lateGuest = await readSnapshot(await put(nell, "seat"));
+  assert.deepEqual(lateGuest.joinedSeats, [0, 1, 2]);
+  assert.equal(lateGuest.assistedTide, null);
+  assert.equal(lateGuest.seat, 2);
+  assert.equal((await act(nell, 4, { moveId: "lash-2" })).status, 200);
+  assert.equal((await act(host, 5, { moveId: "hull" })).status, 200);
+  assert.equal((await act(host, 6, { moveId: "swim-0" })).status, 200);
+  const next = await read(ivo);
+  assert.equal(next.tide, 2);
+  assert.equal(next.assistedTide, 1);
+  assert.deepEqual(next.coveredSeats, []);
+  assert.ok(next.choices.some(({ id }) => id === "lash-1"));
+  assert.equal((await act(ivo, 7, { moveId: "lash-1" })).status, 200);
+});
+
 await test("assistance and a returning friend cannot both play the same turn", async (t) => {
   const server = await launch(t);
   const base = server.address + "/api/voyages";

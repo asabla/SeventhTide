@@ -77,6 +77,9 @@ const played = select("tide-plays");
 const feedback = select("turn-feedback");
 const roomPanel = select("room-panel");
 const modePanel = select("mode-panel");
+const crewLobby = select("crew-lobby");
+const launchButton = select("launch-voyage");
+const inviteFields: HTMLInputElement[] = [];
 const shipLog = select("ship-log");
 const startSolo = select("start-solo");
 const openEntries = select("open-entries");
@@ -154,7 +157,9 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
     turn &&
     (next.revision < turn.revision ||
       (next.revision === turn.revision &&
-        next.offerRevision <= turn.offerRevision))
+        (next.offerRevision < turn.offerRevision ||
+          (next.offerRevision === turn.offerRevision &&
+            next.crewRevision <= turn.crewRevision))))
   )
     return;
   const previous = turn;
@@ -164,7 +169,16 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
   const finished = next.phase === "won" || next.phase === "lost";
   if (room && next.seat === 0 && (joined || finished))
     storeHostRoom(room, finished);
+  if (
+    previous?.crewLaunched &&
+    next.crewLaunched &&
+    next.revision === previous.revision &&
+    next.offerRevision === previous.offerRevision
+  )
+    return;
   render(previous, origin);
+  if (previous && !previous.crewLaunched && next.crewLaunched)
+    select("heading").focus();
   paintSea?.();
 }
 
@@ -179,8 +193,13 @@ async function refreshRoom() {
     return;
   refreshing = true;
   try {
-    const next = await readTurn(room);
-    if (!turn || next.revision > turn.revision || connectionFailed)
+    const next = await readTurn(room, turn ? undefined : "seat");
+    if (
+      !turn ||
+      next.revision > turn.revision ||
+      next.crewRevision > turn.crewRevision ||
+      connectionFailed
+    )
       select("room-status").textContent = "";
     connectionFailed = false;
     setTurn(next);
@@ -489,13 +508,17 @@ function updateBoarding(list: HTMLElement, choices: Move[]) {
 
 function showPlayMode() {
   modePanel.hidden = !showLobby;
-  shipLog.hidden = showLobby;
-  choiceArea.hidden = showLobby;
-  const ready = !showLobby && (!room || Boolean(turn));
+  const ready = !showLobby && (!room || Boolean(turn?.crewLaunched));
+  shipLog.hidden = !ready;
+  choiceArea.hidden = !ready;
+  crewLobby.hidden = !turn || turn.crewLaunched;
   openEntries.hidden = !ready;
   openRules.hidden = !ready;
   openInvites.hidden =
-    !turn?.invites.length || turn.phase === "won" || turn.phase === "lost";
+    !ready ||
+    !turn?.invites.length ||
+    turn.phase === "won" ||
+    turn.phase === "lost";
 }
 
 function renderAssists(s: TableState, players: number) {
@@ -530,6 +553,11 @@ function render(
   previous?: TableState & { channelMarked?: boolean | undefined },
   origin?: CardOrigin,
 ) {
+  showPlayMode();
+  if (turn && !turn.crewLaunched) {
+    renderCrewLobby(turn);
+    return;
+  }
   const s = turn ?? state;
   const seat = turn?.seat ?? 0;
   const players = turn?.players ?? 1;
@@ -546,7 +574,6 @@ function render(
     clearSelection();
     choiceArea.replaceChildren();
   }
-  showPlayMode();
   select("heading")
     .closest("main")
     ?.toggleAttribute("data-table", s.phase !== "won" && s.phase !== "lost");
@@ -605,7 +632,7 @@ function render(
   if (turn && !options.length && (phase === "salvage" || phase === "event")) {
     instruction =
       phase === "salvage"
-        ? "Waiting for the host to choose salvage."
+        ? `You’re ${s.crew[seat]?.name}. Waiting for the host to choose salvage.`
         : `${turn.event?.description ?? ""} Waiting for ${s.crew[0]?.name ?? "the host"} to choose a route.`;
     if (turn.event) {
       const routes = element("ul", "", "route-preview");
@@ -623,12 +650,29 @@ function render(
       .filter((_, i) => i < players && i !== seat && !s.acted.includes(i))
       .map((p) => p.name);
     if (options.length) turnText = tray.hidden ? "Your move." : "";
-    else
-      turnText = waiting.length
-        ? `Your turn is complete. Waiting for ${new Intl.ListFormat("en").format(waiting)}.`
-        : "The bots can take their turns.";
+    else {
+      const done =
+        turn?.assistedTide === s.tide ? "" : "Your turn is complete. ";
+      turnText =
+        done +
+        (waiting.length
+          ? `Waiting for ${new Intl.ListFormat("en").format(waiting)}.`
+          : "The bots can take their turns.");
+    }
   }
   if (feedback.textContent !== turnText) feedback.textContent = turnText;
+  const assisted = turn?.assistedTide;
+  const notice = select("seat-notice");
+  const noticeText =
+    assisted === s.tide
+      ? phase === "won" || phase === "lost"
+        ? "A bot played your move on the last tide."
+        : "A bot played your move this tide. You can play again next tide."
+      : assisted === s.tide - 1 &&
+          (phase === "board" || (phase === "cards" && !s.acted.includes(seat)))
+        ? `A bot played for you on tide ${assisted}. You can take your next turn.`
+        : "";
+  if (notice.textContent !== noticeText) notice.textContent = noticeText;
   if (phase === "board") {
     if (turn) {
       if (seat === 0)
@@ -694,7 +738,12 @@ function render(
   if (entries.childElementCount !== s.log.length)
     entries.replaceChildren(...s.log.map((line) => element("li", line)));
   select("empty-entries").hidden = s.log.length > 0;
-  renderTable(s, { seat, players }, previous, origin);
+  renderTable(
+    s,
+    { seat, players, coveredSeats: turn?.coveredSeats ?? [] },
+    previous,
+    origin,
+  );
   renderAssists(s, players);
   if (previous) {
     const result =
@@ -709,6 +758,98 @@ function render(
     else if (previous.phase === "board" && phase === "cards") playCue("rope");
   }
 }
+
+function renderCrewLobby(snapshot: RoomSnapshot) {
+  const heading = select("heading");
+  heading.textContent = "Assemble your crew";
+  const list = select("lobby-seats");
+  const copyStatus = select("lobby-copy-status");
+  const host = snapshot.seat === 0;
+  if (!list.childElementCount) {
+    snapshot.crew.forEach((sailor, seat) => {
+      const row = element("li", "", "lobby-seat");
+      const name = sailor.name + (seat === snapshot.seat ? " · You" : "");
+      const status = element("span", "", "lobby-seat-status");
+      status.setAttribute("aria-live", "polite");
+      row.append(element("strong", name), status);
+      const field = inviteFields[seat - 1];
+      if (host && field) {
+        const copy = element("button", "Copy " + sailor.name + "’s link");
+        copy.type = "button";
+        copy.addEventListener("click", () =>
+          copyInvite(field, copyStatus, () => {
+            const dialog = select("crew-invites");
+            if (dialog instanceof HTMLDialogElement) dialog.showModal();
+            field.focus();
+            return select("invite-status");
+          }),
+        );
+        row.append(copy);
+      }
+      list.append(row);
+    });
+  }
+  for (const [seat, row] of Array.from(list.children).entries()) {
+    const label = row.querySelector(".lobby-seat-status");
+    const text =
+      seat === 0
+        ? "Host"
+        : seat >= snapshot.players
+          ? "Bot"
+          : snapshot.joinedSeats.includes(seat)
+            ? "Joined"
+            : "Invite pending";
+    if (label && label.textContent !== text) label.textContent = text;
+  }
+  const waiting = snapshot.joinedSeats.length < snapshot.players;
+  const prompt = select("instruction");
+  const text = host
+    ? waiting
+      ? "Share a private link with each friend. Friends can join after you begin."
+      : "Your crew is ready. You choose the salvage."
+    : `You’ll play ${snapshot.crew[snapshot.seat]?.name}. ${snapshot.crew[0]?.name} begins the voyage and chooses salvage.`;
+  if (prompt.textContent !== text) prompt.textContent = text;
+  launchButton.hidden = !host;
+  launchButton.textContent = waiting ? "Begin with open seats" : "Begin voyage";
+}
+
+launchButton.addEventListener("click", () => void launchVoyage());
+
+async function launchVoyage() {
+  if (!room || turn?.crewLaunched || sending) return;
+  sending = true;
+  launchButton.setAttribute("disabled", "");
+  try {
+    const next = await readTurn(room, "launch");
+    select("room-status").textContent = "";
+    setTurn(next);
+  } catch (error) {
+    showRoomError(error);
+  } finally {
+    launchButton.removeAttribute("disabled");
+    sending = false;
+  }
+}
+
+function copyInvite(
+  field: HTMLInputElement,
+  status: HTMLElement,
+  fallback: () => HTMLElement | void,
+) {
+  const selectLink = () => {
+    const fallbackStatus = fallback();
+    field.select();
+    (fallbackStatus ?? status).textContent = "Copy the selected invite link.";
+  };
+  if (!navigator.clipboard) {
+    selectLink();
+    return;
+  }
+  void navigator.clipboard.writeText(field.value).then(() => {
+    status.textContent = "Invite link copied.";
+  }, selectLink);
+}
+
 function renderInvites(snapshot: RoomSnapshot) {
   const links = select("invite-links");
   const status = select("invite-status");
@@ -718,26 +859,14 @@ function renderInvites(snapshot: RoomSnapshot) {
     const field = element("input");
     field.readOnly = true;
     field.value = roomUrl({ id: snapshot.id, token });
+    inviteFields.push(field);
     field.addEventListener("focus", () => field.select());
     label.append(field);
     const copy = element("button", "Copy " + name + "’s link");
     copy.type = "button";
-    copy.addEventListener("click", () => {
-      field.focus();
-      field.select();
-      if (!navigator.clipboard) {
-        status.textContent = "Copy the selected invite link.";
-        return;
-      }
-      void navigator.clipboard.writeText(field.value).then(
-        () => {
-          status.textContent = "Invite link copied.";
-        },
-        () => {
-          status.textContent = "Copy the selected invite link.";
-        },
-      );
-    });
+    copy.addEventListener("click", () =>
+      copyInvite(field, status, () => field.focus()),
+    );
     links.append(label, copy);
   });
 }
@@ -764,6 +893,9 @@ if (room) {
   void refreshRoom();
   window.setInterval(() => void refreshRoom(), 2500);
   document.addEventListener("visibilitychange", () => void refreshRoom());
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) void refreshRoom();
+  });
 } else {
   const restored = finishBotTurns(state, 1);
   if (restored.history.length) {

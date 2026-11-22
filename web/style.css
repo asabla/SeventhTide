@@ -239,6 +239,7 @@ body.voyage {
 }
 
 #instruction,
+#seat-notice,
 #turn-feedback,
 #room-status {
   width: fit-content;
@@ -251,11 +252,13 @@ body.voyage {
   text-align: center;
 }
 
-#room-status {
+#room-status,
+#seat-notice {
   color: #ffe6aa;
 }
 
 #instruction:empty,
+#seat-notice:empty,
 #turn-feedback:empty,
 #room-status:empty {
   display: none;
@@ -687,6 +690,82 @@ a.crew-return {
   width: min(100%, 390px);
 }
 
+.crew-lobby {
+  width: min(100%, 460px);
+  margin-inline: auto;
+}
+
+#lobby-seats {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: "";
+}
+
+.lobby-seat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #8b7858;
+  border-left: 4px solid #79583a;
+  border-radius: 3px;
+  background:
+    var(--grain) repeat,
+    var(--paper);
+  color: var(--ink);
+  box-shadow: 2px 3px 7px #14140dbc;
+}
+
+.lobby-seat > strong {
+  font-size: 1.18rem;
+}
+
+.lobby-seat-status {
+  grid-column: 1;
+  font: 650 0.85rem var(--sans);
+  color: #5d432e;
+}
+
+.lobby-seat > :where(button) {
+  grid-area: 1 / 2 / span 2;
+  align-self: center;
+  max-width: 170px;
+}
+
+#launch-voyage {
+  margin: 14px 0;
+  border: 3px double #77552d;
+  background: linear-gradient(#eed39b, #c69552);
+  color: #2b2015;
+  font:
+    700 1.14rem Georgia,
+    serif;
+}
+
+#launch-voyage:enabled:hover {
+  background: linear-gradient(#f7e4b5, #d2a263);
+}
+
+.crew-lobby-back {
+  display: block;
+  width: fit-content;
+  margin: 8px 0 0;
+  padding: 4px;
+  color: #f1d7ac;
+  background: #121915e8;
+}
+
+#lobby-copy-status:not(:empty) {
+  width: fit-content;
+  margin-top: 9px;
+  padding: 4px 7px;
+  background: #121915e8;
+  color: #ffe6aa;
+  font: 0.9rem/1.35 var(--sans);
+}
+
 .mode-panel button :where(strong, small) {
   display: block;
 }
@@ -804,6 +883,7 @@ a.crew-return {
     grid-template:
       "connection connection" auto
       "instruction instruction" auto
+      "notice notice" auto
       "feedback played" auto
       "tray played" auto
       "hand played" auto
@@ -819,6 +899,10 @@ a.crew-return {
 
   .voyage-table[data-hand] > #instruction {
     grid-area: instruction;
+  }
+
+  .voyage-table[data-hand] > #seat-notice {
+    grid-area: notice;
   }
 
   .voyage-table[data-hand] > #turn-feedback {

@@ -27,6 +27,10 @@ interface Row {
   revision: number;
   volunteer_mask: number;
   offer_revision: number;
+  crew_launched: boolean;
+  joined_mask: number;
+  crew_revision: number;
+  assisted_tides: Record<number, number>;
   guests: number;
   seat: number;
 }
@@ -46,6 +50,7 @@ function volunteered(row: Row, sailor: number) {
 }
 
 function crewChoices(row: Row, state: Voyage) {
+  if (!row.crew_launched) return [];
   const volunteers = state.crew.flatMap((_, i) =>
     volunteered(row, i) ? [i] : [],
   );
@@ -62,6 +67,15 @@ function snapshot(row: Row, state: Voyage, token: string) {
     id: row.id,
     revision: row.revision,
     rulesVersion: row.rules_version,
+    crewLaunched: row.crew_launched,
+    joinedSeats: Array.from({ length: row.guests + 1 }, (_, i) => i).filter(
+      (i) => (row.joined_mask & (1 << i)) !== 0,
+    ),
+    crewRevision: row.crew_revision,
+    assistedTide: row.assisted_tides[row.seat] ?? null,
+    coveredSeats: state.crew.flatMap((_, i) =>
+      row.assisted_tides[i] === state.tide ? [i] : [],
+    ),
     phase: state.phase,
     tide: state.tide,
     channelMarked: state.channelMarked,
@@ -113,6 +127,13 @@ const params = {
   properties: { id: { type: "string", format: "uuid" } },
 };
 
+const roomColumns = `id, rules_version, seed, moves, revision, volunteer_mask, offer_revision,
+  crew_launched, joined_mask, crew_revision, assisted_tides, cardinality(guest_digests) AS guests`;
+type CrewState = Pick<
+  Row,
+  "crew_launched" | "joined_mask" | "crew_revision" | "assisted_tides"
+>;
+
 function digest(token: string) {
   return createHash("sha256").update(token).digest();
 }
@@ -163,7 +184,7 @@ export async function voyageRoutes(
       return undefined;
     }
     const result = await pool.query<Row>(
-      `SELECT id, rules_version, seed, moves, revision, volunteer_mask, offer_revision, cardinality(guest_digests) AS guests,
+      `SELECT ${roomColumns},
               COALESCE(array_position(guest_digests, $2::bytea), 0) AS seat
          FROM voyages WHERE id = $1 AND (owner_digest = $2 OR $2 = ANY(guest_digests))`,
       [request.params.id, digest(token)],
@@ -173,7 +194,7 @@ export async function voyageRoutes(
     return row && { row, token };
   }
 
-  app.post<{ Body: { players?: number } | null }>(
+  app.post<{ Body: { players?: number; prepareCrew?: boolean } | null }>(
     "/",
     {
       schema: {
@@ -182,7 +203,9 @@ export async function voyageRoutes(
           additionalProperties: false,
           properties: {
             players: { type: "integer", enum: [2, 3] },
+            prepareCrew: { type: "boolean" },
           },
+          dependencies: { prepareCrew: ["players"] },
         },
       },
     },
@@ -193,13 +216,15 @@ export async function voyageRoutes(
         (_, i) => digest(guestToken(token, i + 1)),
       );
       const result = await pool.query<Row>(
-        "INSERT INTO voyages (id, owner_digest, rules_version, seed, guest_digests) VALUES ($1, $2, $3, $4, $5) RETURNING id, rules_version, seed, moves, revision, volunteer_mask, offer_revision, cardinality(guest_digests) AS guests, 0 AS seat",
+        `INSERT INTO voyages (id, owner_digest, rules_version, seed, guest_digests, crew_launched)
+          VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${roomColumns}, 0 AS seat`,
         [
           randomUUID(),
           digest(token),
           rulesVersion,
           randomBytes(4).readUInt32BE(),
           guests,
+          !request.body?.prepareCrew,
         ],
       );
       const row = result.rows[0];
@@ -218,6 +243,51 @@ export async function voyageRoutes(
       return session
         ? snapshot(session.row, replay(session.row), session.token)
         : reply;
+    },
+  );
+
+  app.put<{ Params: { id: string } }>(
+    "/:id/seat",
+    { schema: { params } },
+    async (request, reply) => {
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row, token } = session;
+      const seatBit = 1 << row.seat;
+      if (row.joined_mask & seatBit) return snapshot(row, replay(row), token);
+      const joined = await pool.query<Row>(
+        `UPDATE voyages SET joined_mask = joined_mask | $3,
+          crew_revision = crew_revision + CASE WHEN (joined_mask & $3) = 0 THEN 1 ELSE 0 END
+          WHERE id = $1 RETURNING ${roomColumns}, $2::integer AS seat`,
+        [row.id, row.seat, seatBit],
+      );
+      const saved = joined.rows[0];
+      if (!saved) return reply.code(404).send({ error: "Voyage unavailable." });
+      return snapshot(saved, replay(saved), token);
+    },
+  );
+
+  app.put<{ Params: { id: string } }>(
+    "/:id/launch",
+    { schema: { params } },
+    async (request, reply) => {
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row, token } = session;
+      if (row.seat !== 0)
+        return reply
+          .code(403)
+          .send({ error: "Only the host can begin the voyage." });
+      if (row.crew_launched) return snapshot(row, replay(row), token);
+      const launched = await pool.query<Row>(
+        `UPDATE voyages SET crew_launched = true,
+          crew_revision = crew_revision + CASE WHEN crew_launched THEN 0 ELSE 1 END
+          WHERE id = $1 RETURNING ${roomColumns}, 0 AS seat`,
+        [row.id],
+      );
+      const saved = launched.rows[0];
+      if (!saved) return reply.code(404).send({ error: "Voyage unavailable." });
+      return snapshot(saved, replay(saved), token);
     },
   );
 
@@ -257,11 +327,12 @@ export async function voyageRoutes(
           .code(422)
           .send({ error: "This sailor cannot volunteer now." });
       const update = await pool.query<
-        Pick<Row, "volunteer_mask" | "offer_revision">
+        Pick<Row, "volunteer_mask" | "offer_revision"> & CrewState
       >(
         `UPDATE voyages SET volunteer_mask = CASE WHEN $3 THEN volunteer_mask | $4 ELSE volunteer_mask & ~$4 END,
           offer_revision = offer_revision + CASE WHEN ((volunteer_mask & $4) <> 0) = $3 THEN 0 ELSE 1 END
-        WHERE id = $1 AND revision = $2 RETURNING volunteer_mask, offer_revision`,
+        WHERE id = $1 AND revision = $2
+        RETURNING volunteer_mask, offer_revision, crew_launched, joined_mask, crew_revision, assisted_tides`,
         [row.id, expectedRevision, offer, 1 << sailor],
       );
       const saved = update.rows[0];
@@ -331,12 +402,25 @@ export async function voyageRoutes(
         return reply.code(422).send({ error: "This move is unavailable." });
       }
       const next = playWithBots(before, choice.id, players);
+      const assisted =
+        assistSailor !== undefined && assistSailor < players
+          ? { [assistSailor]: before.tide }
+          : {};
       // PostgreSQL checks this condition again after waiting for a concurrent writer.
       const updated = await pool.query<
-        Pick<Row, "revision" | "volunteer_mask">
+        Pick<Row, "revision" | "volunteer_mask"> & CrewState
       >(
-        "UPDATE voyages SET moves = moves || $1::text[], volunteer_mask = 0 WHERE id = $2 AND revision = $3 AND offer_revision = $4 RETURNING revision, volunteer_mask",
-        [next.history, row.id, expectedRevision, row.offer_revision],
+        `UPDATE voyages SET moves = moves || $1::text[], volunteer_mask = 0,
+          assisted_tides = assisted_tides || $5::jsonb
+          WHERE id = $2 AND revision = $3 AND offer_revision = $4
+          RETURNING revision, volunteer_mask, crew_launched, joined_mask, crew_revision, assisted_tides`,
+        [
+          next.history,
+          row.id,
+          expectedRevision,
+          row.offer_revision,
+          JSON.stringify(assisted),
+        ],
       );
       const saved = updated.rows[0];
       if (!saved) return conflict();
