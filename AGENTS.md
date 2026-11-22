@@ -21,6 +21,8 @@ Use [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
 
 Write the PR body in short, direct paragraphs. Open with why the change is needed and what it lets the player, developer, or operator do. Include a design decision or limitation when it affects review. For a configuration change, give a minimal usage example. Leave file inventories to the diff and routine test results to CI.
 
+Review every PR in three passes. First check the desktop game design, including the layout, assets, and interaction. Then check correctness and whether the change serves the voyage. Finally check structure, reuse, and the cost of maintaining the change.
+
 For UX changes, add one or more comments on the PR. Show the affected interaction with a screenshot, a before-and-after pair, or a short recording as appropriate. Add a brief caption that tells the reviewer what to look for. Keep other comments focused on actionable feedback or essential reviewer context.
 
 Use [stacked PRs](https://docs.github.com/en/pull-requests/reference/stacked-pull-requests) when one reviewable change depends on another. Target `main` with the first PR and the preceding branch with each dependent PR. Independent PRs can target `main` directly. When a lower branch changes, rebase the branches above it. Land each PR from the bottom up with **Rebase and merge** to keep the history on `main` linear.

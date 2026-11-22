@@ -33,7 +33,7 @@ await test("the forecast includes raft-side cold and detects an otherwise safe c
   const { seed, history } = unmarked;
   const decision = [...history, "swim-1", "hook-0", "bell-1", "lash-2"].reduce(
     play,
-    start(seed),
+    start(seed, 10),
   );
   const forecasts = previewRoutes(decision);
   assert.equal(decision.crew[2]?.cold, 6);

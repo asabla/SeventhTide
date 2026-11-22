@@ -2,6 +2,8 @@
 
 Seventh Tide is a game for friends playing from separate screens and for one player with bots. Each player sees their own hand, the crew’s public condition, and the cards played this tide. Review from the seat affected by the change. Use a guest seat as well as the host when a change affects what friends see or do.
 
+Design the table for a desktop monitor. Use narrow browser checks to catch regressions in the supported layout.
+
 ## Design from the raft
 
 Start from the latest design the user approved. Open the matching state in the running game and look at the whole screen. Older review screenshots can show how a feature evolved. Use the current approved design to make decisions about placement, materials, type, scale, and spacing.
