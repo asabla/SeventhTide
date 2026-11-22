@@ -24,6 +24,7 @@ type Route is Data:
   Cut{}
   HaulLocker{}
   LeaveLocker{}
+  EchoCrossing{}
 
 def marks_channel(tide: Nat, line: Bool, swimmer: Bool, marked: Bool) -> Bool:
   match tide line swimmer marked:
@@ -33,7 +34,7 @@ def marks_channel(tide: Nat, line: Bool, swimmer: Bool, marked: Bool) -> Bool:
       False{}
 
 type Routes is Data:
-  Routes{decoy: Bool, chain: Bool, dive: Bool, channel: Bool, pry: Bool, haul: Bool}
+  Routes{decoy: Bool, chain: Bool, dive: Bool, channel: Bool, pry: Bool, haul: Bool, echo: Bool}
 
 def decoy_open(ring: Ring, version: Nat) -> Bool:
   match ring:
@@ -78,42 +79,71 @@ def can_haul(water: Water, version: Nat) -> Bool:
 def routes(water: Water, version: Nat, ring: Ring, marked: Bool, line: Bool, hook: Bool) -> Routes:
   match water:
     case OpenWater{}:
-      Routes{False{}, False{}, True{}, False{}, False{}, False{}}
+      Routes{False{}, False{}, True{}, False{}, False{}, False{}, False{}}
     case SecondWake{}:
-      Routes{decoy_open(ring, version), False{}, True{}, False{}, False{}, False{}}
+      Routes{decoy_open(ring, version), False{}, True{}, False{}, False{}, False{}, False{}}
     case BellBuoy{}:
       match version:
         case 7n+_:
-          Routes{False{}, True{}, False{}, False{}, False{}, False{}}
+          Routes{False{}, True{}, False{}, False{}, False{}, False{}, False{}}
         case _:
-          Routes{False{}, False{}, True{}, False{}, False{}, False{}}
+          Routes{False{}, False{}, True{}, False{}, False{}, False{}, False{}}
     case Landing{}:
-      Routes{False{}, False{}, True{}, marked, False{}, False{}}
+      Routes{False{}, False{}, True{}, marked, False{}, False{}, False{}}
     case RaftGrip{}:
-      Routes{False{}, False{}, True{}, False{}, grip_open(line, hook, version), False{}}
+      Routes{False{}, False{}, True{}, False{}, grip_open(line, hook, version), False{}, False{}}
     case DriftingLocker{}:
-      Routes{False{}, False{}, False{}, False{}, False{}, can_haul(DriftingLocker{}, version)}
+      Routes{False{}, False{}, False{}, False{}, False{}, can_haul(DriftingLocker{}, version), False{}}
+
+# Only the two fallback outcomes of the earlier grip leave the creature nearby.
+def follows(version: Nat, grip: Route) -> Bool:
+  match version grip:
+    case 10n+_ Cut{}:
+      True{}
+    case 10n+_ Dive{}:
+      True{}
+    case _ _:
+      False{}
+
+def reef_echo(pursuing: Bool, ring: Ring, version: Nat) -> Bool:
+  match pursuing ring version:
+    case True{} RaftBell{} 10n+_:
+      True{}
+    case _ _ _:
+      False{}
+
+def reef_bell_brace(luring: Bool) -> Nat:
+  match luring:
+    case True{}:
+      0n
+    case False{}:
+      3n
+
+def reef_routes(version: Nat, ring: Ring, marked: Bool, pursuing: Bool) -> Routes:
+  Routes{False{}, False{}, True{}, marked, False{}, False{}, reef_echo(pursuing, ring, version)}
 
 def allowed(route: Route, plan: Routes) -> Bool:
   match route plan:
     case Hull{} _:
       True{}
-    case Dive{} Routes{_, _, dive, _, _, _}:
+    case Dive{} Routes{_, _, dive, _, _, _, _}:
       dive
-    case Decoy{} Routes{decoy, _, _, _, _, _}:
+    case Decoy{} Routes{decoy, _, _, _, _, _, _}:
       decoy
-    case Chain{} Routes{_, chain, _, _, _, _}:
+    case Chain{} Routes{_, chain, _, _, _, _, _}:
       chain
-    case Channel{} Routes{_, _, _, channel, _, _}:
+    case Channel{} Routes{_, _, _, channel, _, _, _}:
       channel
-    case Pry{} Routes{_, _, _, _, pry, _}:
+    case Pry{} Routes{_, _, _, _, pry, _, _}:
       pry
     case Cut{} _:
       True{}
     case LeaveLocker{} _:
       True{}
-    case HaulLocker{} Routes{_, _, _, _, _, haul}:
+    case HaulLocker{} Routes{_, _, _, _, _, haul, _}:
       haul
+    case EchoCrossing{} Routes{_, _, _, _, _, _, echo}:
+      echo
 
 type Effects is Data:
   Effects{damage: Nat, extra_cold: Nat, exposure: Nat, rations: Nat}
@@ -142,6 +172,8 @@ def effects(route: Route, brace: Nat, incoming: Nat, dive_cold: Nat) -> Effects:
       Effects{0n, 1n, 2n, 1n}
     case LeaveLocker{}:
       Effects{0n, 0n, 2n, 1n}
+    case EchoCrossing{}:
+      Effects{1n, 0n, 2n, 1n}
 
 type Resolution is Data:
   Resolution{hull: Nat, swim_cold: Nat, first_cold: Nat, second_cold: Nat, rations: Nat, outcome: Tide.Outcome}

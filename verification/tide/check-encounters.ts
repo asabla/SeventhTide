@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import {
+  marked,
+  pried,
+  unmarked,
+} from "../../tests/fixtures/landfall-pursuit.ts";
+import {
   crewMember,
   moves,
   play,
@@ -18,6 +23,7 @@ const routeTags = {
   channel: "Channel",
   pry: "Pry",
   "haul-locker": "HaulLocker",
+  "echo-crossing": "EchoCrossing",
 } as const;
 type Route = keyof typeof routeTags;
 const routeIds: Route[] = [
@@ -28,6 +34,7 @@ const routeIds: Route[] = [
   "channel",
   "pry",
   "haul-locker",
+  "echo-crossing",
 ];
 
 const outcomes = {
@@ -70,24 +77,37 @@ function checkRoutes(call: BendCall, state: Voyage, context: string) {
       : swimmerBells.length
         ? "SwimmerBell"
         : "Silent";
-  const routes = call(
-    "routes",
-    tag(waterAt(state)),
-    state.rulesVersion ?? 1,
-    tag(ring),
-    state.tide === 7 && state.channelMarked === true,
-    state.plays.some(
-      ({ card, actor }) =>
-        card === "line" &&
-        call("sets_tool", tag("SoundingLine"), actor === state.swimmer) ===
-          true,
-    ),
-    state.plays.some(
-      ({ card, actor }) =>
-        card === "hook" &&
-        call("sets_tool", tag("Boathook"), actor === state.swimmer) === true,
-    ),
-  );
+  const routes =
+    waterAt(state) === "Landing" && state.channelMarked !== undefined
+      ? call(
+          "reef_routes",
+          state.rulesVersion ?? 1,
+          tag(ring),
+          state.channelMarked,
+          state.creatureFollowing === true,
+        )
+      : call(
+          "routes",
+          tag(waterAt(state)),
+          state.rulesVersion ?? 1,
+          tag(ring),
+          state.tide === 7 && state.channelMarked === true,
+          state.plays.some(
+            ({ card, actor }) =>
+              card === "line" &&
+              call(
+                "sets_tool",
+                tag("SoundingLine"),
+                actor === state.swimmer,
+              ) === true,
+          ),
+          state.plays.some(
+            ({ card, actor }) =>
+              card === "hook" &&
+              call("sets_tool", tag("Boathook"), actor === state.swimmer) ===
+                true,
+          ),
+        );
   const expected = routeIds.filter(
     (id) => call("allowed", tag(routeTags[id]), routes) === true,
   );
@@ -120,19 +140,14 @@ function checkResolution(
     id === "hull" ? (locker ? "leave-locker" : grip ? "cut" : "hull") : id;
   if (state.channelMarked !== undefined && state.tide === 7)
     assert.deepEqual([incoming, diveCold], [4, 2], context);
-  const effect = call(
-    "effects",
-    tag(
-      kind === "leave-locker"
-        ? "LeaveLocker"
-        : kind === "cut"
-          ? "Cut"
-          : routeTags[id],
-    ),
-    state.guard,
-    incoming,
-    diveCold,
+  const modelRoute = tag(
+    kind === "leave-locker"
+      ? "LeaveLocker"
+      : kind === "cut"
+        ? "Cut"
+        : routeTags[id],
   );
+  const effect = call("effects", modelRoute, state.guard, incoming, diveCold);
   record(effect);
   const resolution = call(
     "resolve",
@@ -169,19 +184,26 @@ function checkResolution(
   );
   if (state.channelMarked !== undefined && state.tide === 7) {
     const previous = crewMember(state, swimmer);
+    const echo = kind === "echo-crossing";
+    const cold = crewMember(after, swimmer).cold;
     const hull =
-      state.hull !== after.hull
-        ? `Hull ${state.hull} → ${after.hull}.`
+      echo || state.hull !== after.hull
+        ? `Hull ${state.hull} → ${after.hull}${echo && after.hull === 0 ? " (raft breaks)" : ""}.`
         : state.hull
           ? "Hull holds."
           : "Hull at 0.";
     assert.equal(
       moves(state).find((move) => move.id === id)?.detail,
-      `${hull}\n${previous.name} ${previous.cold} → ${crewMember(after, swimmer).cold}/5 cold.`,
+      `${hull}\n${previous.name} ${previous.cold} → ${cold}/5 cold${echo && cold >= 5 ? " (fatal)" : ""}.`,
       context,
     );
   }
   if (grip) {
+    assert.equal(
+      Boolean(after.creatureFollowing),
+      call("follows", state.rulesVersion ?? 1, modelRoute),
+      context,
+    );
     const previous = crewMember(state, swimmer);
     const cold = crewMember(after, swimmer).cold;
     const fatal = cold >= 5 ? " (fatal)" : "";
@@ -230,7 +252,11 @@ function checkResolution(
       context,
     );
   }
-  if (result.route.kind === "hull" || result.route.kind === "cut")
+  if (
+    result.route.kind === "hull" ||
+    result.route.kind === "cut" ||
+    result.route.kind === "echo-crossing"
+  )
     assert.equal(result.route.lost, state.hull - after.hull, context);
   for (const sailor of raft) {
     assert.equal(
@@ -315,7 +341,7 @@ export function checkEncounters(call: BendCall) {
   ])
     fixtures.push({
       name: "raft grip / " + name,
-      state: replay(96, 8, "spar " + history),
+      state: replay(96, rulesVersion, "spar " + history),
       water: "RaftGrip",
     });
   fixtures.push({
@@ -323,6 +349,43 @@ export function checkEncounters(call: BendCall) {
     state: replay(96, 7, "spar swim-0 line-0 hook-1 lash-2"),
     water: "OpenWater",
   });
+  for (const { seed, history, plays } of [unmarked, marked]) {
+    for (const version of [9, 10]) {
+      const state = history.reduce(play, start(seed, version));
+      const beforeBell = plays.slice(0, 2).reduce(play, state);
+      const bell = play(beforeBell, "bell-1");
+      assert.equal(
+        bell.guard - beforeBell.guard,
+        call("reef_bell_brace", version === 10),
+      );
+      fixtures.push({
+        name: `landing / ${state.channelMarked ? "marked" : "unmarked"} / raft bell / version ${version}`,
+        state: plays.reduce(play, state),
+        water: "Landing",
+      });
+    }
+  }
+  const approach = unmarked.history.reduce(play, start(unmarked.seed));
+  fixtures.push(
+    {
+      name: "landing / creature with underwater bell",
+      state: ["swim-1", "hook-0", "bell-1", "lash-2"].reduce(play, approach),
+      water: "Landing",
+    },
+    {
+      name: "landing / creature with no bell",
+      state: ["swim-0", "feed-0-2", "lash-1", "lash-2"].reduce(play, approach),
+      water: "Landing",
+    },
+    {
+      name: "landing / grip pried loose",
+      state: ["swim-0", "feed-0-0", "feed-1-0", "lash-2"].reduce(
+        play,
+        pried.history.reduce(play, start(pried.seed)),
+      ),
+      water: "Landing",
+    },
+  );
   // Exercise each other event and both landing cases at the resource boundaries.
   for (let tide = 1; tide <= quietWake.events.length; tide++) {
     const state = { ...quietWake, tide };

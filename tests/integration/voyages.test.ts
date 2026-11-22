@@ -13,6 +13,7 @@ import {
   crewMember,
 } from "@seventh-tide/rules";
 import { playWithBots, seatMoves } from "@seventh-tide/rules/crew";
+import { unmarked } from "../fixtures/landfall-pursuit.ts";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 if (!databaseUrl)
@@ -518,6 +519,108 @@ await test("the locker reveal is public and a guest swap can only settle once", 
     find: "Sounding line",
     stowed: true,
   });
+});
+
+await test("a friend can ring the bell and recommend the echo crossing to the host", async (t) => {
+  const { address } = await launch(t);
+  const base = address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 2 }),
+    }),
+  );
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const host = room.token;
+  const guest: unknown = room.invites[0];
+  assert.ok(typeof guest === "string");
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  await pool.query("UPDATE voyages SET seed=$1, moves=$2 WHERE id=$3", [
+    unmarked.seed,
+    [...unmarked.history, ...unmarked.plays.slice(0, 2)],
+    room.id,
+  ]);
+  const url = base + "/" + room.id;
+  const read = (token: string) =>
+    fetch(url, { headers: { Authorization: "Bearer " + token } }).then(
+      readSnapshot,
+    );
+  const send = (
+    token: string,
+    resource: string,
+    method: string,
+    body: object,
+  ) =>
+    fetch(url + "/" + resource, {
+      method,
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+  const cards = await read(guest);
+  assert.equal(cards.reefPursuit, "following");
+  const rung = await readSnapshot(
+    await send(guest, "moves", "POST", {
+      expectedRevision: cards.revision,
+      moveId: "bell-1",
+    }),
+  );
+  assert.equal(rung.phase, "event");
+  assert.equal(rung.reefPursuit, "drawn-off");
+  assert.equal(rung.guard, 0);
+  assert.deepEqual(rung.choices, []);
+  const decision = await read(host);
+  assert.deepEqual(rung.event, decision.event);
+  assert.deepEqual(
+    decision.choices.map(({ id }) => id),
+    ["echo-crossing", "hull", "dive"],
+  );
+  assert.equal(
+    (
+      await send(guest, "route-recommendation", "PUT", {
+        expectedRevision: decision.revision,
+        routeId: "echo-crossing",
+      })
+    ).status,
+    200,
+  );
+  assert.deepEqual((await read(host)).routeRecommendations, [
+    null,
+    "echo-crossing",
+    null,
+  ]);
+  assert.equal(
+    (
+      await send(guest, "moves", "POST", {
+        expectedRevision: decision.revision,
+        moveId: "echo-crossing",
+      })
+    ).status,
+    422,
+  );
+  const ashore = await readSnapshot(
+    await send(host, "moves", "POST", {
+      expectedRevision: decision.revision,
+      moveId: "echo-crossing",
+    }),
+  );
+  assert.equal(ashore.phase, "won");
+  assert.ok(isRecord(ashore.tideResult));
+  assert.deepEqual(ashore.tideResult.route, { kind: "echo-crossing", lost: 1 });
+  const friend = await read(guest);
+  assert.deepEqual(friend.tideResult, ashore.tideResult);
+  assert.deepEqual(friend.routeRecommendations, [null, null, null]);
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {

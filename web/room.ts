@@ -65,6 +65,8 @@ function isCrewPlay(value: unknown) {
     typeof value.name === "string" &&
     (value.card === undefined || typeof value.card === "string") &&
     typeof value.markedChannel === "boolean" &&
+    (value.luredCreature === undefined ||
+      typeof value.luredCreature === "boolean") &&
     Array.isArray(value.changes) &&
     value.changes.every(
       (change: unknown) =>
@@ -93,6 +95,8 @@ function isTideResult(value: unknown) {
     (value.route.kind === "channel" ||
       value.route.kind === "pry" ||
       value.route.kind === "leave-locker" ||
+      (value.route.kind === "echo-crossing" &&
+        typeof value.route.lost === "number") ||
       (value.route.kind === "haul-locker" &&
         typeof value.route.cold === "number" &&
         typeof value.route.find === "string" &&
@@ -141,6 +145,9 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     (value.wake === undefined ||
       value.wake === "following" ||
       value.wake === "drawn-off") &&
+    (value.reefPursuit === undefined ||
+      value.reefPursuit === "following" ||
+      value.reefPursuit === "drawn-off") &&
     (value.buoy === undefined ||
       value.buoy === "chain" ||
       value.buoy === "echo") &&

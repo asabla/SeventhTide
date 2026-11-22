@@ -218,6 +218,16 @@ body.voyage {
   object-position: 57% 39%;
 }
 
+#pursuit-art {
+  object-position: 57% 55%;
+}
+
+@media (width > 700px) {
+  .scene[data-reef-pursuit] + .voyage-board .forecast {
+    margin-bottom: clamp(36px, 4.5vw, 62px);
+  }
+}
+
 .scene:is(
     [data-wake="following"],
     [data-wake="drawn-off"],

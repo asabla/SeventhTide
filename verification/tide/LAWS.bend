@@ -24,22 +24,22 @@ law safe_crew_lands:
 law wake_exposes_decoy:
   for since: Nat
   for marked: Bool
-  { Encounter.routes(Encounter.SecondWake{}, 6n+since, Encounter.RaftBell{}, marked, False{}, False{}) == Encounter.Routes{True{}, False{}, True{}, False{}, False{}, False{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.SecondWake{}, 6n+since, Encounter.RaftBell{}, marked, False{}, False{}) == Encounter.Routes{True{}, False{}, True{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
 
 law wake_without_bell:
   for version: Nat
   for marked: Bool
-  { Encounter.routes(Encounter.SecondWake{}, version, Encounter.Silent{}, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.SecondWake{}, version, Encounter.Silent{}, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
 
 law wake_bell_underwater:
   for version: Nat
   for marked: Bool
-  { Encounter.routes(Encounter.SecondWake{}, version, Encounter.SwimmerBell{}, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.SecondWake{}, version, Encounter.SwimmerBell{}, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
 
 law legacy_wake_keeps_routes:
   for ring: Encounter.Ring
   for marked: Bool
-  { Encounter.routes(Encounter.SecondWake{}, 5n, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.SecondWake{}, 5n, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
 
 law echo_shelters_swimmer:
   for brace: Nat
@@ -51,12 +51,12 @@ law buoy_routes:
   for since: Nat
   for ring: Encounter.Ring
   for marked: Bool
-  { Encounter.routes(Encounter.BellBuoy{}, 7n+since, ring, marked, False{}, False{}) == Encounter.Routes{False{}, True{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.BellBuoy{}, 7n+since, ring, marked, False{}, False{}) == Encounter.Routes{False{}, True{}, False{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
 
 law legacy_buoy_keeps_routes:
   for ring: Encounter.Ring
   for marked: Bool
-  { Encounter.routes(Encounter.BellBuoy{}, 6n, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.BellBuoy{}, 6n, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
 
 law buoy_braced_chain:
   for brace: Nat
@@ -92,7 +92,7 @@ law landing_routes_follow_mark:
   for version: Nat
   for ring: Encounter.Ring
   for marked: Bool
-  { Encounter.routes(Encounter.Landing{}, version, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, marked, False{}, False{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.Landing{}, version, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, marked, False{}, False{}, False{}} : Encounter.Routes }
 
 law marked_channel_spares_the_hull:
   for brace: Nat
@@ -169,7 +169,7 @@ law hook_in_water_does_not_set:
 
 law both_tools_open_pry_and_keep_fallbacks:
   for since: Nat
-  { Encounter.routes(Encounter.RaftGrip{}, 8n+since, Encounter.Silent{}, False{}, True{}, True{}) == Encounter.Routes{False{}, False{}, True{}, False{}, True{}, False{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.RaftGrip{}, 8n+since, Encounter.Silent{}, False{}, True{}, True{}) == Encounter.Routes{False{}, False{}, True{}, False{}, True{}, False{}, False{}} : Encounter.Routes }
 
 law missing_line_closes_pry:
   for version: Nat
@@ -202,7 +202,7 @@ law locker_has_two_routes:
   for marked: Bool
   for line: Bool
   for hook: Bool
-  { Encounter.routes(Encounter.DriftingLocker{}, 9n+since, ring, marked, line, hook) == Encounter.Routes{False{}, False{}, False{}, False{}, False{}, True{}} : Encounter.Routes }
+  { Encounter.routes(Encounter.DriftingLocker{}, 9n+since, ring, marked, line, hook) == Encounter.Routes{False{}, False{}, False{}, False{}, False{}, True{}, False{}} : Encounter.Routes }
 
 law old_voyage_cannot_haul:
   { Encounter.can_haul(Encounter.DriftingLocker{}, 8n) == False{} : Bool }
@@ -237,3 +237,50 @@ law reserve_covers_haul:
 
 law recovery_voyage_budget:
   { Progress.voyage_remaining(Progress.Salvage{}, 6n, True{}) == 37n : Nat }
+
+law cutting_the_timber_leaves_the_creature_following:
+  for since: Nat
+  { Encounter.follows(10n+since, Encounter.Cut{}) == True{} : Bool }
+
+law hauling_the_swimmer_leaves_the_creature_following:
+  for since: Nat
+  { Encounter.follows(10n+since, Encounter.Dive{}) == True{} : Bool }
+
+law prying_breaks_pursuit:
+  for since: Nat
+  { Encounter.follows(10n+since, Encounter.Pry{}) == False{} : Bool }
+
+law archived_grip_never_starts_pursuit:
+  for route: Encounter.Route
+  { Encounter.follows(9n, route) == False{} : Bool }
+
+law reef_bell_opens_crossing_alongside_other_routes:
+  for since: Nat
+  for marked: Bool
+  { Encounter.reef_routes(10n+since, Encounter.RaftBell{}, marked, True{}) == Encounter.Routes{False{}, False{}, True{}, marked, False{}, False{}, True{}} : Encounter.Routes }
+
+law reef_bell_in_water_does_not_open_crossing:
+  for version: Nat
+  for marked: Bool
+  { Encounter.reef_routes(version, Encounter.SwimmerBell{}, marked, True{}) == Encounter.Routes{False{}, False{}, True{}, marked, False{}, False{}, False{}} : Encounter.Routes }
+
+law quiet_reef_keeps_the_original_routes:
+  for version: Nat
+  for ring: Encounter.Ring
+  for marked: Bool
+  { Encounter.reef_routes(version, ring, marked, False{}) == Encounter.routes(Encounter.Landing{}, version, ring, marked, False{}, False{}) : Encounter.Routes }
+
+law archived_reef_never_opens_echo_crossing:
+  { Encounter.reef_echo(True{}, Encounter.RaftBell{}, 9n) == False{} : Bool }
+
+law echo_crossing_costs_one_hull_and_normal_exposure:
+  for brace: Nat
+  for incoming: Nat
+  for extra: Nat
+  { Encounter.effects(Encounter.EchoCrossing{}, brace, incoming, extra) == Encounter.Effects{1n, 0n, 2n, 1n} : Encounter.Effects }
+
+law reef_lure_uses_the_bells_action:
+  { Encounter.reef_bell_brace(True{}) == 0n : Nat }
+
+law ordinary_raft_bell_adds_brace:
+  { Encounter.reef_bell_brace(False{}) == 3n : Nat }

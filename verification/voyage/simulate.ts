@@ -11,6 +11,7 @@ import {
   coldLimit,
   moves,
   play,
+  reefPursuit,
   rulesVersion,
   start,
   type Move,
@@ -174,6 +175,9 @@ const profilesReport = profiles.map((profile) => {
     wakeDecoys: 0,
     buoyChains: 0,
     raftPries: 0,
+    pursuedLandfalls: 0,
+    reefLures: 0,
+    echoCrossings: 0,
     lockerHauls: 0,
     lockerSwaps: 0,
     assisted: 0,
@@ -195,6 +199,9 @@ const profilesReport = profiles.map((profile) => {
       if (history.includes("decoy")) counts.wakeDecoys++;
       if (history.includes("chain")) counts.buoyChains++;
       if (history.includes("pry")) counts.raftPries++;
+      if (reefPursuit(state)) counts.pursuedLandfalls++;
+      if (reefPursuit(state) === "drawn-off") counts.reefLures++;
+      if (history.includes("echo-crossing")) counts.echoCrossings++;
       if (history.includes("haul-locker")) counts.lockerHauls++;
       if (history.some((id) => id.startsWith("stow-"))) counts.lockerSwaps++;
       const outcome =
