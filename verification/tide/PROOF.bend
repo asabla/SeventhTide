@@ -52,6 +52,33 @@ def Laws.buoy_false_bell(incoming, dive_cold):
 def Laws.hull_route_always_available(plan):
   {==}
 
+def Laws.sixth_tide_swimmer_marks_channel():
+  {==}
+
+def Laws.dry_line_cannot_mark_channel():
+  {==}
+
+def Laws.marking_requires_sounding_line():
+  {==}
+
+def Laws.channel_cannot_be_marked_twice():
+  {==}
+
+def Laws.landing_is_too_late_to_mark():
+  {==}
+
+def Laws.landing_routes_follow_mark(version, ring, marked):
+  {==}
+
+def Laws.marked_channel_spares_the_hull(brace, incoming, dive_cold):
+  {==}
+
+def Laws.forced_landing_uses_brace(brace):
+  {==}
+
+def Laws.scouting_spares_the_hull_at_a_cold_cost(brace):
+  {==}
+
 def Laws.fatal_cold(excess):
   {==}
 

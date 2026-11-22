@@ -19,6 +19,13 @@ type Route is Data:
   Chain{}
   Channel{}
 
+def marks_channel(tide: Nat, line: Bool, swimmer: Bool, marked: Bool) -> Bool:
+  match tide line swimmer marked:
+    case 6n True{} True{} False{}:
+      True{}
+    case _ _ _ _:
+      False{}
+
 type Routes is Data:
   Routes{decoy: Bool, chain: Bool, dive: Bool, channel: Bool}
 

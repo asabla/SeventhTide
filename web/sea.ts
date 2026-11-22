@@ -1,27 +1,28 @@
 import { CANVAS, Game, Scene } from "phaser";
 import seaUrl from "./assets/first-water.jpg";
 import lanternsUrl from "./assets/answering-light.jpg";
+import reefUrl from "./assets/answering-light-reef.webp";
 import wakeUrl from "./assets/second-wake.webp";
 import buoyUrl from "./assets/bell-buoy.webp";
-import type { bellBuoy, secondWake, Voyage } from "@seventh-tide/rules";
+
+const framing = {
+  buoy: [0.6, 0.51],
+  wake: [0.62, 0.54],
+  reef: [0.57, 0.39],
+  approach: [0.5, 0.43],
+  "wreck-field": [0.5, 0.64],
+} as const;
 
 // The image below the canvas is also the first paint while the engine loads.
-export function mountSea(
-  parent: HTMLElement,
-  readVoyage: () => {
-    tide: Voyage["tide"];
-    channelMarked?: boolean | undefined;
-    wake: ReturnType<typeof secondWake>;
-    buoy: ReturnType<typeof bellBuoy>;
-  },
-) {
+export function mountSea(frame: HTMLElement, parent: HTMLElement) {
   let backdrop: Phaser.GameObjects.Image;
   const lights = parent.querySelector<HTMLElement>("#lantern-glows");
   const motion = parent.querySelector<HTMLElement>("#wake-motion");
   class SeaScene extends Scene {
     preload() {
       this.load.image("wreck-field", seaUrl);
-      this.load.image("lanterns", lanternsUrl);
+      this.load.image("approach", lanternsUrl);
+      this.load.image("reef", reefUrl);
       this.load.image("wake", wakeUrl);
       this.load.image("buoy", buoyUrl);
     }
@@ -48,26 +49,26 @@ export function mountSea(
     const width = parent.clientWidth;
     const height = parent.clientHeight;
     if (!width || !height) return;
-    const voyage = readVoyage();
-    const wake = Boolean(voyage.wake);
-    const buoy = Boolean(voyage.buoy);
-    const encounter = wake || buoy;
-    const sighted =
-      !encounter && voyage.channelMarked !== undefined && voyage.tide >= 6;
-    backdrop.setTexture(
-      buoy ? "buoy" : wake ? "wake" : sighted ? "lanterns" : "wreck-field",
-    );
-    const zoom = encounter ? 1 : 1 + (voyage.tide - 1) * 0.015;
-    const scale =
-      Math.max(width / backdrop.width, height / backdrop.height) * zoom;
+    const { landing, wake, buoy } = frame.dataset;
+    const texture = buoy
+      ? "buoy"
+      : wake
+        ? "wake"
+        : landing === "reef"
+          ? "reef"
+          : landing === "approach"
+            ? "approach"
+            : "wreck-field";
+    const [x, y] = framing[texture];
+    backdrop.setTexture(texture);
+    const scale = Math.max(width / backdrop.width, height / backdrop.height);
     game.scale.resize(width, height);
     backdrop.setScale(scale);
     backdrop.setPosition(
-      (width - backdrop.displayWidth) * (buoy ? 0.6 : wake ? 0.62 : 0.5),
-      (height - backdrop.displayHeight) *
-        (buoy ? 0.51 : wake ? 0.54 : sighted ? 0.44 : 0.64),
+      (width - backdrop.displayWidth) * x,
+      (height - backdrop.displayHeight) * y,
     );
-    if (lights) lights.hidden = !sighted;
+    if (lights) lights.hidden = !landing;
     if (motion) motion.hidden = !wake;
     for (const overlay of [lights, motion]) {
       if (!overlay || overlay.hidden) continue;

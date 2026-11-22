@@ -73,6 +73,41 @@ law hull_route_always_available:
   for plan: Encounter.Routes
   { Encounter.allowed(Encounter.Hull{}, plan) == True{} : Bool }
 
+law sixth_tide_swimmer_marks_channel:
+  { Encounter.marks_channel(6n, True{}, True{}, False{}) == True{} : Bool }
+
+law dry_line_cannot_mark_channel:
+  { Encounter.marks_channel(6n, True{}, False{}, False{}) == False{} : Bool }
+
+law marking_requires_sounding_line:
+  { Encounter.marks_channel(6n, False{}, True{}, False{}) == False{} : Bool }
+
+law channel_cannot_be_marked_twice:
+  { Encounter.marks_channel(6n, True{}, True{}, True{}) == False{} : Bool }
+
+law landing_is_too_late_to_mark:
+  { Encounter.marks_channel(7n, True{}, True{}, False{}) == False{} : Bool }
+
+law landing_routes_follow_mark:
+  for version: Nat
+  for ring: Encounter.Ring
+  for marked: Bool
+  { Encounter.routes(Encounter.Landing{}, version, ring, marked) == Encounter.Routes{False{}, False{}, True{}, marked} : Encounter.Routes }
+
+law marked_channel_spares_the_hull:
+  for brace: Nat
+  for incoming: Nat
+  for dive_cold: Nat
+  { Encounter.effects(Encounter.Channel{}, brace, incoming, dive_cold) == Encounter.Effects{0n, 0n, 2n, 1n} : Encounter.Effects }
+
+law forced_landing_uses_brace:
+  for brace: Nat
+  { Encounter.effects(Encounter.Hull{}, brace, 4n, 2n) == Encounter.Effects{Nat.sub(4n, brace), 0n, 2n, 1n} : Encounter.Effects }
+
+law scouting_spares_the_hull_at_a_cold_cost:
+  for brace: Nat
+  { Encounter.effects(Encounter.Dive{}, brace, 4n, 2n) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+
 law fatal_cold:
   for excess: Nat
   { Encounter.fatal(5n+excess) == True{} : Bool }

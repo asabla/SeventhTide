@@ -2,6 +2,8 @@ type Cue =
   | "rope"
   | "brace"
   | "channel"
+  | "approach"
+  | "reef"
   | "wake"
   | "wake-bell"
   | "buoy-chain"
@@ -43,6 +45,15 @@ export function playCue(cue: Cue) {
   if (!enabled || !audio || audio.state !== "running") return;
   const ctx = audio;
   const now = ctx.currentTime;
+  if (cue === "approach" || cue === "reef") {
+    const nearer = cue === "reef";
+    tone(ctx, now, 147, 0.58, nearer ? 0.14 : 0.09);
+    tone(ctx, now, 294, 0.42, 0.035);
+    const answer = now + (nearer ? 0.75 : 0.48);
+    tone(ctx, answer, 156, 0.47, 0.065);
+    tone(ctx, answer, 269, 0.36, 0.033);
+    return;
+  }
   if (cue === "buoy-chain" || cue === "buoy-echo") {
     const chainFirst = cue === "buoy-chain";
     const chain = now + (chainFirst ? 0 : 0.55);

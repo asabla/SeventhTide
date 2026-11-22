@@ -98,6 +98,8 @@ export const swimmerCold = 2;
 const shelteredCold = swimmerCold - 1;
 const secondWakeTitle = "The second wake";
 const bellBuoyTitle = "The bell buoy";
+const cutterSighting =
+  "The cutter’s lamp holds steady. A second light moves against the swell.";
 export const wreckBellWakeEffect = "Draw the wake away.";
 
 const salvage = [
@@ -174,8 +176,8 @@ const finalTide: TideEvent = [
 
 const answeringLight: TideEvent = [
   "The answering light",
-  "One lantern drifts against the current. Forcing a landing costs 4 hull before brace. Scouting ahead costs the swimmer 2 extra cold.",
-  "The cutter is crossing the reef. Choose your landing route.",
+  "The next swell will carry the raft onto the reef.",
+  "The pale light slips over the breakers. The cutter waits beyond them.",
   4,
   2,
 ];
@@ -247,12 +249,15 @@ export function currentEvent(voyage: Voyage) {
       event[4],
     ];
   if (voyage.channelMarked !== undefined && voyage.tide === 6) {
+    const line = "The swimmer can mark the channel with Sounding line.";
     const sighting = voyage.channelMarked
       ? "The swimmer has marked the channel to the rescue cutter."
-      : "Two lanterns appear. The swimmer can play Sounding line this tide to mark a safe channel for landing.";
+      : cutterSighting + " " + line;
     return [
       event[0],
-      sighting + " " + event[1],
+      voyage.phase !== "board" && (wake || buoy)
+        ? event[1] + " " + (voyage.channelMarked ? "Channel marked." : line)
+        : sighting,
       event[2],
       event[3],
       event[4],
@@ -260,12 +265,14 @@ export function currentEvent(voyage: Voyage) {
   }
   if (voyage.channelMarked !== undefined && voyage.tide === 7) {
     const route = voyage.channelMarked
-      ? "The marked channel adds no hull damage or cold."
+      ? "The marked channel leads to the cutter."
       : "The crew reaches the reef without a marked channel.";
     return [
       event[0],
       route + " " + event[1],
-      route + " " + event[2],
+      voyage.channelMarked
+        ? "The pale light crosses the reef. The marked channel leads to the cutter."
+        : event[2],
       event[3],
       event[4],
     ] satisfies TideEvent;
@@ -316,6 +323,38 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     ],
     log: ["The ship is going down. Two seats remain on the raft."],
   };
+}
+
+function landingMoves(s: Voyage, swimmer: number): Move[] {
+  const sailor = crewMember(s, swimmer);
+  const [, , , incoming, extraCold] = currentEvent(s);
+  const lost = Math.min(s.hull, Math.max(0, incoming - s.guard));
+  const hullHolds = s.hull > 0 ? "Hull holds.\n" : "Hull at 0.\n";
+  const exposure = (extra = 0) =>
+    `${sailor.name} ${sailor.cold} → ${sailor.cold + swimmerCold + extra}/${coldLimit} cold.`;
+  return [
+    ...(s.channelMarked
+      ? [
+          {
+            id: "channel",
+            name: "Follow the marked channel",
+            detail: hullHolds + exposure(),
+          },
+        ]
+      : []),
+    {
+      id: "hull",
+      name: "Force a landing",
+      detail: lost
+        ? `Hull ${s.hull} → ${s.hull - lost}.\n` + exposure()
+        : hullHolds + exposure(),
+    },
+    {
+      id: "dive",
+      name: "Scout the reef",
+      detail: hullHolds + exposure(extraCold),
+    },
+  ];
 }
 
 export function moves(s: Voyage): Move[] {
@@ -417,6 +456,8 @@ export function moves(s: Voyage): Move[] {
       return hand;
     });
   if (s.phase === "event" && s.swimmer !== null) {
+    if (s.tide === 7 && s.channelMarked !== undefined)
+      return landingMoves(s, s.swimmer);
     const buoy = bellBuoy(s);
     if (buoy) {
       const { cold, ration } = chainCost(s);
@@ -447,16 +488,6 @@ export function moves(s: Voyage): Move[] {
             },
           ]
         : []),
-      ...(s.tide === 7 && s.channelMarked
-        ? [
-            {
-              id: "channel",
-              name: "Follow the marked channel",
-              detail:
-                "Lose 0 hull and take 0 extra cold. The swimmer still gains 2 cold from exposure.",
-            },
-          ]
-        : []),
       {
         id: "hull",
         name: wake
@@ -474,9 +505,7 @@ export function moves(s: Voyage): Move[] {
         name: wake
           ? "Follow the pull"
           : s.tide === 7
-            ? s.channelMarked === undefined
-              ? "Follow the swimmer"
-              : "Scout the reef"
+            ? "Follow the swimmer"
             : "Send the swimmer",
         detail:
           crewMember(s, s.swimmer).name +

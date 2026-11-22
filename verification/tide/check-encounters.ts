@@ -88,6 +88,8 @@ function checkResolution(
   const [first, second] = raft;
   assert.ok(first !== undefined && second !== undefined, context);
   const [, , , incoming, diveCold] = water;
+  if (state.channelMarked !== undefined && state.tide === 7)
+    assert.deepEqual([incoming, diveCold], [4, 2], context);
   const effect = call(
     "effects",
     tag(routeTags[id]),
@@ -126,6 +128,20 @@ function checkResolution(
     },
     context,
   );
+  if (state.channelMarked !== undefined && state.tide === 7) {
+    const previous = crewMember(state, swimmer);
+    const hull =
+      state.hull !== after.hull
+        ? `Hull ${state.hull} → ${after.hull}.`
+        : state.hull
+          ? "Hull holds."
+          : "Hull at 0.";
+    assert.equal(
+      moves(state).find((move) => move.id === id)?.detail,
+      `${hull}\n${previous.name} ${previous.cold} → ${crewMember(after, swimmer).cold}/5 cold.`,
+      context,
+    );
+  }
   assert.equal(result.swimmer, swimmer, context);
   assert.equal(result.tide, state.tide, context);
   assert.equal(result.exposure[swimmer], effect.exposure, context);
@@ -168,6 +184,7 @@ function checkResolution(
 }
 
 export function checkEncounters(call: BendCall) {
+  checkChannelMarking(call);
   const quietWake = replay(
     456,
     rulesVersion,
@@ -251,5 +268,53 @@ export function checkEncounters(call: BendCall) {
   }
   console.log(
     `${checked} tide resolutions across ${fixtures.length} cases agree with Bend on route availability, resources, and the next phase.`,
+  );
+}
+
+function checkChannelMarking(call: BendCall) {
+  const history = [
+    "spar",
+    "swim-0 glass-0 comb-1 line-2 dive",
+    "swim-0 feed-0-0 feed-1-0 anchor-2 hull",
+    "swim-0 feed-0-0 patch-1 belt-2 hull",
+    "swim-0 block-0 feed-1-0 net-2 dive",
+    "swim-0 feed-0-0 patch-1 feed-2-0 hull",
+  ];
+  const approach = history.join(" ").split(" ").reduce(play, start(20));
+  assert.equal(approach.phase, "board");
+  assert.equal(approach.tide, 6);
+  assert.ok(approach.deck?.hands[1]?.includes("line"));
+  let checked = 0;
+  for (const tide of [5, 6, 7]) {
+    for (const channelMarked of [false, true]) {
+      for (const seat of [0, 1, 2]) {
+        const state = play(
+          { ...approach, tide, channelMarked },
+          "swim-" + seat,
+        );
+        for (const move of moves(state)) {
+          const context = `tide ${tide}, swimmer ${seat}, marked ${channelMarked}, ${move.id}`;
+          const mark = call(
+            "marks_channel",
+            tide,
+            move.card === "line",
+            move.actor === seat,
+            channelMarked,
+          );
+          const after = play(state, move.id);
+          assert.equal(after.plays[0]?.markedChannel, mark, context);
+          assert.equal(
+            move.detail.includes("Mark the safe channel"),
+            mark,
+            context,
+          );
+          assert.equal(after.channelMarked, channelMarked || mark, context);
+          checked++;
+        }
+      }
+    }
+  }
+  console.log(
+    `${checked} card plays agree with Bend on whether the channel is marked.`,
   );
 }

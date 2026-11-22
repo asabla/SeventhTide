@@ -10,7 +10,10 @@ const approach =
 await test("only the tide-six swimmer can mark the channel, and it takes their card action", () => {
   const board = approach.reduce(play, start(4203543429, 3));
   assert.equal(board.tide, 6);
-  assert.match(currentEvent(board)[1], /Two lanterns/);
+  assert.match(
+    currentEvent(board)[1],
+    /A second light moves against the swell/,
+  );
   const aboard = play(play(board, "swim-0"), "line-2");
   assert.equal(aboard.channelMarked, false);
   const swimming = play(board, "swim-2");
@@ -34,6 +37,18 @@ await test("only the tide-six swimmer can mark the channel, and it takes their c
   assert.deepEqual(
     moves(landing).map((m) => m.id),
     ["channel", "hull", "dive"],
+  );
+  assert.match(
+    currentEvent(landing)[2],
+    /The marked channel leads to the cutter/,
+  );
+  assert.deepEqual(
+    moves(landing).map(({ detail }) => detail),
+    [
+      "Hull holds.\nMara 1 → 3/5 cold.",
+      "Hull 2 → 0.\nMara 1 → 3/5 cold.",
+      "Hull holds.\nMara 1 → 5/5 cold.",
+    ],
   );
   assert.equal(play(landing, "hull").phase, "lost");
   assert.equal(play(landing, "dive").phase, "lost");
@@ -59,6 +74,12 @@ await test("a crew that never holds a sounding line can scout the reef and land"
   assert.deepEqual(
     moves(s).map((m) => m.id),
     ["hull", "dive"],
+  );
+  const before = s.crew[0];
+  assert.ok(before);
+  assert.match(
+    moves(s)[1]?.detail ?? "",
+    new RegExp(`Mara ${before.cold} → 4/5 cold`),
   );
   assert.throws(() => play(s, "channel"));
   const ashore = play(s, "dive");
