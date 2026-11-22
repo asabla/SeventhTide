@@ -1,53 +1,40 @@
-import lineRaft from "./assets/line-raft.jpg";
-import lineWater from "./assets/line-water.jpg";
-import hookRaft from "./assets/boathook-raft.jpg";
-import hookWater from "./assets/boathook-water.jpg";
+import {
+  crewMember,
+  moves,
+  play,
+  start,
+  type Move,
+  type Voyage,
+} from "@seventh-tide/rules";
+import { equipmentImage } from "./equipment-art.ts";
 
-// Fixed before-and-after examples for the hand study. A live voyage uses the rules package.
-const equipment = [
-  {
-    name: "Sounding line",
-    raft: {
-      image: lineRaft,
-      action: "Haul the swimmer in.",
-      effect: "Swimmer sheds 1 cold.",
-      result: { swimmer: 1 },
-    },
-    water: {
-      image: lineWater,
-      action: "Sound the depths.",
-      effect: "Gain 1 brace.",
-      result: { brace: 1 },
-    },
-  },
-  {
-    name: "Boathook",
-    raft: {
-      image: hookRaft,
-      action: "Wedge the hook between timbers.",
-      effect: "Gain 2 brace.",
-      result: { brace: 2 },
-    },
-    water: {
-      image: hookWater,
-      action: "Hook floating timber.",
-      effect: "Repair 2 hull.",
-      result: { hull: 5 },
-    },
-  },
-];
-const initial = { cold: 1, hull: 3, brace: 0, swimmer: 2 };
 function required(id: string) {
   const node = document.getElementById(id);
   if (!node) throw new Error("Missing hand study element " + id);
   return node;
 }
-function showTotals(totals: typeof initial) {
-  required("cold").textContent = totals.cold + " / 5";
-  required("hull").textContent = totals.hull + " / 5";
-  required("brace").textContent = String(totals.brace);
-  required("swimmer").textContent = totals.swimmer + " / 5";
+function showTotals(voyage: Voyage) {
+  required("hull").textContent = voyage.hull + " / 5";
+  required("brace").textContent = String(voyage.guard);
+  required("crew-totals").replaceChildren(
+    ...voyage.crew.map((member) => {
+      const row = document.createElement("tr");
+      const name = document.createElement("th");
+      name.scope = "row";
+      name.textContent = member.name;
+      const cold = document.createElement("td");
+      cold.textContent = member.cold + " / 5";
+      const food = document.createElement("td");
+      food.textContent = String(member.food);
+      row.append(name, cold, food);
+      return row;
+    }),
+  );
 }
+const deal = document.querySelector<HTMLSelectElement>("#deal");
+if (!deal) throw new Error("Missing equipment deals");
+const dealSelect = deal;
+let study: Voyage;
 const cards = required("cards");
 const receipt = required("receipt");
 const reset = required("reset");
@@ -56,12 +43,7 @@ const dropSurface = document.querySelector<HTMLButtonElement>("#place-card");
 if (!dropSurface) throw new Error("Missing drop area");
 const destination = dropSurface;
 const playedFace = required("played-face");
-type Equipment = (typeof equipment)[number];
-type Card = {
-  button: HTMLButtonElement;
-  name: string;
-  face: Equipment["raft"] | Equipment["water"];
-};
+type Card = { button: HTMLButtonElement; move: Move; image: string };
 let selected: Card | null = null;
 let drag: {
   card: Card;
@@ -77,7 +59,7 @@ function selectCard(card: Card) {
   card.button.setAttribute("aria-pressed", "true");
   destination.disabled = false;
   area.classList.add("ready");
-  receipt.textContent = card.name + " · " + card.face.effect + " Take 1 cold.";
+  receipt.textContent = card.move.name + " · " + card.move.detail;
 }
 
 function endDrag() {
@@ -99,21 +81,18 @@ function placeCard() {
   endDrag();
   selected = null;
   destination.disabled = true;
-  showTotals({ ...initial, cold: 2, ...card.face.result });
+  study = play(study, card.move.id);
+  showTotals(study);
   for (const choice of cards.querySelectorAll("button")) choice.disabled = true;
   card.button.hidden = true;
   const mark = new Image();
-  mark.src = card.face.image;
+  mark.src = card.image;
   mark.alt = "";
   playedFace.replaceChildren(mark);
   area.classList.remove("ready");
   area.classList.add("resolved");
   receipt.textContent =
-    "Mara played " +
-    card.name +
-    ". " +
-    card.face.effect +
-    " Mara takes 1 cold.";
+    "Mara played " + card.move.name + ". " + card.move.detail;
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const end = mark.getBoundingClientRect();
     mark.animate(
@@ -204,8 +183,11 @@ function connectCard(card: Card) {
 }
 function renderHand() {
   const water = document.querySelector('input[value="water"]:checked') !== null;
-  required("swimmer-row").hidden = water;
-  showTotals(initial);
+  // Each seed deals the two illustrated cards named in the selector.
+  const boarding = play(start(Number(dealSelect.value), 5), "locker");
+  crewMember(boarding, 1).cold = 2;
+  study = play(boarding, water ? "swim-0" : "swim-1");
+  showTotals(study);
   endDrag();
   receipt.textContent =
     "Drag a card here, or select a card and then this space.";
@@ -216,27 +198,33 @@ function renderHand() {
   destination.disabled = true;
   reset.hidden = true;
   cards.replaceChildren();
-  for (const item of equipment) {
-    const face = water ? item.water : item.raft;
+  for (const move of moves(study)) {
+    if (move.actor !== 0 || !move.card) continue;
+    const image = equipmentImage(move.card, water);
+    if (!image) throw new Error("Missing study illustration for " + move.name);
+    const [actionText, benefitText, ...costText] =
+      move.detail.split(/(?<=\.)\s+/);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "card";
     button.setAttribute("aria-pressed", "false");
     const name = document.createElement("strong");
-    name.textContent = item.name;
+    name.textContent = move.name;
     const art = new Image();
-    art.src = face.image;
+    art.src = image;
     art.alt = "";
     art.draggable = false;
     const action = document.createElement("span");
     action.className = "action";
-    action.textContent = face.action;
+    action.textContent = actionText ?? "";
     const effect = document.createElement("span");
     effect.className = "effect";
-    effect.textContent = face.effect;
+    effect.textContent = benefitText ?? "";
     const cost = document.createElement("span");
     cost.className = "cost";
-    cost.textContent = "Cost · Take 1 cold";
+    cost.textContent = costText.length
+      ? "Cost · " + costText.join(" ")
+      : "Cost · Card only";
     button.append(name, art, action, effect, cost);
     const flecks = document.createElement("span");
     flecks.className = "salt";
@@ -247,13 +235,14 @@ function renderHand() {
       document.createElement("i"),
     );
     button.append(flecks);
-    connectCard({ button, name: item.name, face });
+    connectCard({ button, move, image });
     cards.append(button);
   }
 }
 for (const position of document.querySelectorAll('input[name="position"]')) {
   position.addEventListener("change", renderHand);
 }
+dealSelect.addEventListener("change", renderHand);
 destination.addEventListener("click", placeCard);
 window.addEventListener("blur", endDrag);
 window.addEventListener("keydown", (event) => {

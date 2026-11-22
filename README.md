@@ -72,7 +72,7 @@ Phaser supplies the 2D rendering and scene tools the illustrated table needs. Us
 
 ## Crew hands
 
-On new voyages, the first salvage adds two copies of a card to the shared ten-card deck. The ration locker adds Pass the Tin, spare timber adds Emergency Patch, and dry canvas adds Canvas Sling. Each sailor draws two cards before boarding. During boarding, open a card to compare its raft and water effects. Each device shows the hands of the sailors it controls.
+On new voyages, the crew shares a deck of 23 cards. This includes one copy of each of the 13 equipment cards added since the original deck. Salvage determines two cards in the deck. The ration locker adds Pass the Tin, spare timber adds Emergency Patch, and dry canvas adds Canvas Sling. Each sailor draws two cards before boarding. Open a card during boarding to compare its raft and water effects. A sailor must hold a ration to play a face that spends one. Each device shows the hands of the sailors it controls.
 
 Play a held card to discard it and draw its replacement. Basic actions and ration sharing take the sailor’s turn and keep both cards for later. When the draw pile is empty, the crew reshuffles the discard pile. Existing solo saves and stored rooms finish with their original rules.
 
@@ -116,10 +116,10 @@ Each voyage stores its initial seed, rules version, and ordered move IDs. Its re
 
 Volunteer changes increment `offerRevision` and leave the voyage revision unchanged. When assigning the swimmer, the client sends the displayed `offerRevision` as `expectedOfferRevision` with the move. If the volunteers have changed, the server returns HTTP 409 so the host can review the current choices.
 
-The server replays voyages with the current rules version and rejects an unsupported version. Before changing a released rule, follow the [replay compatibility steps](.agents/skills/seventh-tide-voyage-rules/SKILL.md).
+The server replays each voyage with the rules version stored when the voyage began. Before changing a released rule, follow the [replay compatibility steps](.agents/skills/seventh-tide-voyage-rules/SKILL.md).
 
 ## Preview the illustrated hand
 
-Open [/hand.html](http://127.0.0.1:4173/hand.html) on the running game server. This standalone study shows Mara using a Sounding line or Boathook. Switch her position to see the other face of each card. Drag a card into **Mara’s play** to apply its effect and cost. You can also select a card, then activate the drop area. Release outside the area or press Escape during a drag to return the card to the hand. Select **Try another play** to reset the study.
+Open [/hand.html](http://127.0.0.1:4173/hand.html) on the running game server. Choose an equipment pair and switch Mara’s position to see the other face of each card. Each pair uses a fixed voyage deal. Drag a card into **Mara’s play** to apply its effect and cost. You can also select a card, then activate the drop area. Check the ship’s log to see how the play affects each sailor. Release outside the area or press Escape during a drag to return the card to the hand. Select **Try another play** to reset the study.
 
 [View the equipment hand at phone width](docs/images/equipment-hand-phone.jpg).

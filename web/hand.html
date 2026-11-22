@@ -29,15 +29,17 @@
             <dt>Brace</dt>
             <dd id="brace"></dd>
           </div>
-          <div>
-            <dt>Mara’s cold</dt>
-            <dd id="cold"></dd>
-          </div>
-          <div id="swimmer-row">
-            <dt>Ivo’s cold</dt>
-            <dd id="swimmer"></dd>
-          </div>
         </dl>
+        <table class="crew-totals" aria-label="Crew condition">
+          <thead>
+            <tr>
+              <th scope="col">Crew</th>
+              <th scope="col">Cold</th>
+              <th scope="col">Rations</th>
+            </tr>
+          </thead>
+          <tbody id="crew-totals"></tbody>
+        </table>
         <fieldset>
           <legend>Mara’s position</legend>
           <label
@@ -52,6 +54,19 @@
             ><input type="radio" name="position" value="water" />Water</label
           >
         </fieldset>
+        <label class="deal-choice"
+          >Equipment
+          <select id="deal">
+            <option value="987">Wreck bell / Black-glass float</option>
+            <option value="1575">Snatch block / Caulking iron</option>
+            <option value="264">Tarred mitts / Galley kettle</option>
+            <option value="2891">Breaker cask / Storm lantern</option>
+            <option value="773">Hatch cover / Bone comb</option>
+            <option value="1934">Sea anchor / Cork belt</option>
+            <option value="601">Sounding line / Drift net</option>
+            <option value="531">Sounding line / Boathook</option>
+          </select>
+        </label>
       </aside>
       <section class="table" aria-label="Equipment table">
         <div class="play-area" id="play-area">
