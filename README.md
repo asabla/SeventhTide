@@ -45,6 +45,8 @@ The rule tests must cover at least 95% of lines, 90% of branches, and 95% of fun
 
 Run `mise exec -- npm run simulate` to check 512 seeds. Use `mise exec -- npm run simulate -- 1024 2048` to check 1,024 seeds from index 2,048. The simulator uses the same seat and bot functions as the game. It runs solo, two-player, three-player, and absent-friend voyages with cautious and random choices. It checks that pending turns advance, each voyage ends within 37 recorded moves, and replay reproduces the exact result. The JSON report includes sample seeds and move histories for rescues and losses. CI runs the same simulation on 256 seeds.
 
+Run `mise exec -- npm run balance -- 512 1024 11` to play both offered salvage choices on the same 512 deals, starting at index 1,024 with rules version 11. The report separates crew sizes and policies. The mixed policy chooses one legal card or crew action at random on half of its turns and uses cautious boarding and route decisions. Run again with version 10 to compare the same deals against the previous opening. Each encounter lists the routes offered, the times each survived the tide, and the times it was the only surviving choice. The report distinguishes voyages that had a safe route from voyages that reached a decision with no path to survival.
+
 ### Verify the tide outcome laws
 
 From the repository root, run `mise trust verification/tide/mise.toml` once, then `mise -C verification/tide run verify`. The verification configuration pins Bend and Lean for macOS and Linux. The GitHub Actions job `tide-laws` runs the same verification command.

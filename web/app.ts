@@ -386,52 +386,35 @@ function saveRun() {
 function usesCrewDeck() {
   return turn ? turn.rulesVersion >= 2 : Boolean(state.deck);
 }
-function buttons(options: Move[]) {
-  const group = element("div", "", "choices");
+function salvageChoices(options: Move[]) {
+  const spread = element("div", "", "salvage-spread");
   for (const move of options) {
-    const btn = element("button");
-    btn.type = "button";
-    if ((turn ?? state).phase === "salvage") {
-      btn.className = "salvage";
-      btn.append(element("span", "", "item " + move.id));
-    }
-    if (move.id.startsWith("sound-") || move.id.startsWith("haul-")) {
-      btn.className = move.id.startsWith("sound-")
-        ? "action-art sound"
-        : "action-art haul";
-      btn.append(element("span", "", "engraving"));
-    }
-    const copy = element("span", "", "action-copy");
-    copy.append(
-      element("strong", move.name),
-      element(
-        "small",
-        move.detail +
-          (usesCrewDeck() && move.actor !== undefined
-            ? move.card
-              ? " Discard and draw one."
-              : " Keep both cards."
-            : ""),
-      ),
+    const choice = element("div", "", "salvage-choice");
+    const art = element(
+      "span",
+      "",
+      "item equipment-salvage salvage-art " + move.id,
     );
-    btn.append(copy);
-    btn.addEventListener("click", () =>
-      act(move.id, move.actor === undefined ? undefined : btn),
-    );
-    if (usesCrewDeck() && (turn ?? state).phase === "salvage") {
-      const item = element("div", "", "salvage-choice");
+    art.setAttribute("aria-hidden", "true");
+    const face = cardFace("button", move.name, art);
+    face.classList.add("salvage-card");
+    face.type = "button";
+    face.append(element("span", move.detail, "salvage-detail"));
+    face.addEventListener("click", () => act(move.id));
+    choice.append(face);
+    if (usesCrewDeck()) {
       const preview = element("details");
       const card = salvagePreview(move.id);
       preview.append(
         element("summary", card.name + " effects"),
-        element("p", "On the raft · " + card.raft.text),
-        element("p", "In the water · " + card.water.text),
+        element("p", "On the raft · " + card.raft.text, "salvage-effects"),
+        element("p", "In the water · " + card.water.text, "salvage-effects"),
       );
-      item.append(btn, preview);
-      group.append(item);
-    } else group.append(btn);
+      choice.append(preview);
+    }
+    spread.append(choice);
   }
-  return group;
+  return spread;
 }
 
 function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
@@ -1386,7 +1369,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     } else choiceArea.append(decision);
   } else if (phase === "recover" && find) {
     if (!keepRecovery) choiceArea.append(recoverEquipment(seat, find, options));
-  } else if (options.length) choiceArea.append(buttons(options));
+  } else if (phase === "salvage" && options.length)
+    choiceArea.append(salvageChoices(options));
   renderRouteRecommendations();
   if (routeFocus) select("heading").focus({ preventScroll: true });
   const prompt = select("instruction");

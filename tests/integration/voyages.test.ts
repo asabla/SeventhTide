@@ -587,7 +587,7 @@ await test("a friend can ring the bell and recommend the echo crossing to the ho
   assert.ok(isRecord(forecastRoute));
   assert.deepEqual(forecastRoute.forecast, {
     hull: 4,
-    cold: [4, 2, 3],
+    cold: [4, 2, 2],
     ration: 1,
     outcome: "won",
   });

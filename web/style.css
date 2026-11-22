@@ -697,45 +697,58 @@ body.voyage {
   gap: 10px;
 }
 
-.action-copy {
-  display: block;
-}
-
-:where(.action-copy) strong {
-  display: block;
-  margin-bottom: 4px;
-  font:
-    700 1.13rem/1.12 Georgia,
-    serif;
-}
-
-:where(.action-copy) small {
-  display: block;
-  font-size: 0.89rem;
-}
-
-.voyage .salvage,
-.voyage .action-art {
+.salvage-spread {
   display: grid;
-  grid-template-columns: 54px 1fr;
-  align-items: center;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(14px, 4vw, 45px);
+  width: min(100%, 542px);
+  margin: 16px auto 0;
+  align-items: start;
 }
 
-.salvage-choice > button {
+.salvage-card.card {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  align-content: start;
+  gap: 7px;
   width: 100%;
-  min-height: 112px;
+  min-height: clamp(222px, 31vw, 310px);
+  margin: 0;
+  text-align: left;
+  transform: rotate(-2deg);
+}
+
+.salvage-choice:nth-child(2) > .salvage-card {
+  transform: rotate(2deg);
+}
+
+.salvage-art {
+  width: 100%;
+}
+
+.salvage-detail {
+  align-self: start;
+  font: 650 clamp(0.79rem, 1.3vw, 0.95rem)/1.35 var(--sans);
 }
 
 .salvage-choice > details {
-  color: var(--ink);
-  background:
-    var(--grain) repeat,
-    var(--paper);
-  border: 1px solid #8b7858;
-  border-radius: 4px;
-  padding: 8px 12px;
-  margin-top: 6px;
+  margin-top: 13px;
+  color: #f0d7a9;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #151d17ed 12% 88%,
+    transparent
+  );
+  padding: 5px 12px;
+  font:
+    700 clamp(0.83rem, 1.25vw, 0.96rem)/1.23 Georgia,
+    serif;
+}
+
+.salvage-effects {
+  margin-block: 7px;
+  font: 0.86rem/1.3 var(--sans);
 }
 
 .item {
@@ -756,21 +769,6 @@ body.voyage {
 
 .spar {
   background-position: right;
-}
-
-.engraving {
-  width: 100%;
-  aspect-ratio: 1;
-  background-position: center;
-  background-size: cover;
-}
-
-.sound .engraving {
-  background-image: url("./assets/sound-the-depths.jpg");
-}
-
-.haul .engraving {
-  background-image: url("./assets/haul-the-line.jpg");
 }
 
 .boarding {

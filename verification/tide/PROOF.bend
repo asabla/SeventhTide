@@ -262,3 +262,15 @@ def Laws.five_cold_on_raft_can_recover():
 
 def Laws.safe_swimmer_cannot_save_a_raft_sailor_at_six_cold():
   {==}
+
+def Laws.securing_timber_starts_with_four_hull(since):
+  {==}
+
+def Laws.archived_timber_launch_chills_the_crew():
+  {==}
+
+def Laws.canvas_trades_hull_for_warmth(since):
+  {==}
+
+def Laws.rations_trade_hull_for_food(since):
+  {==}

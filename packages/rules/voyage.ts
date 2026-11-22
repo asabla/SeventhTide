@@ -13,8 +13,8 @@ export { handPreview, equipmentPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 10;
-export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+export const rulesVersion = 11;
+export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -420,7 +420,13 @@ export function start(seed: number, version: number = rulesVersion): Voyage {
     bits = nextSeed(bits);
     return bits / 4294967296;
   };
-  const offeredSalvage = shuffle(salvage, random).slice(0, 2);
+  const offeredSalvage = shuffle(salvage, random)
+    .slice(0, 2)
+    .map((move) =>
+      version >= 11 && move.id === "spar"
+        ? { ...move, detail: "Keep all 4 hull by securing the spare timber." }
+        : move,
+    );
   const events = shuffle(waters, random).map((event) =>
     version >= 8 && event[0] === splitSeamTitle ? raftGrip : event,
   );
@@ -884,11 +890,12 @@ export function play(state: Voyage, moveId: string): Voyage {
     member.cold = Math.max(0, member.cold + amount);
   };
   if (s.phase === "salvage") {
-    s.hull += action === "spar" ? 1 : -1;
+    const secured = action === "spar" && (s.rulesVersion ?? 1) >= 11;
+    if (!secured) s.hull += action === "spar" ? 1 : -1;
     s.crew.forEach((p, i) => {
       if (action === "locker") p.food++;
       if (action === "canvas") cold(i, -1);
-      if (action === "spar") cold(i, 1);
+      if (action === "spar" && !secured) cold(i, 1);
     });
     s.log.push("Salvaged " + move.name.toLowerCase() + ".");
     if (s.deck) deal(s.deck, move.id, s.rulesVersion ?? 2);

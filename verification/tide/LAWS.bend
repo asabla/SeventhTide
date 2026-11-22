@@ -2,6 +2,7 @@ import Base
 import ./Tide.bend as Tide
 import ./Encounter.bend as Encounter
 import ./Progress.bend as Progress
+import ./Opening.bend as Opening
 
 law broken_raft:
   for exposed: Bool
@@ -290,3 +291,18 @@ law five_cold_on_raft_can_recover:
 
 law safe_swimmer_cannot_save_a_raft_sailor_at_six_cold:
   { Encounter.resolve(Encounter.Effects{0n, 0n, 2n, 1n}, 2n, 1n, 6n, 1n, True{}) == Encounter.Resolution{2n, 3n, 5n, 0n, 1n, Tide.VoyageLost{}} : Encounter.Resolution }
+
+law securing_timber_starts_with_four_hull:
+  for since: Nat
+  { Opening.salvage(11n+since, Opening.SpareTimber{}) == Opening.Supplies{4n, 1n, 0n} : Opening.Supplies }
+
+law archived_timber_launch_chills_the_crew:
+  { Opening.salvage(10n, Opening.SpareTimber{}) == Opening.Supplies{5n, 2n, 0n} : Opening.Supplies }
+
+law canvas_trades_hull_for_warmth:
+  for since: Nat
+  { Opening.salvage(11n+since, Opening.DryCanvas{}) == Opening.Supplies{3n, 0n, 0n} : Opening.Supplies }
+
+law rations_trade_hull_for_food:
+  for since: Nat
+  { Opening.salvage(11n+since, Opening.RationLocker{}) == Opening.Supplies{3n, 1n, 1n} : Opening.Supplies }
