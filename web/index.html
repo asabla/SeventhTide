@@ -10,10 +10,58 @@
   </head>
   <body class="voyage">
     <header class="mast">
-      <a href="./">Seventh Tide</a>
-      <button id="sound-toggle" type="button" aria-pressed="false">
-        Sound <span id="sound-state" aria-hidden="true">off</span>
-      </button>
+      <strong class="wordmark">Seventh Tide</strong>
+      <div class="mast-actions">
+        <button
+          id="open-entries"
+          class="mast-tool"
+          type="button"
+          aria-label="Voyage entries"
+          aria-haspopup="dialog"
+          title="Voyage entries"
+          hidden
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M7 3h12v15H7a2 2 0 0 0 0 4h12M7 3a2 2 0 0 0-2 2v15m4-17v15m3-11h4m-4 4h4M8 20h11"
+            />
+          </svg>
+          <span aria-hidden="true">Entries</span>
+        </button>
+        <button
+          id="open-rules"
+          class="mast-tool"
+          type="button"
+          aria-label="Voyage rules"
+          aria-haspopup="dialog"
+          title="Voyage rules"
+          hidden
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5 3h9l5 5v13H5V3Zm9 0v5h5M8 9h2m-2 4h8m-8 4h6" />
+          </svg>
+          <span aria-hidden="true">Rules</span>
+        </button>
+        <button
+          id="open-invites"
+          class="mast-tool"
+          type="button"
+          aria-label="Crew invites"
+          aria-haspopup="dialog"
+          title="Crew invites"
+          hidden
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="m10 8 3.2-3.2a4 4 0 0 1 5.7 5.7L16 13.4M14 16l-3.2 3.2a4 4 0 0 1-5.7-5.7L8 10.6m1 4.4 6-6"
+            />
+          </svg>
+          <span aria-hidden="true">Invites</span>
+        </button>
+        <button id="sound-toggle" type="button" aria-pressed="false">
+          Sound <span id="sound-state" aria-hidden="true">off</span>
+        </button>
+      </div>
     </header>
     <div class="scene" id="scene" hidden>
       <img
@@ -56,40 +104,13 @@
           </thead>
           <tbody id="crew"></tbody>
         </table>
-        <details id="log">
-          <summary>Voyage entries</summary>
-          <ol id="entries"></ol>
-        </details>
-        <details>
-          <summary>Voyage rules</summary>
-          <p id="deck-rules" hidden>
-            Salvage adds two cards to the shared deck. Each sailor holds two.
-            Play one and draw its replacement, or use a basic action and keep
-            both. When the draw pile runs out, shuffle the discard pile.
-          </p>
-          <p id="landing-rules" hidden>
-            On tide six, the swimmer can play Sounding line to mark a safe
-            channel. On tide seven, that route spares the hull and adds no cold.
-            The crew can also brace the raft or send the swimmer ahead.
-          </p>
-          <p>
-            Assign one swimmer and play one move per sailor in any order. The
-            swimmer gains 2 cold and recovers 1 ration. Each sailor on the raft
-            sheds 1 cold.
-          </p>
-          <p>
-            Spend a ration to remove 2 cold from anyone. Each brace blocks 1
-            hull damage this tide. The voyage ends if any sailor reaches 5 cold
-            or the raft reaches 0 hull after the tide resolves.
-          </p>
-        </details>
       </aside>
       <section class="table voyage-table" aria-label="Raft table">
         <p id="room-status" role="status"></p>
         <p id="instruction"></p>
         <div id="mode-panel" class="mode-panel" hidden>
           <details id="room-panel">
-            <summary id="room-label">Play with friends</summary>
+            <summary>Play with friends</summary>
             <div id="room-controls">
               <p>Share a private link with each friend.</p>
               <button id="host-two" type="button">Invite one friend</button>
@@ -102,26 +123,30 @@
             <small>You play Mara. Two bots join your crew.</small>
           </button>
         </div>
-        <section
-          id="crew-table"
-          class="play-area"
-          aria-labelledby="crew-table-heading"
-          hidden
-        >
+        <section id="tide-plays" aria-labelledby="tide-plays-heading" hidden>
+          <h2 id="tide-plays-heading">Played this tide</h2>
+          <ol id="crew-plays" aria-live="polite"></ol>
+        </section>
+        <p id="turn-feedback" role="status"></p>
+        <div id="tide-result" aria-live="polite" hidden></div>
+        <div id="personal-tray" class="play-area" hidden>
           <button
             id="place-card"
             class="drop-surface"
             type="button"
             aria-label="Play selected equipment card"
+            aria-describedby="tray-note"
             disabled
           ></button>
           <span class="water" aria-hidden="true"><i></i><i></i></span>
-          <h2 id="crew-table-heading">Crew plays</h2>
-          <ul id="crew-plays"></ul>
-          <p id="tray-note" role="status" hidden></p>
-        </section>
-        <p id="turn-feedback" role="status"></p>
-        <div id="tide-result" aria-live="polite" hidden></div>
+          <span class="tray-slot" aria-hidden="true"></span>
+          <div class="play-note">
+            <h2>Play a card</h2>
+            <p id="tray-note" role="status">
+              Drag a card here, or select one and use this tray.
+            </p>
+          </div>
+        </div>
         <div id="choices"></div>
         <details id="crew-assist" hidden>
           <summary id="assist-label">Help a waiting sailor</summary>
@@ -133,6 +158,61 @@
         </details>
       </section>
     </main>
+    <dialog
+      class="voyage-dialog"
+      id="voyage-entries"
+      aria-labelledby="entries-heading"
+    >
+      <form method="dialog" class="dialog-heading">
+        <h2 id="entries-heading">Voyage entries</h2>
+        <button type="submit">Close</button>
+      </form>
+      <p id="empty-entries">No entries yet.</p>
+      <ol id="entries"></ol>
+    </dialog>
+    <dialog
+      class="voyage-dialog"
+      id="voyage-rules"
+      aria-labelledby="rules-heading"
+    >
+      <form method="dialog" class="dialog-heading">
+        <h2 id="rules-heading">Voyage rules</h2>
+        <button type="submit">Close</button>
+      </form>
+      <p>
+        Assign one swimmer and play one move per sailor in any order. The
+        swimmer gains 2 cold and recovers 1 ration. Each sailor on the raft
+        sheds 1 cold.
+      </p>
+      <p>
+        Spend a ration to remove 2 cold from anyone. Each brace blocks 1 hull
+        damage this tide. The voyage ends if any sailor reaches 5 cold or the
+        raft reaches 0 hull after the tide resolves.
+      </p>
+      <p id="deck-rules" hidden>
+        Salvage adds two cards to the shared deck. Each sailor holds two. Play
+        one and draw its replacement, or use a basic action and keep both. When
+        the draw pile runs out, shuffle the discard pile.
+      </p>
+      <p id="landing-rules" hidden>
+        On tide six, the swimmer can play Sounding line to mark a safe channel.
+        On tide seven, that route spares the hull and adds no cold. The crew can
+        also brace the raft or send the swimmer ahead.
+      </p>
+    </dialog>
+    <dialog
+      class="voyage-dialog"
+      id="crew-invites"
+      aria-labelledby="invites-heading"
+    >
+      <form method="dialog" class="dialog-heading">
+        <h2 id="invites-heading">Crew invites</h2>
+        <button type="submit">Close</button>
+      </form>
+      <p>Send each private link to the player who will control that sailor.</p>
+      <div id="invite-links"></div>
+      <p id="invite-status" role="status"></p>
+    </dialog>
     <script type="module" src="./app.ts"></script>
   </body>
 </html>

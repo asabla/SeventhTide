@@ -64,20 +64,25 @@ let refreshing = false;
 let connectionFailed = false;
 let showLobby = !room && run.history.length === 0;
 let renderedHand: string | undefined;
-const tray = select("crew-table");
+const tray = select("personal-tray");
 const trayButton = select("place-card");
 if (!(trayButton instanceof HTMLButtonElement))
   throw new Error("Missing card control");
 const placeCard = trayButton;
 const trayNote = select("tray-note");
+const trayHint = trayNote.textContent;
 const choiceArea = select("choices");
 const roomPanel = select("room-panel");
 const modePanel = select("mode-panel");
 const shipLog = select("ship-log");
 const startSolo = select("start-solo");
+const openEntries = select("open-entries");
+const openRules = select("open-rules");
+const openInvites = select("open-invites");
 const resume = element("button", "Resume voyage with friends", "resume-room");
 resume.type = "button";
 resume.hidden = true;
+roomPanel.before(resume);
 const drag = cardDrag(tray);
 let selectedCard:
   | { button: HTMLButtonElement; moves: Move[]; targets: HTMLElement }
@@ -90,7 +95,7 @@ function clearCardSelection() {
   selectedCard = undefined;
   placeCard.disabled = true;
   tray.classList.remove("ready");
-  trayNote.hidden = true;
+  trayNote.textContent = trayHint;
 }
 
 function playSelectedCard() {
@@ -111,7 +116,6 @@ function playSelectedCard() {
   }
   placeCard.disabled = true;
   tray.classList.remove("ready");
-  trayNote.hidden = true;
   targets.replaceChildren(element("h3", "Choose a sailor"), options);
   options.querySelector("button")?.focus();
 }
@@ -134,7 +138,7 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
   const previous = turn;
   const joined = !previous;
   turn = next;
-  if (joined) roomControls(next);
+  if (joined) renderInvites(next);
   const finished = next.phase === "won" || next.phase === "lost";
   if (room && next.seat === 0 && (joined || finished))
     storeHostRoom(room, finished);
@@ -206,6 +210,8 @@ function act(id: string, source?: HTMLElement) {
   if (id === "again") {
     run = newRun();
     state = start(run.seed);
+    showLobby = true;
+    resume.hidden = !savedHostRoom();
   } else {
     const next = playWithBots(state, id, 1);
     state = next.state;
@@ -281,10 +287,11 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
   const sailor = s.crew[actor];
   if (!sailor || !actorOptions.length) return section;
   const water = actor === s.swimmer;
-  section.append(element("h2", `Your hand · ${sailor.name}`, "hand-heading"));
   if (usesCrewDeck()) {
     const held = turn ? turn.hands[actor] : handPreview(state.deck, actor);
     const deck = element("div", "", "equipment-cards");
+    deck.setAttribute("role", "group");
+    deck.setAttribute("aria-label", "Your cards");
     const targets = element("div", "", "equipment-targets");
     for (const card of held ?? []) {
       const variants = actorOptions.filter(
@@ -317,8 +324,7 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
             targets.replaceChildren();
             selectedCard = { button, moves: variants, targets };
             button.setAttribute("aria-pressed", "true");
-            trayNote.textContent = `${card.name} selected. Activate the tray to play it.`;
-            trayNote.hidden = false;
+            trayNote.textContent = `${card.name} selected.`;
             placeCard.disabled = false;
             tray.classList.add("ready");
           },
@@ -331,11 +337,6 @@ function renderHand(s: TableState, actor: number, actorOptions: Move[]) {
       }
       deck.append(button);
     }
-    const hasPlayableCard = actorOptions.some((move) => move.card);
-    trayNote.hidden = !hasPlayableCard;
-    if (hasPlayableCard)
-      trayNote.textContent =
-        "Drag a card here, or select a card and then this tray.";
     section.append(targets, deck);
     const basic = element("details", "", "basic-actions");
     basic.append(
@@ -433,16 +434,14 @@ function boarding(s: Pick<Voyage, "crew">, choices: Move[]) {
 }
 
 function showPlayMode() {
-  const container = showLobby ? modePanel : shipLog;
-  if (roomPanel.parentElement !== container) {
-    container.append(resume, roomPanel);
-  } else if (resume.parentElement !== container) {
-    roomPanel.before(resume);
-  }
-  startSolo.hidden = !showLobby;
   modePanel.hidden = !showLobby;
   shipLog.hidden = showLobby;
   choiceArea.hidden = showLobby;
+  const ready = !showLobby && (!room || Boolean(turn));
+  openEntries.hidden = !ready;
+  openRules.hidden = !ready;
+  openInvites.hidden =
+    !turn?.invites.length || turn.phase === "won" || turn.phase === "lost";
 }
 
 function renderAssists(s: TableState, players: number) {
@@ -490,11 +489,10 @@ function render(
     choiceArea.replaceChildren();
   }
   showPlayMode();
-  const main = select("heading").closest("main");
-  main?.toggleAttribute(
-    "data-playing",
-    s.phase === "cards" && options.length > 0,
-  );
+  select("heading")
+    .closest("main")
+    ?.toggleAttribute("data-table", s.phase === "cards" || s.phase === "event");
+  tray.hidden = s.phase !== "cards" || !options.some((move) => move.card);
   const sighted = s.channelMarked !== undefined && s.tide >= 6;
   select("scene").hidden = !sighted;
   select("landing-rules").hidden = s.channelMarked === undefined;
@@ -556,19 +554,15 @@ function render(
   }
   const feedback = select("turn-feedback");
   let turnText = "";
-  if (phase === "cards" || phase === "event") {
+  if (phase === "cards") {
     const waiting = s.crew
       .filter((_, i) => i < players && i !== seat && !s.acted.includes(i))
       .map((p) => p.name);
-    const pending =
-      phase === "event"
-        ? "All three sailors have played."
-        : options.length
-          ? "Your move."
-          : waiting.length
-            ? `Your turn is complete. Waiting for ${new Intl.ListFormat("en").format(waiting)}.`
-            : "The bots can take their turns.";
-    turnText = (s.acted.length ? (s.log.at(-1) ?? "") + " " : "") + pending;
+    if (options.length) turnText = tray.hidden ? "Your move." : "";
+    else
+      turnText = waiting.length
+        ? `Your turn is complete. Waiting for ${new Intl.ListFormat("en").format(waiting)}.`
+        : "The bots can take their turns.";
   }
   if (feedback.textContent !== turnText) feedback.textContent = turnText;
   if (phase === "board") {
@@ -585,16 +579,18 @@ function render(
   } else if (phase === "cards") {
     if (!keepHand) choiceArea.append(renderHand(s, seat, options));
   } else if (options.length) choiceArea.append(buttons(options));
-  else if (!room)
-    choiceArea.append(
-      buttons([
-        {
-          id: "again",
-          name: "Start another voyage",
-          detail: "Draw new salvage and tide events.",
-        },
-      ]),
-    );
+  else if (phase === "won" || phase === "lost") {
+    if (room) {
+      const link = element("a", "Return to Seventh Tide", "crew-return");
+      link.href = location.pathname;
+      choiceArea.append(link);
+    } else {
+      const restart = element("button", "Choose your crew", "crew-return");
+      restart.type = "button";
+      restart.addEventListener("click", () => act("again"));
+      choiceArea.append(restart);
+    }
+  }
   const crew = select("crew");
   crew.replaceChildren();
   s.crew.forEach((p, i) => {
@@ -622,9 +618,10 @@ function render(
   select("brace").textContent = String(
     phase === "cards" || phase === "event" ? s.guard : 0,
   );
-  select("entries").replaceChildren(
-    ...s.log.map((line) => element("li", line)),
-  );
+  const entries = select("entries");
+  if (entries.childElementCount !== s.log.length)
+    entries.replaceChildren(...s.log.map((line) => element("li", line)));
+  select("empty-entries").hidden = s.log.length > 0;
   renderTable(s, { seat, players }, previous, origin);
   renderAssists(s, players);
   if (previous) {
@@ -640,62 +637,48 @@ function render(
     else if (previous.phase === "board" && phase === "cards") playCue("rope");
   }
 }
-function soloLink() {
-  const link = element("a", "Return to solo voyage");
-  link.href = location.pathname;
-  return link;
+function renderInvites(snapshot: RoomSnapshot) {
+  const links = select("invite-links");
+  const status = select("invite-status");
+  snapshot.invites.forEach((token, i) => {
+    const name = snapshot.crew[i + 1]?.name;
+    const label = element("label", name + "’s invite link");
+    const field = element("input");
+    field.readOnly = true;
+    field.value = roomUrl({ id: snapshot.id, token });
+    field.addEventListener("focus", () => field.select());
+    label.append(field);
+    const copy = element("button", "Copy " + name + "’s link");
+    copy.type = "button";
+    copy.addEventListener("click", () => {
+      field.focus();
+      field.select();
+      if (!navigator.clipboard) {
+        status.textContent = "Copy the selected invite link.";
+        return;
+      }
+      void navigator.clipboard.writeText(field.value).then(
+        () => {
+          status.textContent = "Invite link copied.";
+        },
+        () => {
+          status.textContent = "Copy the selected invite link.";
+        },
+      );
+    });
+    links.append(label, copy);
+  });
 }
 
-function roomControls(snapshot: RoomSnapshot) {
-  const controls = select("room-controls");
-  const sailor = snapshot.crew[snapshot.seat]?.name ?? "";
-  const role =
-    snapshot.seat === 0 ? "Friends’ voyage · Host" : "Playing as " + sailor;
-  select("room-label").textContent = role;
-  controls.replaceChildren();
-  if (snapshot.invites.length) {
-    controls.append(
-      element(
-        "p",
-        "Send each private link to the player who will control that sailor.",
-      ),
-    );
-    snapshot.invites.forEach((token, i) => {
-      const label = element(
-        "label",
-        snapshot.crew[i + 1]?.name + "’s invite link",
-      );
-      const field = element("input");
-      field.readOnly = true;
-      field.value = roomUrl({ id: snapshot.id, token });
-      field.addEventListener("focus", () => field.select());
-      label.append(field);
-      const copy = element(
-        "button",
-        "Copy " + snapshot.crew[i + 1]?.name + "’s link",
-      );
-      copy.type = "button";
-      copy.addEventListener("click", () => {
-        field.focus();
-        field.select();
-        if (!navigator.clipboard) {
-          select("room-status").textContent = "Copy the selected invite link.";
-          return;
-        }
-        void navigator.clipboard.writeText(field.value).then(
-          () => {
-            select("room-status").textContent = "Invite link copied.";
-          },
-          () => {
-            select("room-status").textContent =
-              "Copy the selected invite link.";
-          },
-        );
-      });
-      controls.append(label, copy);
-    });
-  }
-  controls.append(soloLink());
+for (const [button, id] of [
+  [openEntries, "voyage-entries"],
+  [openRules, "voyage-rules"],
+  [openInvites, "crew-invites"],
+] as const) {
+  const dialog = select(id);
+  if (!(dialog instanceof HTMLDialogElement))
+    throw new Error("Missing voyage dialog: " + id);
+  button.addEventListener("click", () => dialog.showModal());
 }
 
 soundToggle(select("sound-toggle"), select("sound-state"));
@@ -705,9 +688,6 @@ if (room) {
     if (/^#[\w-]{43}$/.test(location.hash)) location.reload();
   });
   showPlayMode();
-  roomPanel.setAttribute("open", "");
-  select("room-label").textContent = "Crew room";
-  select("room-controls").replaceChildren(soloLink());
   select("heading").textContent = "Joining the crew";
   void refreshRoom();
   window.setInterval(() => void refreshRoom(), 2500);
