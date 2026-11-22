@@ -214,6 +214,124 @@ await test("the crew hears the same buoy cadence and the host settles the chain 
   assert.deepEqual((await read(guest)).tideResult, next.tideResult);
 });
 
+await test("guests can recommend, change, and withdraw routes until the host settles the tide", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 3 }),
+    }),
+  );
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const host = room.token;
+  const ivo: unknown = room.invites[0];
+  const nell: unknown = room.invites[1];
+  assert.ok(typeof ivo === "string" && typeof nell === "string");
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id=$1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  const url = base + "/" + room.id;
+  const read = (token: string) =>
+    fetch(url, { headers: { Authorization: "Bearer " + token } }).then(
+      readSnapshot,
+    );
+  const request = (
+    token: string,
+    endpoint: string,
+    method: string,
+    body: object,
+  ) =>
+    fetch(url + "/" + endpoint, {
+      method,
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  const recommend = (
+    token: string,
+    expectedRevision: number,
+    routeId: string | null,
+  ) =>
+    request(token, "route-recommendation", "PUT", {
+      expectedRevision,
+      routeId,
+    });
+  const commit = (token: string, expectedRevision: number, moveId: string) =>
+    request(token, "moves", "POST", { expectedRevision, moveId });
+
+  assert.deepEqual(room.routeRecommendations, [null, null, null]);
+  assert.equal((await recommend(ivo, 0, "hull")).status, 409);
+  assert.equal((await recommend("", 0, "hull")).status, 401);
+  const history = ["locker", "swim-1", "mitts-0", "float-1", "lash-2"];
+  await pool.query("UPDATE voyages SET seed=256, moves=$1 WHERE id=$2", [
+    history,
+    room.id,
+  ]);
+  const revision = history.length;
+  assert.equal((await recommend(host, revision, "chain")).status, 403);
+  assert.equal((await recommend(nell, revision - 1, "hull")).status, 409);
+  assert.equal((await recommend(ivo, revision, "decoy")).status, 422);
+  const simultaneous = await Promise.all([
+    recommend(ivo, revision, "chain"),
+    recommend(nell, revision, "hull"),
+  ]);
+  for (const response of simultaneous) {
+    assert.equal(response.status, 200);
+    assert.equal((await readSnapshot(response)).revision, revision);
+  }
+  const shared = await read(host);
+  assert.equal(shared.crewRevision, 2);
+  assert.deepEqual(shared.routeRecommendations, [null, "chain", "hull"]);
+  assert.deepEqual(
+    (await read(nell)).routeRecommendations,
+    shared.routeRecommendations,
+  );
+  const repeat = await readSnapshot(await recommend(ivo, revision, "chain"));
+  assert.equal(repeat.crewRevision, shared.crewRevision);
+  const changed = await readSnapshot(await recommend(ivo, revision, "hull"));
+  assert.deepEqual(changed.routeRecommendations, [null, "hull", "hull"]);
+  const cleared = await readSnapshot(await recommend(nell, revision, null));
+  assert.deepEqual(cleared.routeRecommendations, [null, "hull", null]);
+  assert.equal((await commit(ivo, revision, "hull")).status, 422);
+  const [resolution, late] = await Promise.all([
+    commit(host, revision, "chain"),
+    recommend(nell, revision, "hull"),
+  ]);
+  assert.equal(resolution.status, 200);
+  assert.ok(late.status === 200 || late.status === 409);
+  const next = await readSnapshot(resolution);
+  assert.equal(next.phase, "board");
+  assert.equal(next.revision, revision + 1);
+  assert.deepEqual((await read(ivo)).routeRecommendations, [null, null, null]);
+  assert.ok(isRecord(next.tideResult));
+  assert.deepEqual(next.tideResult.route, { kind: "chain", cold: 1 });
+  const nextTide = [
+    [host, "swim-0"],
+    [host, "float-0"],
+    [ivo, "lash-1"],
+    [nell, "lash-2"],
+  ] as const;
+  for (const [offset, [actor, moveId]] of nextTide.entries())
+    assert.equal(
+      (await commit(actor, next.revision + offset, moveId)).status,
+      200,
+    );
+  const nextDecision = await read(host);
+  assert.equal(nextDecision.phase, "event");
+  assert.ok(nextDecision.choices.some(({ id }) => id === "hull"));
+  assert.equal((await recommend(ivo, revision, "hull")).status, 409);
+  assert.deepEqual((await read(host)).routeRecommendations, [null, null, null]);
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

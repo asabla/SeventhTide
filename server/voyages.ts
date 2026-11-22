@@ -35,6 +35,7 @@ interface Row {
   crew_revision: number;
   assisted_tides: Record<number, number>;
   crew_signals: Partial<Record<number, CrewSignal>>;
+  route_recommendations: Partial<Record<number, string>>;
   guests: number;
   seat: number;
 }
@@ -79,6 +80,14 @@ function snapshot(row: Row, state: Voyage, token: string) {
     signals: state.crew.map((_, i) =>
       state.phase === "cards" || state.phase === "event"
         ? (row.crew_signals[i] ?? null)
+        : null,
+    ),
+    routeRecommendations: state.crew.map((_, seat) =>
+      row.crew_launched &&
+      state.phase === "event" &&
+      seat > 0 &&
+      seat <= row.guests
+        ? (row.route_recommendations[seat] ?? null)
         : null,
     ),
     assistedTide: row.assisted_tides[row.seat] ?? null,
@@ -139,7 +148,7 @@ const params = {
 };
 
 const crewColumns =
-  "crew_launched, joined_mask, crew_revision, assisted_tides, crew_signals";
+  "crew_launched, joined_mask, crew_revision, assisted_tides, crew_signals, route_recommendations";
 const roomColumns = `id, rules_version, seed, moves, revision, volunteer_mask, offer_revision,
   ${crewColumns}, cardinality(guest_digests) AS guests`;
 type CrewState = Pick<
@@ -149,6 +158,7 @@ type CrewState = Pick<
   | "crew_revision"
   | "assisted_tides"
   | "crew_signals"
+  | "route_recommendations"
 >;
 
 function digest(token: string) {
@@ -355,6 +365,63 @@ export async function voyageRoutes(
 
   app.put<{
     Params: { id: string };
+    Body: { expectedRevision: number; routeId: string | null };
+  }>(
+    "/:id/route-recommendation",
+    {
+      schema: {
+        params,
+        body: {
+          type: "object",
+          required: ["expectedRevision", "routeId"],
+          additionalProperties: false,
+          properties: {
+            expectedRevision: {
+              type: "integer",
+              minimum: 0,
+              maximum: 2147483647,
+            },
+            routeId: {
+              anyOf: [
+                { type: "string", minLength: 1, maxLength: 64 },
+                { type: "null" },
+              ],
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row, token } = session;
+      const { expectedRevision, routeId } = request.body;
+      if (row.seat === 0)
+        return reply.code(403).send({ error: "The host chooses the route." });
+      const conflict = () =>
+        reply.code(409).send({ error: "The route decision has changed." });
+      if (!row.crew_launched || row.revision !== expectedRevision)
+        return conflict();
+      const state = replay(row);
+      if (state.phase !== "event") return conflict();
+      if (routeId !== null && !moves(state).some(({ id }) => id === routeId))
+        return reply.code(422).send({ error: "This route is unavailable." });
+      const result = await pool.query<Row>(
+        `UPDATE voyages SET
+          route_recommendations = CASE WHEN $4::text IS NULL THEN route_recommendations - $3::text
+            ELSE route_recommendations || jsonb_build_object($3::text, $4::text) END,
+          crew_revision = crew_revision + CASE WHEN route_recommendations ->> $3::text IS DISTINCT FROM $4::text THEN 1 ELSE 0 END
+          WHERE id = $1 AND revision = $2 RETURNING ${roomColumns}, $3::integer AS seat`,
+        [row.id, expectedRevision, row.seat, routeId],
+      );
+      const saved = result.rows[0];
+      if (!saved) return conflict();
+      return snapshot(saved, state, token);
+    },
+  );
+
+  app.put<{
+    Params: { id: string };
     Body: { expectedRevision: number; sailor: number; offer: boolean };
   }>(
     "/:id/volunteers",
@@ -474,7 +541,8 @@ export async function voyageRoutes(
       >(
         `UPDATE voyages SET moves = moves || $1::text[], volunteer_mask = 0,
           assisted_tides = assisted_tides || $5::jsonb,
-          crew_signals = CASE WHEN $6::boolean THEN '{}'::jsonb ELSE crew_signals END
+          crew_signals = CASE WHEN $6::boolean THEN '{}'::jsonb ELSE crew_signals END,
+          route_recommendations = CASE WHEN $6::boolean THEN '{}'::jsonb ELSE route_recommendations END
           WHERE id = $2 AND revision = $3 AND offer_revision = $4
           RETURNING revision, volunteer_mask, ${crewColumns}`,
         [

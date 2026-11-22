@@ -1594,11 +1594,12 @@ body.voyage {
     serif;
 }
 
-.chart-stops button.chart-stop:is(:hover, :focus-visible) {
+.chart-stops
+  button.chart-stop:is(:hover, :focus-visible, [aria-pressed="true"]) {
   background: #89633623;
 }
 
-.chart-stops button.chart-stop:hover::before {
+.chart-stops button.chart-stop:is(:hover, [aria-pressed="true"])::before {
   border-color: #4d2b1b;
   background: #8f4f2a;
 }
@@ -1663,6 +1664,14 @@ body.voyage {
     0 0 10px #0a0e09;
 }
 
+.encounter-decision:has(.route-pennants) {
+  align-items: stretch;
+}
+
+.encounter-response:has(.route-pennants) {
+  grid-template-rows: auto auto 1fr auto;
+}
+
 .encounter-response > img {
   width: clamp(64px, 10vw, 94px);
   max-width: 100%;
@@ -1680,7 +1689,9 @@ body.voyage {
     serif;
 }
 
-.encounter-decision > button.encounter-response:is(:hover, :focus-visible) img {
+.encounter-decision
+  > button.encounter-response:is(:hover, :focus-visible, [aria-pressed="true"])
+  img {
   border-color: #fbd49a;
   filter: brightness(1.16);
 }
@@ -1704,6 +1715,42 @@ body.voyage {
 
 .encounter-decision[data-encounter="reef"] .encounter-response {
   white-space: pre-line;
+}
+
+.route-pennants {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 5px;
+  min-height: 24px;
+}
+
+.encounter-response .route-pennants {
+  justify-content: center;
+}
+
+.route-pennant {
+  --signal-cloth: #784d37;
+  --signal-shadow: #482c24;
+
+  position: relative;
+  isolation: isolate;
+  padding: 5px 13px 5px 12px;
+  color: #fff0cb;
+  font:
+    700 0.83rem/1 Georgia,
+    serif;
+  text-shadow: 0 1px 2px #1a120e;
+  white-space: nowrap;
+}
+
+.route-pennant[data-seat="2"] {
+  --signal-cloth: #365954;
+  --signal-shadow: #223936;
+}
+
+.route-pennant::after {
+  inset-inline-start: 4px;
 }
 
 .buoy-cadence {
