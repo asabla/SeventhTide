@@ -13,8 +13,8 @@ export { handPreview, equipmentPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 11;
-export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+export const rulesVersion = 12;
+export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -317,8 +317,9 @@ export function underRaft(s: Voyage) {
 }
 
 function chainCost(s: Voyage) {
-  const braced = bellBuoy(s) === "chain";
-  return { cold: braced ? 1 : 2, ration: swimmerRation + Number(braced) };
+  if (bellBuoy(s) !== "chain") return { cold: 2, ration: swimmerRation };
+  const extraRations = (s.rulesVersion ?? 1) >= 12 ? 2 : 1;
+  return { cold: 1, ration: swimmerRation + extraRations };
 }
 
 export function currentEvent(voyage: Voyage) {

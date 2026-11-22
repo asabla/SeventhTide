@@ -5,6 +5,7 @@ import {
   currentEvent,
   moves,
   play,
+  previewRoutes,
   start,
 } from "@seventh-tide/rules";
 
@@ -22,18 +23,31 @@ await test("the true chain rewards bracing and reduces the cost of following it"
     moves(event).map(({ id }) => id),
     ["hull", "chain"],
   );
-  assert.match(moves(event)[1]?.detail ?? "", /3 cold and recovers 2 rations/);
+  assert.match(moves(event)[1]?.detail ?? "", /3 cold and recovers 3 rations/);
   assert.match(moves(event)[0]?.detail ?? "", /^No hull damage\./);
+  assert.deepEqual(
+    previewRoutes(event).map(({ forecast }) => forecast.ration),
+    [1, 3],
+  );
 
   const follow = play(event, "chain");
   assert.deepEqual(follow.tideResult?.route, { kind: "chain", cold: 1 });
   assert.deepEqual(follow.tideResult?.exposure, [0, 2, -1]);
-  assert.equal(follow.tideResult?.ration, 2);
-  assert.deepEqual(follow.crew[1], { name: "Ivo", cold: 3, food: 3 });
+  assert.equal(follow.tideResult?.ration, 3);
+  assert.deepEqual(follow.crew[1], { name: "Ivo", cold: 3, food: 4 });
   assert.equal(follow.hull, event.hull);
   assert.equal(follow.tide, 2);
   assert.equal(bellBuoy(follow), undefined);
   assert.equal(play(event, "hull").hull, event.hull);
+});
+
+await test("a saved version-eleven voyage keeps its original chain reward", () => {
+  const event = braced.reduce(play, start(256, 11));
+  const route = previewRoutes(event).find(({ id }) => id === "chain");
+  assert.equal(route?.forecast.ration, 2);
+  const result = play(event, "chain");
+  assert.equal(result.tideResult?.ration, 2);
+  assert.deepEqual(result.crew[1], { name: "Ivo", cold: 3, food: 3 });
 });
 
 await test("following the false bell adds cold and gives the usual ration", () => {

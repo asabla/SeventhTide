@@ -92,7 +92,7 @@ On tide six, the cutter’s lamp holds steady while a pale light moves against t
 
 During **The second wake**, hold the line and let brace absorb the pull, or follow the pull and take extra cold on the swimmer. A sailor on the raft can ring the Wreck bell to unlock **Haul in on the echo**. This spares the hull and reduces the swimmer’s exposure from 2 cold to 1. The sailor who rings the bell still takes the card’s cost. The swimmer recovers one ration on every route.
 
-During **The bell buoy**, brace to feel the chain in the timbers. Two knocks before the bell tell the crew the chain is real. Follow it to recover 2 rations at the cost of 1 extra cold on the swimmer. If the bell comes first, following it costs 2 extra cold and yields 1 ration. Break away to let brace absorb the hull damage and give the swimmer normal exposure and recovery.
+During **The bell buoy**, brace to feel the chain in the timbers. Two knocks before the bell tell the crew the chain is real. Follow it to recover 3 rations at the cost of 1 extra cold on the swimmer. Voyages through rules version 11 recover 2 rations on this route. If the bell comes first, following it costs 2 extra cold and yields 1 ration. Break away to let brace absorb the hull damage and give the swimmer normal exposure and recovery.
 
 Run `mise exec -- node verification/landing/simulate.ts` to compare spending and saving the line on the same 1,024 starting deals. The output includes replayable voyages and a separate count of landings by crews that never held a line.
 

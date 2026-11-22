@@ -188,7 +188,9 @@ await test("the crew hears the same buoy cadence and the host settles the chain 
         (route: unknown) =>
           isRecord(route) &&
           route.id === "chain" &&
-          route.name === "Follow the chain",
+          route.name === "Follow the chain" &&
+          isRecord(route.forecast) &&
+          route.forecast.ration === 3,
       ),
     );
   }
@@ -211,7 +213,7 @@ await test("the crew hears the same buoy cadence and the host settles the chain 
   assert.equal(next.buoy, undefined);
   assert.ok(isRecord(next.tideResult));
   assert.deepEqual(next.tideResult.route, { kind: "chain", cold: 1 });
-  assert.equal(next.tideResult.ration, 2);
+  assert.equal(next.tideResult.ration, 3);
   assert.deepEqual((await read(guest)).tideResult, next.tideResult);
 });
 

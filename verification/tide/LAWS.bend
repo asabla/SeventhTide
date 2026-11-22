@@ -43,10 +43,11 @@ law legacy_wake_keeps_routes:
   { Encounter.routes(Encounter.SecondWake{}, 5n, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
 
 law echo_shelters_swimmer:
+  for version: Nat
   for brace: Nat
   for incoming: Nat
   for dive_cold: Nat
-  { Encounter.effects(Encounter.Decoy{}, brace, incoming, dive_cold) == Encounter.Effects{0n, 0n, 1n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Decoy{}, brace, version, incoming, dive_cold) == Encounter.Effects{0n, 0n, 1n, 1n} : Encounter.Effects }
 
 law buoy_routes:
   for since: Nat
@@ -60,15 +61,23 @@ law legacy_buoy_keeps_routes:
   { Encounter.routes(Encounter.BellBuoy{}, 6n, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, False{}, False{}, False{}, False{}} : Encounter.Routes }
 
 law buoy_braced_chain:
+  for since: Nat
   for brace: Nat
   for incoming: Nat
   for dive_cold: Nat
-  { Encounter.effects(Encounter.Chain{}, 1n+brace, incoming, dive_cold) == Encounter.Effects{0n, 1n, 2n, 2n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Chain{}, 1n+brace, 12n+since, incoming, dive_cold) == Encounter.Effects{0n, 1n, 2n, 3n} : Encounter.Effects }
 
-law buoy_false_bell:
+law archived_buoy_braced_chain:
+  for brace: Nat
   for incoming: Nat
   for dive_cold: Nat
-  { Encounter.effects(Encounter.Chain{}, 0n, incoming, dive_cold) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Chain{}, 1n+brace, 11n, incoming, dive_cold) == Encounter.Effects{0n, 1n, 2n, 2n} : Encounter.Effects }
+
+law buoy_false_bell:
+  for version: Nat
+  for incoming: Nat
+  for dive_cold: Nat
+  { Encounter.effects(Encounter.Chain{}, 0n, version, incoming, dive_cold) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
 
 law hull_route_always_available:
   for plan: Encounter.Routes
@@ -96,18 +105,21 @@ law landing_routes_follow_mark:
   { Encounter.routes(Encounter.Landing{}, version, ring, marked, False{}, False{}) == Encounter.Routes{False{}, False{}, True{}, marked, False{}, False{}, False{}} : Encounter.Routes }
 
 law marked_channel_spares_the_hull:
+  for version: Nat
   for brace: Nat
   for incoming: Nat
   for dive_cold: Nat
-  { Encounter.effects(Encounter.Channel{}, brace, incoming, dive_cold) == Encounter.Effects{0n, 0n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Channel{}, brace, version, incoming, dive_cold) == Encounter.Effects{0n, 0n, 2n, 1n} : Encounter.Effects }
 
 law forced_landing_uses_brace:
+  for version: Nat
   for brace: Nat
-  { Encounter.effects(Encounter.Hull{}, brace, 4n, 2n) == Encounter.Effects{Nat.sub(4n, brace), 0n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Hull{}, brace, version, 4n, 2n) == Encounter.Effects{Nat.sub(4n, brace), 0n, 2n, 1n} : Encounter.Effects }
 
 law scouting_spares_the_hull_at_a_cold_cost:
+  for version: Nat
   for brace: Nat
-  { Encounter.effects(Encounter.Dive{}, brace, 4n, 2n) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Dive{}, brace, version, 4n, 2n) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
 
 law fatal_cold:
   for excess: Nat
@@ -186,16 +198,18 @@ law legacy_crew_cannot_pry:
   { Encounter.grip_open(True{}, True{}, 7n) == False{} : Bool }
 
 law prying_only_costs_normal_exposure:
+  for version: Nat
   for brace: Nat
   for incoming: Nat
   for extra: Nat
-  { Encounter.effects(Encounter.Pry{}, brace, incoming, extra) == Encounter.Effects{0n, 0n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Pry{}, brace, version, incoming, extra) == Encounter.Effects{0n, 0n, 2n, 1n} : Encounter.Effects }
 
 law a_cut_timber_costs_one_hull_despite_brace:
+  for version: Nat
   for brace: Nat
   for incoming: Nat
   for extra: Nat
-  { Encounter.effects(Encounter.Cut{}, brace, incoming, extra) == Encounter.Effects{1n, 0n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Cut{}, brace, version, incoming, extra) == Encounter.Effects{1n, 0n, 2n, 1n} : Encounter.Effects }
 
 law locker_has_two_routes:
   for since: Nat
@@ -209,16 +223,18 @@ law old_voyage_cannot_haul:
   { Encounter.can_haul(Encounter.DriftingLocker{}, 8n) == False{} : Bool }
 
 law hauling_costs_one_extra_cold:
+  for version: Nat
   for brace: Nat
   for incoming: Nat
   for extra: Nat
-  { Encounter.effects(Encounter.HaulLocker{}, brace, incoming, extra) == Encounter.Effects{0n, 1n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.HaulLocker{}, brace, version, incoming, extra) == Encounter.Effects{0n, 1n, 2n, 1n} : Encounter.Effects }
 
 law leaving_costs_normal_exposure:
+  for version: Nat
   for brace: Nat
   for incoming: Nat
   for extra: Nat
-  { Encounter.effects(Encounter.LeaveLocker{}, brace, incoming, extra) == Encounter.Effects{0n, 0n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.LeaveLocker{}, brace, version, incoming, extra) == Encounter.Effects{0n, 0n, 2n, 1n} : Encounter.Effects }
 
 law surviving_haul_opens_recovery:
   for later: Nat
@@ -275,10 +291,11 @@ law archived_reef_never_opens_echo_crossing:
   { Encounter.reef_echo(True{}, Encounter.RaftBell{}, 9n) == False{} : Bool }
 
 law echo_crossing_costs_one_hull_and_normal_exposure:
+  for version: Nat
   for brace: Nat
   for incoming: Nat
   for extra: Nat
-  { Encounter.effects(Encounter.EchoCrossing{}, brace, incoming, extra) == Encounter.Effects{1n, 0n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.EchoCrossing{}, brace, version, incoming, extra) == Encounter.Effects{1n, 0n, 2n, 1n} : Encounter.Effects }
 
 law reef_lure_uses_the_bells_action:
   { Encounter.reef_bell_brace(True{}) == 0n : Nat }
