@@ -7,7 +7,7 @@ import {
   type Voyage,
 } from "@seventh-tide/rules";
 import { equipmentImage } from "./equipment-art.ts";
-import { cardDrag, equipmentCard } from "./cards.ts";
+import { cardDrag, cardImage, equipmentCard } from "./cards.ts";
 
 function required(id: string) {
   const node = document.getElementById(id);
@@ -118,7 +118,7 @@ function renderHand() {
     if (move.actor !== 0 || !move.card) continue;
     const image = equipmentImage(move.card, water);
     if (!image) throw new Error("Missing study illustration for " + move.name);
-    const button = equipmentCard(move.name, move.detail, image);
+    const button = equipmentCard(move.name, move.detail, cardImage(image));
     drag.connect(
       button,
       () => selectCard({ button, move, image }),
