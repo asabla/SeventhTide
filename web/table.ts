@@ -159,11 +159,53 @@ function tideResult(s: TableState, previous?: TableState) {
   details.append(exposure);
 
   const heading = element("h3", `Tide ${result.tide} result`);
+  const loss = s.phase === "lost" ? lossDetails(s) : [];
   section.replaceChildren(
     heading,
+    ...loss,
     element("p", `${result.event} · ${result.choice}`),
     details,
   );
+}
+
+function lossDetails(s: TableState) {
+  const coldSeats = s.crew.flatMap(({ cold }, seat) =>
+    cold >= coldLimit ? [seat] : [],
+  );
+  const lostHull = s.hull === 0;
+  const causes = [
+    ...(lostHull ? [`The raft reached 0/${maxHull} hull.`] : []),
+    ...coldSeats.map((seat) => {
+      const sailor = s.crew[seat];
+      return `${sailor?.name} reached ${sailor?.cold}/${coldLimit} cold.`;
+    }),
+  ];
+  const summary = element("p", causes.join(" "), "loss-summary");
+  const costs = element("ul", "", "loss-costs");
+  for (const play of s.plays) {
+    const changes = play.changes.filter(
+      ({ sailor, resource, amount }) =>
+        (lostHull && resource === "hull" && amount < 0) ||
+        (resource === "cold" &&
+          sailor !== null &&
+          coldSeats.includes(sailor) &&
+          amount > 0),
+    );
+    if (changes.length)
+      costs.append(
+        element(
+          "li",
+          `${s.crew[play.actor]?.name} played ${play.name}. ${changes.map((change) => changeText(s, change)).join(", ")}.`,
+        ),
+      );
+  }
+  return costs.childElementCount
+    ? [
+        summary,
+        element("h4", "Costs from the crew’s plays", "loss-costs-heading"),
+        costs,
+      ]
+    : [summary];
 }
 
 function routeBeats({ route }: TideResult, swimmer: string | undefined) {
