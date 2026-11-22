@@ -12,8 +12,8 @@ export { handPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 5;
-export type RulesVersion = 1 | 2 | 3 | 4 | 5;
+export const rulesVersion = 6;
+export type RulesVersion = 1 | 2 | 3 | 4 | 5 | 6;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -64,6 +64,7 @@ export interface TideResult {
   route:
     | { kind: "hull"; incoming: number; blocked: number; lost: number }
     | { kind: "dive"; cold: number }
+    | { kind: "decoy" }
     | { kind: "channel" };
   exposure: number[];
   ration: number;
@@ -93,6 +94,9 @@ export const maxHull = 5;
 export const coldLimit = 5;
 export const swimmerRation = 1;
 export const swimmerCold = 2;
+const shelteredCold = swimmerCold - 1;
+const secondWakeTitle = "The second wake";
+export const wreckBellWakeEffect = "Draw the wake away.";
 
 const salvage = [
   {
@@ -150,7 +154,7 @@ const waters: TideEvent[] = [
     1,
   ],
   [
-    "The second wake",
+    secondWakeTitle,
     "Another wake follows your own.",
     "Something pulls on the swimmer’s line.",
     2,
@@ -183,9 +187,35 @@ function canMarkChannel(s: Voyage, card: CardId, sailor: number) {
   );
 }
 
+export function secondWake(s: Voyage): "drawn-off" | "following" | undefined {
+  if (
+    (s.rulesVersion ?? 1) < 6 ||
+    s.events[s.tide - 1]?.[0] !== secondWakeTitle ||
+    (s.phase !== "board" && s.phase !== "cards" && s.phase !== "event")
+  )
+    return undefined;
+  return s.swimmer !== null &&
+    s.plays.some(({ card, actor }) => card === "bell" && actor !== s.swimmer)
+    ? "drawn-off"
+    : "following";
+}
+
 export function currentEvent(voyage: Voyage) {
-  const event = voyage.events[voyage.tide - 1];
+  let event = voyage.events[voyage.tide - 1];
   if (!event) throw new RangeError("Unknown tide: " + voyage.tide);
+  const wake = secondWake(voyage);
+  if (wake)
+    event = [
+      event[0],
+      wake === "drawn-off"
+        ? "The wake turns toward the bell. The swimmer can come in closer."
+        : "Another wake follows your own. Ring the Wreck bell from the raft to draw it away.",
+      wake === "drawn-off"
+        ? "The wake veers toward the bell’s echo. The line goes slack."
+        : "The line jerks taut. A shadow passes under the swimmer.",
+      event[3],
+      event[4],
+    ];
   if (voyage.channelMarked !== undefined && voyage.tide === 6) {
     const sighting = voyage.channelMarked
       ? "The swimmer has marked the channel to the rescue cutter."
@@ -328,6 +358,9 @@ export function moves(s: Voyage): Move[] {
             effect.text +
             (canMarkChannel(s, card, i)
               ? " Mark the safe channel for tide seven."
+              : "") +
+            (card === "bell" && i !== s.swimmer && secondWake(s) === "following"
+              ? " " + wreckBellWakeEffect
               : ""),
           id: card + "-" + i,
         };
@@ -353,8 +386,18 @@ export function moves(s: Voyage): Move[] {
         });
       return hand;
     });
-  if (s.phase === "event" && s.swimmer !== null)
+  if (s.phase === "event" && s.swimmer !== null) {
+    const wake = secondWake(s);
     return [
+      ...(wake === "drawn-off"
+        ? [
+            {
+              id: "decoy",
+              name: "Haul in on the echo",
+              detail: `Lose 0 hull. ${crewMember(s, s.swimmer).name} takes only ${shelteredCold} cold from exposure.`,
+            },
+          ]
+        : []),
       ...(s.tide === 7 && s.channelMarked
         ? [
             {
@@ -367,7 +410,11 @@ export function moves(s: Voyage): Move[] {
         : []),
       {
         id: "hull",
-        name: s.tide === 7 ? "Force a landing" : "Let the raft take it",
+        name: wake
+          ? "Hold the line"
+          : s.tide === 7
+            ? "Force a landing"
+            : "Let the raft take it",
         detail:
           "Lose " +
           Math.max(0, currentEvent(s)[3] - s.guard) +
@@ -375,8 +422,9 @@ export function moves(s: Voyage): Move[] {
       },
       {
         id: "dive",
-        name:
-          s.tide === 7
+        name: wake
+          ? "Follow the pull"
+          : s.tide === 7
             ? s.channelMarked === undefined
               ? "Follow the swimmer"
               : "Scout the reef"
@@ -388,6 +436,7 @@ export function moves(s: Voyage): Move[] {
           " extra cold.",
       },
     ];
+  }
   return [];
 }
 
@@ -518,10 +567,14 @@ export function play(state: Voyage, moveId: string): Voyage {
     } else if (action === "dive") {
       cold(s.swimmer, extraCold);
       route = { kind: "dive", cold: extraCold };
+    } else if (action === "decoy") {
+      route = { kind: "decoy" };
     }
+    const swimmerExposure =
+      route.kind === "decoy" ? shelteredCold : swimmerCold;
     const exposure = s.crew.map((sailor, i) => {
       const before = sailor.cold;
-      cold(i, i === s.swimmer ? swimmerCold : -1);
+      cold(i, i === s.swimmer ? swimmerExposure : -1);
       return sailor.cold - before;
     });
     crewMember(s, s.swimmer).food += swimmerRation;

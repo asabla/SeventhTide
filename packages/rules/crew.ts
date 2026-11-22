@@ -3,6 +3,7 @@ import {
   currentEvent,
   moves,
   play,
+  secondWake,
   swimmerCold,
   type Move,
   type Voyage,
@@ -47,13 +48,18 @@ export function assistSeats(state: Voyage, seat: number, players: number) {
 function conditionScore(state: Voyage, exposure: boolean) {
   if (state.phase === "won") return 1_000;
   if (state.phase === "lost") return -1_000;
+  const swimmerExposure =
+    swimmerCold - Number(secondWake(state) === "drawn-off");
   return (
     state.hull * 7 +
     (state.hull === 0 ? -35 : 0) +
     (state.channelMarked ? 7 : 0) +
     state.crew.reduce((score, sailor, i) => {
       const cold = exposure
-        ? Math.max(0, sailor.cold + (i === state.swimmer ? swimmerCold : -1))
+        ? Math.max(
+            0,
+            sailor.cold + (i === state.swimmer ? swimmerExposure : -1),
+          )
         : sailor.cold;
       return (
         score +

@@ -5,6 +5,7 @@ import {
   handPreview,
   moves,
   play,
+  rulesVersion,
   start,
 } from "@seventh-tide/rules";
 
@@ -27,7 +28,7 @@ await test("version-one fixture preserves the original hands and outcome", () =>
       [0, 0],
     ],
   );
-  assert.throws(() => start(1, 6), /Unsupported/);
+  assert.throws(() => start(1, rulesVersion + 1), /Unsupported/);
 });
 
 await test("salvage changes the deck and only the played card is replaced", () => {

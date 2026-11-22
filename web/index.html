@@ -165,14 +165,22 @@
     </header>
     <div class="scene" id="scene" hidden>
       <img
+        id="landing-art"
         src="./assets/answering-light.jpg"
         alt="An amber lantern hangs from a rescue cutter. A pale lantern floats alone across the reef."
+      />
+      <img
+        id="wake-art"
+        src="./assets/second-wake.webp"
+        alt="A pale wake curls around a tethered swimmer. A vast shadow lies under the foam."
+        hidden
       />
       <div id="sea" aria-hidden="true">
         <div id="lantern-glows" hidden>
           <span class="cutter-glow"></span>
           <span class="drifting-glow"></span>
         </div>
+        <div id="wake-motion" hidden><span></span></div>
       </div>
     </div>
     <main class="board voyage-board">
@@ -329,6 +337,11 @@
         On tide six, the swimmer can play Sounding line to mark a safe channel.
         On tide seven, that route spares the hull and adds no cold. The crew can
         also brace the raft or send the swimmer ahead.
+      </p>
+      <p id="wake-rules" hidden>
+        During The second wake, a sailor on the raft can ring the Wreck bell.
+        Haul in on the echo to spare the hull and give the swimmer only 1 cold
+        from exposure. The swimmer still recovers 1 ration.
       </p>
     </dialog>
     <dialog

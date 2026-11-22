@@ -1,3 +1,4 @@
+import { wreckBellWakeEffect } from "@seventh-tide/rules";
 import { element } from "./dom.ts";
 
 export function cardFace<K extends "button" | "div">(
@@ -19,20 +20,22 @@ export function cardImage(src: string) {
   return art;
 }
 
+function isEffect(line: string) {
+  return (
+    line === wreckBellWakeEffect || line.startsWith("Mark the safe channel")
+  );
+}
+
 export function equipmentCard(name: string, detail: string, art?: HTMLElement) {
   const [action, effect, ...rest] = detail.split(/(?<=\.)\s+/);
-  const costs = rest.filter(
-    (line) => !line.startsWith("Mark the safe channel"),
-  );
+  const costs = rest.filter((line) => !isEffect(line));
   const button = cardFace("button", name, art);
   button.type = "button";
   button.setAttribute("aria-pressed", "false");
   button.append(
     element("span", action, "action"),
     element("span", effect, "effect"),
-    ...rest
-      .filter((line) => line.startsWith("Mark the safe channel"))
-      .map((line) => element("span", line, "effect")),
+    ...rest.filter(isEffect).map((line) => element("span", line, "effect")),
     element(
       "span",
       costs.length ? "Cost · " + costs.join(" ") : "Cost · Card only",

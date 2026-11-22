@@ -6,6 +6,7 @@ import {
   handPreview,
   moves,
   play,
+  secondWake,
   start,
   rulesVersion,
   type Voyage,
@@ -86,6 +87,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
     phase: state.phase,
     tide: state.tide,
     channelMarked: state.channelMarked,
+    wake: secondWake(state),
     hull: state.hull,
     crew: state.crew,
     hands: state.crew.map((_, i) =>

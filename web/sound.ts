@@ -1,9 +1,14 @@
-type Cue = "rope" | "brace" | "channel";
+type Cue = "rope" | "brace" | "channel" | "wake" | "wake-bell";
 
 let audio: AudioContext | undefined;
+let output: GainNode | undefined;
 let enabled = false;
 
-export function soundToggle(button: HTMLElement, indicator: HTMLElement) {
+export function soundToggle(
+  button: HTMLElement,
+  indicator: HTMLElement,
+  preview: () => Cue,
+) {
   if (!window.AudioContext) {
     button.hidden = true;
     return;
@@ -12,10 +17,16 @@ export function soundToggle(button: HTMLElement, indicator: HTMLElement) {
     enabled = !enabled;
     button.setAttribute("aria-pressed", String(enabled));
     indicator.textContent = enabled ? "on" : "off";
+    if (audio && output)
+      output.gain.setTargetAtTime(enabled ? 1 : 0, audio.currentTime, 0.025);
     if (!enabled) return;
-    audio ??= new AudioContext();
+    if (!audio) {
+      audio = new AudioContext();
+      output = audio.createGain();
+      output.connect(audio.destination);
+    }
     void audio.resume().then(
-      () => playCue("brace"),
+      () => playCue(preview()),
       () => undefined,
     );
   });
@@ -30,9 +41,80 @@ export function playCue(cue: Cue) {
     tone(ctx, now + 0.14, 587, 0.48);
     return;
   }
+  if (cue === "wake") {
+    noise(ctx, now, {
+      duration: 0.78,
+      attack: 0.12,
+      volume: 0.15,
+      pitch: [610, 140],
+      resonance: 0.7,
+    });
+    creak(ctx, now + 0.14);
+    // The surf falls away before the knock under the raft.
+    noise(ctx, now + 1.02, {
+      duration: 0.35,
+      attack: 0.006,
+      volume: 0.42,
+      pitch: [280, 80],
+      resonance: 2,
+    });
+    tone(ctx, now + 1.02, 91, 0.27, 0.1);
+    return;
+  }
+  if (cue === "wake-bell") {
+    for (const [pitch, duration, volume] of [
+      [186, 1.5, 0.09],
+      [311, 0.85, 0.065],
+      [435, 0.42, 0.04],
+    ] as const)
+      tone(ctx, now, pitch, duration, volume);
+    tone(ctx, now + 0.54, 311, 0.7, 0.018);
+    return;
+  }
+  if (cue === "rope") {
+    creak(ctx, now);
+    return;
+  }
+  noise(ctx, now, {
+    duration: 0.14,
+    attack: 0.006,
+    volume: 0.34,
+    pitch: [340, 85],
+    resonance: 1.5,
+  });
+  tone(ctx, now, 122, 0.1);
+}
 
-  const rope = cue === "rope";
-  const duration = rope ? 0.4 : 0.14;
+function creak(ctx: AudioContext, start: number) {
+  noise(ctx, start, {
+    duration: 0.4,
+    attack: 0.09,
+    volume: 0.23,
+    pitch: [580, 190],
+    resonance: 3,
+    rope: true,
+  });
+}
+
+function noise(
+  ctx: AudioContext,
+  start: number,
+  {
+    duration,
+    attack,
+    volume,
+    pitch,
+    resonance,
+    rope,
+  }: {
+    duration: number;
+    attack: number;
+    volume: number;
+    pitch: [number, number];
+    resonance: number;
+    rope?: boolean;
+  },
+) {
   const buffer = ctx.createBuffer(
     1,
     Math.ceil(ctx.sampleRate * duration),
@@ -47,22 +129,13 @@ export function playCue(cue: Cue) {
   source.buffer = buffer;
   const filter = ctx.createBiquadFilter();
   filter.type = "bandpass";
-  filter.Q.value = rope ? 3 : 1.5;
-  filter.frequency.setValueAtTime(rope ? 580 : 340, now);
-  filter.frequency.exponentialRampToValueAtTime(
-    rope ? 190 : 85,
-    now + duration,
-  );
-  const gain = envelope(
-    ctx,
-    now,
-    rope ? 0.09 : 0.006,
-    duration,
-    rope ? 0.23 : 0.34,
-  );
-  source.connect(filter).connect(gain);
-  source.start(now);
-  if (!rope) tone(ctx, now, 122, 0.1);
+  filter.Q.value = resonance;
+  filter.frequency.setValueAtTime(pitch[0], start);
+  filter.frequency.exponentialRampToValueAtTime(pitch[1], start + duration);
+  source
+    .connect(filter)
+    .connect(envelope(ctx, start, attack, duration, volume));
+  source.start(start);
 }
 
 function envelope(
@@ -76,7 +149,7 @@ function envelope(
   gain.gain.setValueAtTime(0.001, start);
   gain.gain.exponentialRampToValueAtTime(volume, start + attack);
   gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-  gain.connect(ctx.destination);
+  if (output) gain.connect(output);
   return gain;
 }
 
@@ -85,10 +158,11 @@ function tone(
   start: number,
   pitch: number,
   duration: number,
+  volume = 0.075,
 ) {
   const sound = ctx.createOscillator();
   sound.frequency.value = pitch;
-  sound.connect(envelope(ctx, start, 0.006, duration, 0.075));
+  sound.connect(envelope(ctx, start, 0.006, duration, volume));
   sound.start(start);
   sound.stop(start + duration);
 }
