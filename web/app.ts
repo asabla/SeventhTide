@@ -682,7 +682,6 @@ interface RouteView {
 
 function routeOption(
   route: TideRoute,
-  className: string,
   canChoose: boolean,
   view: RouteView,
   art?: HTMLElement,
@@ -690,7 +689,11 @@ function routeOption(
   const { id, name, forecast } = route;
   const { position, commonHazards, compareRations } = view;
   const guest = Boolean(turn && turn.seat !== turn.helmSeat);
-  const option = element(canChoose || guest ? "button" : "div", "", className);
+  const option = element(
+    canChoose || guest ? "button" : "div",
+    "",
+    "encounter-response",
+  );
   const cost = element("span", "", "route-cost");
   const swimmer = position.swimmer ?? -1;
   const sailor = position.crew[swimmer];
@@ -794,76 +797,52 @@ function renderRouteRecommendations() {
   if (announcement.textContent !== message) announcement.textContent = message;
 }
 
-function routeChart(
-  routes: readonly TideRoute[],
-  canChoose: boolean,
-  view: RouteView,
-) {
-  const chart = element("section", "", "route-chart");
-  chart.setAttribute("aria-label", "Tide routes");
-  const stops = element("ul", "", "chart-stops");
-  for (const route of routes) {
-    const row = element("li");
-    row.append(routeOption(route, "chart-stop", canChoose, view));
-    stops.append(row);
-  }
-  chart.append(element("div", "", "chart-engraving"), stops);
-  return chart;
+const encounterLabels = {
+  wake: "Respond to the second wake",
+  buoy: "Respond to the bell buoy",
+  reef: "Choose the landing route",
+  grip: "Break the grip on the raft",
+  locker: "Decide what to do with the locker",
+  towline: "Pass the towline",
+  wreck: "Cross the wreck field",
+  passage: "Choose the passage",
+};
+
+type Encounter = keyof typeof encounterLabels;
+
+function encounterRouteArt(encounter: Encounter, id: string) {
+  const dive = id === "dive";
+  if (encounter === "towline")
+    return dive ? equipmentArt("line", true) : equipmentArt("block", false);
+  if (encounter === "wreck") return equipmentArt("hatch", dive);
+  if (encounter === "locker")
+    return deckTool(id === "haul-locker" ? "haul" : "float");
+  if (id === "channel") return equipmentArt("lantern", false);
+  if (id === "pry") return equipmentArt("hook", false);
+  if (id === "chain" || id === "decoy" || id === "echo-crossing")
+    return equipmentArt("bell", id === "chain");
+  return equipmentArt(
+    id === "hull" && encounter !== "wake" ? "hatch" : "line",
+    dive,
+  );
 }
 
 function encounterDecision(
   routes: readonly TideRoute[],
   canChoose: boolean,
-  encounter: "wake" | "buoy" | "reef" | "grip" | "locker",
+  encounter: Encounter,
   view: RouteView,
 ) {
   const scene = element("section", "", "encounter-decision");
   scene.dataset.encounter = encounter;
-  scene.setAttribute(
-    "aria-label",
-    {
-      wake: "Respond to the second wake",
-      buoy: "Respond to the bell buoy",
-      reef: "Choose the landing route",
-      grip: "Break the grip on the raft",
-      locker: "Decide what to do with the locker",
-    }[encounter],
-  );
+  scene.setAttribute("aria-label", encounterLabels[encounter]);
   for (const route of routes) {
     const { id } = route;
-    const card =
-      encounter === "reef"
-        ? id === "channel"
-          ? "lantern"
-          : id === "hull"
-            ? "hatch"
-            : "line"
-        : encounter === "buoy"
-          ? id === "chain"
-            ? "bell"
-            : "hatch"
-          : encounter === "grip"
-            ? id === "pry"
-              ? "hook"
-              : id === "hull"
-                ? "hatch"
-                : "line"
-            : id === "decoy"
-              ? "bell"
-              : "line";
-    const art =
-      encounter === "locker"
-        ? deckTool(id === "haul-locker" ? "haul" : "float")
-        : equipmentArt(
-            id === "echo-crossing" ? "bell" : card,
-            id === "dive" || id === "chain",
-          );
     const choice = routeOption(
       route,
-      "encounter-response",
       canChoose,
       view,
-      art,
+      encounterRouteArt(encounter, id),
     );
     if (id === "channel" || id === "pry")
       choice.setAttribute("data-marked", "");
@@ -1282,6 +1261,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const seaGrip = Boolean(!seeLights && grip && phase !== "board");
   const showReef = Boolean(seeLights && landing === "reef");
   const seaPursuit = showReef && pursuit === "following" && phase !== "won";
+  const localEvent = room ? null : currentEvent(state);
+  const eventTitle = turn?.event?.title ?? localEvent?.[0] ?? "";
   const encounter = find
     ? "locker"
     : landing === "reef"
@@ -1292,7 +1273,11 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
           ? "buoy"
           : wake
             ? "wake"
-            : undefined;
+            : eventTitle === "The towline"
+              ? "towline"
+              : eventTitle === "The wreck field"
+                ? "wreck"
+                : "passage";
   const scene = select("scene");
   scene.hidden = !seeLights && !seaWake && !seaBuoy && !seaGrip && !find;
   scene.dataset.wake = seaWake ?? "";
@@ -1322,7 +1307,6 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("grip-rules").hidden = (s.rulesVersion ?? 1) < 8;
   select("pursuit-rules").hidden = (s.rulesVersion ?? 1) < 10;
   select("locker-rules").hidden = (s.rulesVersion ?? 1) < 9;
-  const localEvent = room ? null : currentEvent(state);
   const eventDescription = turn?.event?.description ?? localEvent?.[2] ?? "";
   const choosingRoute = phase === "event";
   const forecast = choosingRoute
@@ -1341,7 +1325,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     salvage: "What can you save?",
     board: "Who will swim?",
     cards: turn?.forecastTitle ?? localEvent?.[0] ?? "Play the crew’s hand",
-    event: turn?.event?.title ?? localEvent?.[0] ?? "",
+    event: eventTitle,
     recover: "Stow the find",
     won: "Three souls ashore",
     lost: "Lost at sea",
@@ -1351,7 +1335,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
       "The ship is sinking. Take one salvage card for the crew before you board the raft.",
     board: "",
     cards: "",
-    event: encounter ? "" : "Choose a route.",
+    event: "",
     recover: options.some(({ card }) => card)
       ? "Choose a card to swap."
       : options.length
@@ -1448,9 +1432,12 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
       omen.id = "route-omen";
       choiceArea.append(omen);
     }
-    const decision = encounter
-      ? encounterDecision(routes, options.length > 0, encounter, view)
-      : routeChart(routes, options.length > 0, view);
+    const decision = encounterDecision(
+      routes,
+      options.length > 0,
+      encounter,
+      view,
+    );
     if (find) {
       const locker = element("div", "", "locker-decision");
       locker.append(lockerPrize(find), decision);

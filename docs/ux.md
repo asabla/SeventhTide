@@ -17,7 +17,7 @@ Start from the latest design the user approved. Open the matching state in the r
 
 Give the tool rail its own space beside the hand. Use crew portraits when the player chooses who receives a ration. Carry the same tool marker into the public play. When a host has played and a friend is still waiting to act, ask the host whether to wait or let a bot cover that turn.
 
-Give a featured encounter the center of the raft during resolution. Put its response choices ahead of the record of played cards. Guests see the choices and their costs while the host decides. Place each guest’s named pennant below the cost of the route they recommend. During boarding, let the host choose a swimmer from the crew portrait cards. Show the player’s equipment below the crew. Keep the latest tide recap in Voyage entries and mark the current phase with a knot on the header rope.
+Give each encounter its illustrated route choices at the center of the raft during resolution. Put the choices ahead of the record of played cards. Guests see the choices and their costs while the sailor at the helm decides. Place each guest’s named pennant below the cost of the route they recommend. During boarding, let the sailor at the helm choose a swimmer from the crew portrait cards. Show the player’s equipment below the crew. Keep the latest tide recap in Voyage entries and mark the current phase with a knot on the header rope.
 
 Use the same crew portraits on the launch table, in the room, and when choosing the swimmer. Put solo play and the two invitation options on the launch table. In a room, show which sailors have joined, which seats are open, and which ones are bots. Place the invitation on its sailor’s portrait card.
 
