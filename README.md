@@ -98,6 +98,8 @@ During **The bell buoy**, brace to feel the chain in the timbers. Two knocks bef
 
 When **Something under the raft** grabs the timbers, use Sounding line from the water and Boathook from the raft to pry it loose. Cutting a timber costs 1 hull. Hauling the swimmer through costs 1 extra cold with at least 2 brace, or 2 extra cold otherwise. Voyages on rules versions 8 through 12 take 2 extra cold with any amount of brace. From rules version 10, the creature follows either fallback route toward the reef.
 
+At **The towline**, let the rope drag to absorb up to 2 hull damage with brace, or slip the line to spare the hull at the cost of 1 extra cold for the swimmer. Voyages through rules version 13 take 2 extra cold on the swimmer’s route.
+
 Run `mise exec -- node verification/landing/simulate.ts` to compare spending and saving the line on the same 1,024 starting deals. The output includes replayable voyages and a separate count of landings by crews that never held a line.
 
 ## Play solo or with friends

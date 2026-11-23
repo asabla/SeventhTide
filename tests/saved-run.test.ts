@@ -26,7 +26,7 @@ await test("invalid save data is rejected before replay", () => {
 });
 
 await test("new saves retain their rules version for deck replay", () => {
-  for (const rulesVersion of [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]) {
+  for (const rulesVersion of [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]) {
     const run = { seed: 111, rulesVersion, history: ["canvas", "swim-1"] };
     assert.deepEqual(parseSavedRun(JSON.stringify(run)), run);
   }

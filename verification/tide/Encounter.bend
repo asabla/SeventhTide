@@ -76,6 +76,13 @@ def grip_haul_cost(brace: Nat, version: Nat) -> Nat:
     case _ _:
       2n
 
+def towline_cold(version: Nat) -> Nat:
+  match version:
+    case 14n+_:
+      1n
+    case _:
+      2n
+
 def can_haul(water: Water, version: Nat) -> Bool:
   match water version:
     case DriftingLocker{} 9n+_:

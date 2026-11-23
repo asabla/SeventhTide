@@ -13,9 +13,9 @@ export { handPreview, equipmentPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 13;
+export const rulesVersion = 14;
 export type RulesVersion =
-  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -110,6 +110,7 @@ const shelteredCold = swimmerCold - 1;
 const echoCrossingDamage = 1;
 const secondWakeTitle = "The second wake";
 const bellBuoyTitle = "The bell buoy";
+const towlineTitle = "The towline";
 const splitSeamTitle = "The split seam";
 const squallTitle = "The black squall";
 const lockerFinds = [
@@ -169,7 +170,7 @@ const waters: TideEvent[] = [
     1,
   ],
   [
-    "The towline",
+    towlineTitle,
     "A rope trails behind the wreck.",
     "The rope pulls tight around the raft.",
     2,
@@ -326,6 +327,14 @@ function chainCost(s: Voyage) {
 export function currentEvent(voyage: Voyage) {
   let event = voyage.events[voyage.tide - 1];
   if (!event) throw new RangeError("Unknown tide: " + voyage.tide);
+  if (event[0] === towlineTitle && (voyage.rulesVersion ?? 1) >= 14)
+    event = [
+      towlineTitle,
+      "A towline snags the raft.",
+      "The rope drags against the timbers. The swimmer can slip it free.",
+      event[3],
+      1,
+    ];
   const wake = secondWake(voyage);
   if (wake)
     event = [
@@ -732,6 +741,8 @@ export function moves(s: Voyage): Move[] {
       ];
     }
     const wake = secondWake(s);
+    const [event, , , incoming, diveCold] = currentEvent(s);
+    const towline = event === towlineTitle && (s.rulesVersion ?? 1) >= 14;
     return [
       ...(wake === "drawn-off"
         ? [
@@ -744,28 +755,27 @@ export function moves(s: Voyage): Move[] {
         : []),
       {
         id: "hull",
-        name: wake
-          ? "Hold the line"
-          : s.tide === 7
-            ? "Force a landing"
-            : "Let the raft take it",
+        name: towline
+          ? "Let the rope drag"
+          : wake
+            ? "Hold the line"
+            : s.tide === 7
+              ? "Force a landing"
+              : "Let the raft take it",
         detail:
-          "Lose " +
-          Math.max(0, currentEvent(s)[3] - s.guard) +
-          " hull after bracing.",
+          "Lose " + Math.max(0, incoming - s.guard) + " hull after bracing.",
       },
       {
         id: "dive",
-        name: wake
-          ? "Follow the pull"
-          : s.tide === 7
-            ? "Follow the swimmer"
-            : "Send the swimmer",
+        name: towline
+          ? "Slip the towline"
+          : wake
+            ? "Follow the pull"
+            : s.tide === 7
+              ? "Follow the swimmer"
+              : "Send the swimmer",
         detail:
-          crewMember(s, s.swimmer).name +
-          " takes " +
-          currentEvent(s)[4] +
-          " extra cold.",
+          crewMember(s, s.swimmer).name + " takes " + diveCold + " extra cold.",
       },
     ];
   }
