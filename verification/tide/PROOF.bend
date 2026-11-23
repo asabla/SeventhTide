@@ -208,7 +208,10 @@ def Laws.bracing_shelters_the_haul(since, brace, timber):
 def Laws.bare_raft_cannot_shelter_the_haul(version, timber):
   {==}
 
-def Laws.one_brace_cannot_shelter_the_haul(version, timber):
+def Laws.one_brace_shelters_the_haul(since, timber):
+  {==}
+
+def Laws.archived_one_brace_does_not_shelter_the_haul(timber):
   {==}
 
 def Laws.archived_grip_haul_costs_two_extra_cold(brace, timber):

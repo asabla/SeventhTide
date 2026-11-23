@@ -73,6 +73,8 @@ def grip_haul_cost(brace: Nat, version: Nat) -> Nat:
   match brace version:
     case 2n+_ 13n+_:
       1n
+    case 1n 15n+_:
+      1n
     case _ _:
       2n
 

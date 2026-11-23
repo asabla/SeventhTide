@@ -393,11 +393,17 @@ export function checkEncounters(call: BendCall) {
       water: "RaftGrip",
     },
   );
-  for (const version of [13, rulesVersion])
+  for (const version of [13, 14, rulesVersion])
     fixtures.push({
       name: `towline / version ${version}`,
       state: replay(towlineSeed, version, towlineHistory),
       water: "OpenWater",
+    });
+  for (const version of [13, 14, rulesVersion])
+    fixtures.push({
+      name: `raft grip / one brace / version ${version}`,
+      state: replay(1013904226, version, "canvas swim-1 lash-0 line-1 lash-2"),
+      water: "RaftGrip",
     });
   for (const { seed, history, plays } of [unmarked, marked]) {
     for (const version of [9, 10]) {

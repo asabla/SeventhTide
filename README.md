@@ -96,7 +96,7 @@ During **The second wake**, hold the line and let brace absorb the pull, or foll
 
 During **The bell buoy**, brace to feel the chain in the timbers. Two knocks before the bell tell the crew the chain is real. Follow it to recover 3 rations at the cost of 1 extra cold on the swimmer. Voyages through rules version 11 recover 2 rations on this route. If the bell comes first, following it costs 2 extra cold and yields 1 ration. Break away to let brace absorb the hull damage and give the swimmer normal exposure and recovery.
 
-When **Something under the raft** grabs the timbers, use Sounding line from the water and Boathook from the raft to pry it loose. Cutting a timber costs 1 hull. Hauling the swimmer through costs 1 extra cold with at least 2 brace, or 2 extra cold otherwise. Voyages on rules versions 8 through 12 take 2 extra cold with any amount of brace. From rules version 10, the creature follows either fallback route toward the reef.
+When **Something under the raft** grabs the timbers, use Sounding line from the water and Boathook from the raft to pry it loose. Cutting a timber costs 1 hull. Hauling the swimmer through costs 1 extra cold with at least 1 brace, or 2 extra cold without brace. Voyages on rules versions 13 and 14 require 2 brace to reduce the cold. Voyages on rules versions 8 through 12 take 2 extra cold with any amount of brace. From rules version 10, the creature follows either fallback route toward the reef.
 
 At **The towline**, let the rope drag to absorb up to 2 hull damage with brace, or slip the line to spare the hull at the cost of 1 extra cold for the swimmer. Voyages through rules version 13 take 2 extra cold on the swimmer’s route.
 
