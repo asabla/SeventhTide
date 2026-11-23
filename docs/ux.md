@@ -15,13 +15,13 @@ Start from the latest design the user approved. Open the matching state in the r
 | Ship’s log            | Use ruled paper, ledger typography, and ink annotations. Keep condition and crew callouts here. Retain the same materials and hierarchy at narrow widths. |
 | Header tools          | Use the illustrated objects beside the wordmark for secondary interactions such as entries, rules, and signals.                                           |
 
-Give the tool rail its own space beside the hand. Use crew portraits when the player chooses who receives a ration. Carry the same tool marker into the public play. When a host has played and a friend is still waiting to act, ask the host whether to wait or let a bot cover that turn.
+Give the tool rail its own space beside the hand. Use crew portraits when the player chooses who receives a ration. Carry the same tool marker into the public play. When the sailor at the helm has played and a friend is still waiting to act, ask whether to wait or let a bot cover that turn.
 
 Give each encounter its illustrated route choices at the center of the raft during resolution. Put the choices ahead of the record of played cards. Guests see the choices and their costs while the sailor at the helm decides. Place each guest’s named pennant below the cost of the route they recommend. During boarding, let the sailor at the helm choose a swimmer from the crew portrait cards. Show the player’s equipment below the crew. Keep the latest tide recap in Voyage entries and mark the current phase with a knot on the header rope.
 
 Use the same crew portraits on the launch table, in the room, and when choosing the swimmer. Put solo play and the two invitation options on the launch table. In a room, show which sailors have joined, which seats are open, and which ones are bots. Place the invitation on its sailor’s portrait card.
 
-Keep the final encounter’s illustration visible behind a loss. The final entry explains what happened. After a multiplayer voyage, put the clasp for sailing again on the final entry. Guests can join the new voyage once the host prepares it. Keep the result visible until each player chooses to leave or join.
+Keep the final encounter’s illustration visible behind a loss. The final entry explains what happened. After a multiplayer voyage, put the clasp for sailing again on the final entry. The host or current helm can prepare the next voyage and leads it. Other friends can join from the final entry. Keep the result visible until each player chooses to leave or join.
 
 If the sailor at the helm is away, ask the remaining crew whether to take the helm or keep waiting. Use the same prompt surface as bot cover. After a handoff, indicate who has the helm in the Ship’s log.
 

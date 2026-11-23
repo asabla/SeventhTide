@@ -257,8 +257,9 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
   turn = next;
   if (joined) renderInvites(next);
   const finished = next.phase === "won" || next.phase === "lost";
+  const canPrepare = next.seat === 0 || next.seat === next.helmSeat;
   rematch.hidden =
-    !finished || next.players < 2 || (next.seat !== 0 && !next.rematchId);
+    !finished || next.players < 2 || (!canPrepare && !next.rematchId);
   rematch.textContent = next.rematchId
     ? "Join the next voyage"
     : "Sail again with this crew";
@@ -1571,6 +1572,7 @@ function renderCrewLobby(snapshot: RoomSnapshot) {
   const list = select("lobby-seats");
   const copyStatus = select("lobby-copy-status");
   const host = snapshot.seat === 0;
+  const atHelm = snapshot.seat === snapshot.helmSeat;
   if (!list.childElementCount) {
     snapshot.crew.forEach((sailor, seat) => {
       const role = jobs[seat] + (seat === snapshot.seat ? " · You" : "");
@@ -1599,27 +1601,35 @@ function renderCrewLobby(snapshot: RoomSnapshot) {
   }
   for (const [seat, row] of Array.from(list.children).entries()) {
     const label = row.querySelector(".lobby-seat-status");
+    const joined = snapshot.joinedSeats.includes(seat);
     const text =
       seat === 0
-        ? "Host"
+        ? joined
+          ? "Host"
+          : "Host · Away"
         : seat >= snapshot.players
           ? "Bot"
-          : snapshot.joinedSeats.includes(seat)
-            ? "Joined"
-            : "Invite pending";
+          : seat === snapshot.helmSeat
+            ? "Helm"
+            : joined
+              ? "Joined"
+              : "Invite pending";
     if (label && label.textContent !== text) label.textContent = text;
   }
   const waiting = snapshot.joinedSeats.length < snapshot.players;
   const prompt = select("instruction");
-  const text = host
+  const helm = snapshot.crew[snapshot.helmSeat]?.name;
+  const text = atHelm
     ? waiting
       ? snapshot.sameCrew
         ? "Your friends can join from the last voyage."
         : "Share a private link with each friend. Friends can join after you begin."
       : "Your crew is ready. You choose the salvage."
-    : `You’ll play ${snapshot.crew[snapshot.seat]?.name}. ${snapshot.crew[0]?.name} begins the voyage and chooses salvage.`;
+    : host
+      ? `${helm} is at the helm and chooses salvage.`
+      : `You’ll play ${snapshot.crew[snapshot.seat]?.name}. ${helm} is at the helm and chooses salvage.`;
   if (prompt.textContent !== text) prompt.textContent = text;
-  launchButton.hidden = !host;
+  launchButton.hidden = !host && !atHelm;
   launchButton.textContent = waiting ? "Begin with open seats" : "Begin voyage";
 }
 
