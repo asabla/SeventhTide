@@ -47,6 +47,8 @@ Run `mise exec -- npm run simulate` to check 512 seeds. Use `mise exec -- npm ru
 
 Run `mise exec -- npm run balance -- 512 1024 11` to play both offered salvage choices on the same 512 deals, starting at index 1,024 with rules version 11. The report separates crew sizes and policies. The mixed policy chooses one legal card or crew action at random on half of its turns and uses cautious boarding and route decisions. Run again with version 10 to compare the same deals against the previous opening. Each encounter lists the routes offered, the times each survived the tide, and the times it was the only surviving choice. The report distinguishes voyages that had a safe route from voyages that reached a decision with no path to survival.
 
+Run `mise exec -- npm run audit:routes -- 128 1024` to follow every legal route at each decision reached on the sampled deals. Each continuation starts from the same crew, hull, deck, and policy state. The report counts immediate survival and final rescue separately. For each pair of routes offered together, it counts which route led to rescue and gives replayable examples when their outcomes differed. The optional third argument selects a rules version. CI runs the audit on four deals.
+
 ### Verify the tide outcome laws
 
 From the repository root, run `mise trust verification/tide/mise.toml` once, then `mise -C verification/tide run verify`. The verification configuration pins Bend and Lean for macOS and Linux. The GitHub Actions job `tide-laws` runs the same verification command.

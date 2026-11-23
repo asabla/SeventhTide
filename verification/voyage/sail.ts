@@ -64,25 +64,64 @@ function bestChoice(state: Voyage, choices: Move[]) {
 
 export type Policy = "cautious" | "mixed" | "random";
 
+interface SailingPosition {
+  state: Voyage;
+  history: string[];
+  random: number;
+  assisted: number;
+}
+
+interface FinishedVoyage {
+  state: Voyage;
+  history: string[];
+  assisted: number;
+}
+
 interface RunOptions {
   version?: number;
   opening?: string;
-  observeRoute?: (position: Voyage, choice: Move) => void;
+  observeRoute?: (
+    position: Voyage,
+    choice: Move,
+    follow: (id: string) => FinishedVoyage,
+  ) => void;
 }
 
 export function sail(
   seed: number,
-  { players, absent, name }: Profile,
+  profile: Profile,
   policy: Policy,
-  { version = rulesVersion, opening, observeRoute }: RunOptions = {},
+  options: RunOptions = {},
 ) {
-  const startState = start(seed, version);
-  let state = startState;
-  let random = seed ^ 0x53261be3;
+  const initial = start(seed, options.version ?? rulesVersion);
+  return sailFrom(
+    seed,
+    initial,
+    profile,
+    policy,
+    {
+      state: initial,
+      random: seed ^ 0x53261be3,
+      history: [],
+      assisted: 0,
+    },
+    options,
+  );
+}
+
+function sailFrom(
+  seed: number,
+  startState: Voyage,
+  profile: Profile,
+  policy: Policy,
+  position: SailingPosition,
+  { opening, observeRoute }: RunOptions = {},
+): FinishedVoyage {
+  const { players, absent, name } = profile;
+  let { state, random, assisted } = position;
+  const { history } = position;
   const draw = (length: number) =>
     Math.floor(((random = nextSeed(random)) / 0x100000000) * length);
-  const history: string[] = [];
-  let assisted = 0;
   while (state.phase !== "won" && state.phase !== "lost") {
     const checkpoint = () =>
       JSON.stringify({
@@ -130,7 +169,18 @@ export function sail(
       assisted++;
     }
     assert.ok(move && choices.some(({ id }) => id === move.id), checkpoint());
-    if (state.phase === "event") observeRoute?.(state, move);
+    if (state.phase === "event" && observeRoute) {
+      const decision = { state, random, history: history.slice(), assisted };
+      observeRoute(decision.state, move, (id) => {
+        assert.ok(choices.some((choice) => choice.id === id));
+        const next = playWithBots(decision.state, id, players);
+        return sailFrom(seed, startState, profile, policy, {
+          ...decision,
+          state: next.state,
+          history: [...decision.history, ...next.history],
+        });
+      });
+    }
     const next = playWithBots(state, move.id, players);
     if (state.phase === "cards") {
       assert.ok(next.state.acted.length > state.acted.length, checkpoint());
