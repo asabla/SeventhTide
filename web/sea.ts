@@ -58,7 +58,7 @@ export function mountSea(frame: HTMLElement, parent: HTMLElement) {
     const width = parent.clientWidth;
     const height = parent.clientHeight;
     if (!width || !height) return;
-    const { landing, wake, buoy } = frame.dataset;
+    const { landing, wake, buoy, landfall } = frame.dataset;
     const texture = frame.hasAttribute("data-locker")
       ? "locker"
       : frame.hasAttribute("data-grip")
@@ -84,7 +84,7 @@ export function mountSea(frame: HTMLElement, parent: HTMLElement) {
       (height - backdrop.displayHeight) * y,
     );
     if (lights) lights.hidden = !landing;
-    if (motion) motion.hidden = !wake;
+    if (motion) motion.hidden = !wake || landfall === "lost";
     for (const overlay of [lights, motion]) {
       if (!overlay || overlay.hidden) continue;
       overlay.style.left = backdrop.x + "px";

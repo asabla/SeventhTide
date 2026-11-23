@@ -21,7 +21,7 @@ Give each encounter its illustrated route choices at the center of the raft duri
 
 Use the same crew portraits on the launch table, in the room, and when choosing the swimmer. Put solo play and the two invitation options on the launch table. In a room, show which sailors have joined, which seats are open, and which ones are bots. Place the invitation on its sailor’s portrait card.
 
-After a multiplayer voyage, put the clasp for sailing again on the final entry. Guests can join the new voyage once the host prepares it. Keep the result visible until each player chooses to leave or join.
+Keep the final encounter’s illustration visible behind a loss. The final entry explains what happened. After a multiplayer voyage, put the clasp for sailing again on the final entry. Guests can join the new voyage once the host prepares it. Keep the result visible until each player chooses to leave or join.
 
 If the sailor at the helm is away, ask the remaining crew whether to take the helm or keep waiting. Use the same prompt surface as bot cover. After a handoff, indicate who has the helm in the Ship’s log.
 
