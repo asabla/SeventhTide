@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { moves, play, rulesVersion, start } from "@seventh-tide/rules";
+import {
+  moves,
+  play,
+  rulesVersion,
+  start,
+} from "../../packages/rules/voyage.ts";
 import { tag, type BendCall } from "./reference.ts";
 
 const salvageChoices: Record<string, string> = {
