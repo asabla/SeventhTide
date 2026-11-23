@@ -2,7 +2,7 @@
 
 ## Crew portraits and route chart
 
-The boarding surface uses three circular crops from [crew-portraits.png](crew-portraits.png). The chart pairs [route-chart.png](route-chart.png) with selectable routes for the host and a read-only view for guests. The deck tool rail uses circular crops of the existing action illustrations.
+The boarding surface uses the portraits from [crew-portraits.png](crew-portraits.png). The deck tool rail uses circular crops of the action illustrations. Route choices use the same circular treatment. The Towline uses the raft view of Snatch block and water view of Sounding line. The Wreck Field uses the raft and water views of Hatch cover. [Route chart](route-chart.png) is the original illustration from the earlier chart layout.
 
 **Crew portraits**
 
