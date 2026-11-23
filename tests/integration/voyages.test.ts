@@ -964,7 +964,16 @@ for (const players of [2, 3]) {
       const event = await read(ivo);
       assert.equal(event.phase, "event");
       assert.ok(isRecord(event.event) && Array.isArray(event.event.routes));
-      assert.equal(event.event.routes.length, 2);
+      const hostEvent = await read(host);
+      assert.deepEqual(event.event, hostEvent.event);
+      assert.deepEqual(event.choices, []);
+      assert.deepEqual(
+        event.event.routes.map((route: unknown) => {
+          assert.ok(isRecord(route));
+          return route.id;
+        }),
+        hostEvent.choices.map(({ id }) => id),
+      );
       assert.ok(Array.isArray(event.plays));
       assert.equal(event.plays.length, 3);
       assert.ok(
