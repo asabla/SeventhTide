@@ -135,6 +135,8 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     typeof value.revision === "number" &&
     typeof value.crewLaunched === "boolean" &&
     typeof value.crewRevision === "number" &&
+    (value.rematchId === null || typeof value.rematchId === "string") &&
+    typeof value.sameCrew === "boolean" &&
     Array.isArray(value.signals) &&
     value.signals.length === names.length &&
     value.signals.every(
@@ -279,6 +281,22 @@ export async function hostRoom(players: number) {
   const room = { id: value.id, token: value.token };
   storeHostRoom(room);
   location.assign(roomUrl(room));
+}
+
+export async function prepareRematch(room: Room) {
+  const response = await fetch(
+    `/api/voyages/${encodeURIComponent(room.id)}/rematch`,
+    {
+      method: "POST",
+      headers: { Authorization: "Bearer " + room.token },
+    },
+  );
+  if (!response.ok)
+    throw new Error("Could not prepare the next voyage. Try again.");
+  const value: unknown = await response.json();
+  if (!record(value) || typeof value.id !== "string")
+    throw new Error("The next voyage is unavailable.");
+  return value.id;
 }
 
 export class TurnConflict extends Error {}

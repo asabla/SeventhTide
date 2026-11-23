@@ -40,6 +40,8 @@ interface Row {
   assisted_tides: Record<number, number>;
   crew_signals: Partial<Record<number, CrewSignal>>;
   route_recommendations: Partial<Record<number, string>>;
+  rematch_id: string | null;
+  previous_voyage: string | null;
   guests: number;
   seat: number;
 }
@@ -78,6 +80,8 @@ function snapshot(row: Row, state: Voyage, token: string) {
       (i) => (row.joined_mask & (1 << i)) !== 0,
     ),
     crewRevision: row.crew_revision,
+    rematchId: row.rematch_id,
+    sameCrew: row.previous_voyage !== null,
     signals: state.crew.map((_, i) =>
       state.phase === "cards" || state.phase === "event"
         ? (row.crew_signals[i] ?? null)
@@ -154,7 +158,8 @@ const params = {
 const crewColumns =
   "crew_launched, joined_mask, crew_revision, assisted_tides, crew_signals, route_recommendations";
 const roomColumns = `id, rules_version, seed, moves, revision, volunteer_mask, offer_revision,
-  ${crewColumns}, cardinality(guest_digests) AS guests`;
+  ${crewColumns}, previous_voyage, cardinality(guest_digests) AS guests,
+  (SELECT next.id FROM voyages AS next WHERE next.previous_voyage = voyages.id) AS rematch_id`;
 type CrewState = Pick<
   Row,
   | "crew_launched"
@@ -274,6 +279,42 @@ export async function voyageRoutes(
       return session
         ? snapshot(session.row, replay(session.row), session.token)
         : reply;
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/:id/rematch",
+    { schema: { params } },
+    async (request, reply) => {
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row } = session;
+      if (row.seat !== 0)
+        return reply
+          .code(403)
+          .send({ error: "Only the host can prepare another voyage." });
+      const { phase } = replay(row);
+      if (!row.guests || (phase !== "won" && phase !== "lost"))
+        return reply
+          .code(422)
+          .send({ error: "The crew must finish this voyage first." });
+      if (row.rematch_id) return { id: row.rematch_id };
+
+      // A unique predecessor allows only one successor even when hosts retry together.
+      const created = await pool.query<{ id: string }>(
+        `INSERT INTO voyages (id, owner_digest, rules_version, seed, guest_digests, crew_launched, previous_voyage)
+          SELECT $2, owner_digest, $3, $4, guest_digests, false, id FROM voyages WHERE id = $1
+          ON CONFLICT (previous_voyage) DO NOTHING RETURNING id`,
+        [row.id, randomUUID(), rulesVersion, randomBytes(4).readUInt32BE()],
+      );
+      if (created.rows[0]) return created.rows[0];
+      const existing = await pool.query<{ id: string }>(
+        "SELECT id FROM voyages WHERE previous_voyage = $1",
+        [row.id],
+      );
+      if (!existing.rows[0])
+        return reply.code(404).send({ error: "Voyage unavailable." });
+      return existing.rows[0];
     },
   );
 

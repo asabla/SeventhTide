@@ -1,5 +1,6 @@
 import {
   hostRoom,
+  prepareRematch,
   readRoom,
   readTurn,
   roomUrl,
@@ -116,6 +117,7 @@ const openEntries = select("open-entries");
 const openRules = select("open-rules");
 const openInvites = select("open-invites");
 const resume = select("resume-room");
+const rematch = select("rematch-voyage");
 const drag = cardDrag(tray);
 const renderSignals = crewSignalStation(sendSignal);
 compactLog.addEventListener("click", () =>
@@ -211,13 +213,17 @@ function showRoomError(error: unknown) {
 }
 
 function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
+  const rematchAdded = Boolean(
+    next.rematchId && next.rematchId !== turn?.rematchId,
+  );
   if (
     turn &&
     (next.revision < turn.revision ||
       (next.revision === turn.revision &&
         (next.offerRevision < turn.offerRevision ||
           (next.offerRevision === turn.offerRevision &&
-            next.crewRevision <= turn.crewRevision))))
+            next.crewRevision <= turn.crewRevision &&
+            !rematchAdded))))
   )
     return;
   const previous = turn;
@@ -225,6 +231,11 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
   turn = next;
   if (joined) renderInvites(next);
   const finished = next.phase === "won" || next.phase === "lost";
+  rematch.hidden =
+    !finished || next.players < 2 || (next.seat !== 0 && !next.rematchId);
+  rematch.textContent = next.rematchId
+    ? "Join the next voyage"
+    : "Sail again with this crew";
   if (room && next.seat === 0 && (joined || finished))
     storeHostRoom(room, finished);
   if (
@@ -248,8 +259,8 @@ async function refreshRoom() {
     !room ||
     refreshing ||
     document.hidden ||
-    turn?.phase === "won" ||
-    turn?.phase === "lost"
+    turn?.rematchId ||
+    (turn?.players === 1 && (turn.phase === "won" || turn.phase === "lost"))
   )
     return;
   refreshing = true;
@@ -259,6 +270,7 @@ async function refreshRoom() {
       !turn ||
       next.revision > turn.revision ||
       next.crewRevision > turn.crewRevision ||
+      next.rematchId !== turn.rematchId ||
       connectionFailed
     )
       select("room-status").textContent = "";
@@ -269,6 +281,19 @@ async function refreshRoom() {
     showRoomError(error);
   } finally {
     refreshing = false;
+  }
+}
+
+async function sailAgain() {
+  if (!room) return;
+  rematch.setAttribute("disabled", "");
+  try {
+    const id = turn?.rematchId ?? (await prepareRematch(room));
+    location.assign(roomUrl({ id, token: room.token }));
+  } catch (error) {
+    showRoomError(error);
+    rematch.removeAttribute("disabled");
+    rematch.focus({ preventScroll: true });
   }
 }
 
@@ -1506,7 +1531,9 @@ function renderCrewLobby(snapshot: RoomSnapshot) {
   const prompt = select("instruction");
   const text = host
     ? waiting
-      ? "Share a private link with each friend. Friends can join after you begin."
+      ? snapshot.sameCrew
+        ? "Your friends can join from the last voyage."
+        : "Share a private link with each friend. Friends can join after you begin."
       : "Your crew is ready. You choose the salvage."
     : `You’ll play ${snapshot.crew[snapshot.seat]?.name}. ${snapshot.crew[0]?.name} begins the voyage and chooses salvage.`;
   if (prompt.textContent !== text) prompt.textContent = text;
@@ -1598,6 +1625,7 @@ if (room) {
   const leave = select("leave-voyage");
   leave.setAttribute("href", location.pathname);
   leave.hidden = false;
+  rematch.addEventListener("click", () => void sailAgain());
   window.addEventListener("hashchange", () => {
     if (/^#[\w-]{43}$/.test(location.hash)) location.reload();
   });
@@ -1607,7 +1635,10 @@ if (room) {
   window.setInterval(() => void refreshRoom(), 2500);
   document.addEventListener("visibilitychange", () => void refreshRoom());
   window.addEventListener("pageshow", (event) => {
-    if (event.persisted) void refreshRoom();
+    if (event.persisted) {
+      rematch.removeAttribute("disabled");
+      void refreshRoom();
+    }
   });
 } else {
   const restart = select("choose-crew");
