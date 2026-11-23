@@ -216,6 +216,8 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
   const rematchAdded = Boolean(
     next.rematchId && next.rematchId !== turn?.rematchId,
   );
+  const helmChanged = Boolean(turn && next.helmSeat !== turn.helmSeat);
+  const helmOfferChanged = Boolean(turn && next.helmAway !== turn.helmAway);
   if (
     turn &&
     (next.revision < turn.revision ||
@@ -223,7 +225,8 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
         (next.offerRevision < turn.offerRevision ||
           (next.offerRevision === turn.offerRevision &&
             next.crewRevision <= turn.crewRevision &&
-            !rematchAdded))))
+            !rematchAdded &&
+            !helmOfferChanged))))
   )
     return;
   const previous = turn;
@@ -241,6 +244,8 @@ function setTurn(next: RoomSnapshot, origin?: CardOrigin) {
   if (
     previous?.crewLaunched &&
     next.crewLaunched &&
+    !helmChanged &&
+    !helmOfferChanged &&
     next.revision === previous.revision &&
     next.offerRevision === previous.offerRevision
   ) {
@@ -265,7 +270,16 @@ async function refreshRoom() {
     return;
   refreshing = true;
   try {
-    const next = await readTurn(room, turn ? undefined : "seat");
+    const atHelm =
+      turn?.crewLaunched &&
+      turn.players > 1 &&
+      turn.seat === turn.helmSeat &&
+      turn.phase !== "won" &&
+      turn.phase !== "lost";
+    const next = await readTurn(
+      room,
+      turn ? (atHelm ? "presence" : undefined) : "seat",
+    );
     if (
       !turn ||
       next.revision > turn.revision ||
@@ -297,6 +311,21 @@ async function sailAgain() {
   }
 }
 
+async function takeHelm() {
+  if (!room || sending) return;
+  sending = true;
+  try {
+    const next = await readTurn(room, "helm");
+    setTurn(next);
+    select("heading").focus({ preventScroll: true });
+  } catch (error) {
+    if (error instanceof TurnConflict) await refreshRoom();
+    showRoomError(error);
+  } finally {
+    sending = false;
+  }
+}
+
 async function sendSignal(signal: CrewSignal) {
   if (!room || turn?.phase !== "cards" || signaling) return false;
   const status = select("signal-status");
@@ -317,7 +346,12 @@ async function sendSignal(signal: CrewSignal) {
 }
 
 async function recommendRoute(id: string) {
-  if (!room || turn?.phase !== "event" || turn.seat === 0 || recommending)
+  if (
+    !room ||
+    turn?.phase !== "event" ||
+    turn.seat === turn.helmSeat ||
+    recommending
+  )
     return;
   const { revision, seat, routeRecommendations } = turn;
   recommending = true;
@@ -655,7 +689,7 @@ function routeOption(
 ) {
   const { id, name, forecast } = route;
   const { position, commonHazards, compareRations } = view;
-  const guest = Boolean(turn && turn.seat > 0);
+  const guest = Boolean(turn && turn.seat !== turn.helmSeat);
   const option = element(canChoose || guest ? "button" : "div", "", className);
   const cost = element("span", "", "route-cost");
   const swimmer = position.swimmer ?? -1;
@@ -729,9 +763,9 @@ function renderRouteRecommendations() {
       ) ?? [];
     const pressed =
       snapshot &&
-      snapshot.seat > 0 &&
+      snapshot.seat !== snapshot.helmSeat &&
       snapshot.routeRecommendations[snapshot.seat] === route;
-    if (snapshot && snapshot.seat > 0)
+    if (snapshot && snapshot.seat !== snapshot.helmSeat)
       slot.parentElement?.setAttribute(
         "aria-pressed",
         String(Boolean(pressed)),
@@ -986,7 +1020,7 @@ function boarding(s: Pick<Voyage, "crew">) {
       seat.append(element("p", "Can mark channel", "channel-mark"));
 
     const controls = element("div", "", "crew-seat-controls");
-    if (mySeat === 0) {
+    if (mySeat === (turn?.helmSeat ?? 0)) {
       const assign = element("button", "Send " + sailor.name, "assign-swimmer");
       assign.type = "button";
       assign.setAttribute("aria-label", "Send " + sailor.name + " swimming");
@@ -1079,11 +1113,17 @@ function renderAssists(
   status: string,
 ) {
   const recovering = s.phase === "recover";
+  const helmOffer =
+    turn?.helmAway && turn.seat !== turn.helmSeat ? turn : undefined;
   const sailors =
-    recovering || s.acted.includes(0) ? (turn?.assistSeats ?? []) : [];
-  const key = sailors.length
-    ? `${turn?.id}:${s.tide}:${s.phase}:${sailors.join(",")}`
-    : "";
+    recovering || s.acted.includes(turn?.helmSeat ?? 0)
+      ? (turn?.assistSeats ?? [])
+      : [];
+  const key = helmOffer
+    ? `helm:${helmOffer.id}:${helmOffer.helmSeat}`
+    : sailors.length
+      ? `${turn?.id}:${s.tide}:${s.phase}:${sailors.join(",")}`
+      : "";
   const deferred = key !== "" && deferredCover === key;
   const view = deferred ? key + ":waiting" : key;
   const message = key && !deferred ? "" : status;
@@ -1100,7 +1140,11 @@ function renderAssists(
   if (deferred) {
     const reopen = element(
       "button",
-      recovering ? "Let a bot choose what to stow?" : "Let a bot take a turn?",
+      helmOffer
+        ? "Take the helm?"
+        : recovering
+          ? "Let a bot choose what to stow?"
+          : "Let a bot take a turn?",
     );
     reopen.type = "button";
     reopen.addEventListener("click", () => {
@@ -1112,17 +1156,19 @@ function renderAssists(
   } else {
     const sailor =
       waiting.length === 1 ? s.crew[waiting[0] ?? -1]?.name : undefined;
-    const question = sailor
-      ? recovering
-        ? `Let a bot stow the find for ${sailor}?`
-        : `Let a bot play for ${sailor} this tide?`
-      : waiting.length
-        ? "Should a bot cover a crewmate this tide?"
-        : "Let the bots finish the tide?";
+    const question = helmOffer
+      ? `${helmOffer.crew[helmOffer.helmSeat]?.name} is away. Take the helm?`
+      : sailor
+        ? recovering
+          ? `Let a bot stow the find for ${sailor}?`
+          : `Let a bot play for ${sailor} this tide?`
+        : waiting.length
+          ? "Should a bot cover a crewmate this tide?"
+          : "Let the bots finish the tide?";
     const heading = element("h2", question);
     heading.setAttribute("role", "status");
     assist.append(heading);
-    if (waiting.length) {
+    if (waiting.length || helmOffer) {
       const wait = element("button", "Keep waiting");
       wait.type = "button";
       wait.addEventListener("click", () => {
@@ -1131,6 +1177,12 @@ function renderAssists(
         assist.querySelector("button")?.focus();
       });
       controls.append(wait);
+    }
+    if (helmOffer) {
+      const take = element("button", "Take the helm");
+      take.type = "button";
+      take.addEventListener("click", () => void takeHelm());
+      controls.append(take);
     }
     for (const i of sailors) {
       const name = s.crew[i]?.name ?? "";
@@ -1181,8 +1233,10 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   }
   select("voyage-closeout").hidden = phase !== "won" && phase !== "lost";
   const seat = turn?.seat ?? 0;
+  const helm = turn?.helmSeat ?? 0;
+  const helmName = s.crew[helm]?.name ?? "the host";
   const routeFocus =
-    seat > 0 &&
+    seat !== helm &&
     (previous?.phase === "event" || previous?.phase === "recover") &&
     phase !== previous.phase &&
     choiceArea.contains(document.activeElement);
@@ -1194,6 +1248,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   const keepBoard =
     previous?.phase === "board" &&
     s.phase === "board" &&
+    (!("helmSeat" in previous) || previous.helmSeat === helm) &&
     previous.tide === s.tide;
   const keepRecovery =
     previous?.phase === "recover" &&
@@ -1323,8 +1378,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   if (turn && !options.length && (phase === "salvage" || phase === "event")) {
     instruction =
       phase === "salvage"
-        ? `You’re ${s.crew[seat]?.name}. Waiting for the host to choose salvage.`
-        : `Recommend a route to ${s.crew[0]?.name ?? "the host"}. Select it again to withdraw.`;
+        ? `You’re ${s.crew[seat]?.name}. Waiting for ${helmName} to choose salvage.`
+        : `Recommend a route to ${helmName}. Select it again to withdraw.`;
   }
   let turnText = "";
   if (phase === "cards") {
@@ -1356,7 +1411,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   if (notice.textContent !== noticeText) notice.textContent = noticeText;
   if (phase === "board") {
     if (turn) {
-      if (seat === 0)
+      if (seat === helm)
         instruction = turn.volunteers.length
           ? players < s.crew.length
             ? "Choose a volunteer or a bot to swim."
@@ -1364,8 +1419,8 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
           : "Your friends can volunteer.";
       else
         instruction = turn.volunteers.includes(seat)
-          ? "You volunteered. The host confirms who swims."
-          : "You can volunteer. The host passes the line.";
+          ? `You volunteered. ${helmName} confirms who swims.`
+          : `You can volunteer. ${helmName} passes the line.`;
     }
     const list =
       choiceArea.querySelector<HTMLElement>(".boarding") ?? boarding(s);
@@ -1425,7 +1480,13 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
             ? "In the water"
             : "On the raft";
     identity.append(
-      element("small", location),
+      element(
+        "small",
+        location +
+          (helm !== 0 && i === helm && phase !== "won" && phase !== "lost"
+            ? " · Helm"
+            : ""),
+      ),
       element("span", "", "crew-signal-label"),
     );
     row.append(

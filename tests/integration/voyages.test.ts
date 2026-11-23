@@ -999,6 +999,124 @@ for (const players of [2, 3]) {
   );
 }
 
+await test("one returning crewmate can take an empty helm and finish a tide", async (t) => {
+  const server = await launch(t);
+  const base = server.address + "/api/voyages";
+  const room = await readSnapshot(
+    await fetch(base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: 3 }),
+    }),
+  );
+  assert.ok(typeof room.token === "string" && Array.isArray(room.invites));
+  const host = room.token;
+  const invites: unknown[] = room.invites;
+  const [ivo, nell] = invites;
+  assert.ok(typeof ivo === "string" && typeof nell === "string");
+  const pool = new Pool({ connectionString: databaseUrl });
+  t.after(async () => {
+    try {
+      await pool.query("DELETE FROM voyages WHERE id = $1", [room.id]);
+    } finally {
+      await pool.end();
+    }
+  });
+  const seed = 256;
+  await pool.query("UPDATE voyages SET seed = $1 WHERE id = $2", [
+    seed,
+    room.id,
+  ]);
+  const url = base + "/" + room.id;
+  const get = (token: string) =>
+    fetch(url, { headers: { Authorization: "Bearer " + token } }).then(
+      readSnapshot,
+    );
+  const request = (token: string, action: string) =>
+    fetch(url + "/" + action, {
+      method: "PUT",
+      headers: { Authorization: "Bearer " + token },
+    });
+  const passTime = () =>
+    pool.query(
+      "UPDATE voyages SET helm_seen_at = now() - interval '2 minutes' WHERE id = $1",
+      [room.id],
+    );
+  const commit = (
+    token: string,
+    expectedRevision: number,
+    action: { moveId: string } | { assistSailor: number },
+  ) =>
+    fetch(url + "/moves", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ expectedRevision, ...action }),
+    });
+  await Promise.all([request(ivo, "seat"), request(nell, "seat")]);
+  assert.equal((await request(ivo, "helm")).status, 409);
+  await passTime();
+  assert.equal((await get(ivo)).helmAway, true);
+  assert.equal(
+    (await readSnapshot(await request(host, "presence"))).helmAway,
+    false,
+  );
+  assert.equal((await request(nell, "helm")).status, 409);
+  await passTime();
+  const challengers = [ivo, nell];
+  const claims = await Promise.all(
+    challengers.map((token) => request(token, "helm")),
+  );
+  assert.deepEqual(
+    claims.map(({ status }) => status).toSorted((left, right) => left - right),
+    [200, 409],
+  );
+  const winner = claims.findIndex(({ status }) => status === 200);
+  const leader = challengers[winner];
+  const friend = challengers[1 - winner];
+  const helm = winner + 1;
+  const other = 3 - helm;
+  assert.ok(leader && friend);
+  const stateAtHelm = await get(leader);
+  const hostView = await get(host);
+  assert.equal(hostView.helmSeat, helm);
+  assert.equal(hostView.helmAway, false);
+  assert.deepEqual(hostView.choices, []);
+  assert.deepEqual(stateAtHelm.invites, []);
+  const opening = stateAtHelm.choices[0];
+  assert.ok(opening);
+  assert.equal((await commit(host, 0, { moveId: opening.id })).status, 422);
+  assert.equal((await commit(leader, 0, { moveId: opening.id })).status, 200);
+  assert.equal(
+    (await commit(leader, 1, { moveId: `swim-${helm}` })).status,
+    200,
+  );
+  assert.equal(
+    (await commit(leader, 2, { moveId: `float-${helm}` })).status,
+    200,
+  );
+  assert.equal(
+    (await commit(friend, 3, { moveId: `lash-${other}` })).status,
+    200,
+  );
+  const covered = await readSnapshot(
+    await commit(leader, 4, { assistSailor: 0 }),
+  );
+  assert.equal(covered.phase, "event");
+  assert.deepEqual(covered.coveredSeats, [0]);
+  assert.deepEqual((await get(host)).choices, []);
+  assert.equal((await get(host)).assistedTide, 1);
+  assert.equal((await commit(host, 5, { moveId: "hull" })).status, 422);
+  const resolved = await readSnapshot(
+    await commit(leader, 5, { moveId: "hull" }),
+  );
+  assert.equal(resolved.revision, 6);
+  assert.equal(resolved.helmSeat, helm);
+  assert.deepEqual((await get(host)).tideResult, resolved.tideResult);
+});
+
 for (const { phase, seed, deal } of [
   {
     phase: "lost",

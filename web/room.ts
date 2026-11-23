@@ -137,6 +137,8 @@ function isSnapshot(value: unknown): value is RoomSnapshot {
     typeof value.crewRevision === "number" &&
     (value.rematchId === null || typeof value.rematchId === "string") &&
     typeof value.sameCrew === "boolean" &&
+    sailor(value.helmSeat) &&
+    typeof value.helmAway === "boolean" &&
     Array.isArray(value.signals) &&
     value.signals.length === names.length &&
     value.signals.every(
@@ -311,6 +313,8 @@ export async function readTurn(
   action?:
     | "seat"
     | "launch"
+    | "presence"
+    | "helm"
     | (RoomAction & { expectedRevision: number })
     | { tide: number; signal: CrewSignal | null }
     | { expectedRevision: number; routeId: string | null },
@@ -341,11 +345,13 @@ export async function readTurn(
   });
   if (response.status === 409 || response.status === 422)
     throw new TurnConflict(
-      recommending
-        ? "The route decision changed. Check the latest tide."
-        : signaling
-          ? "The tide changed. Check the crew signals and try again."
-          : "The crew made another choice. Check the latest turn and choose again.",
+      action === "helm"
+        ? "The helm is no longer open."
+        : recommending
+          ? "The route decision changed. Check the latest tide."
+          : signaling
+            ? "The tide changed. Check the crew signals and try again."
+            : "The crew made another choice. Check the latest turn and choose again.",
     );
   if (response.status === 401 || response.status === 404)
     throw new Error(

@@ -19,10 +19,11 @@ import {
 import { nextSeed } from "../../packages/rules/random.ts";
 
 export const profiles = [
-  { name: "solo", players: 1, absent: undefined },
-  { name: "two friends", players: 2, absent: undefined },
-  { name: "three friends", players: 3, absent: undefined },
-  { name: "friend away", players: 3, absent: 1 },
+  { name: "solo", players: 1, absent: undefined, helm: 0 },
+  { name: "two friends", players: 2, absent: undefined, helm: 0 },
+  { name: "three friends", players: 3, absent: undefined, helm: 0 },
+  { name: "friend away", players: 3, absent: 1, helm: 0 },
+  { name: "host away", players: 3, absent: 0, helm: 1 },
 ] as const;
 
 export type Profile = (typeof profiles)[number];
@@ -117,7 +118,7 @@ function sailFrom(
   position: SailingPosition,
   { opening, observeRoute }: RunOptions = {},
 ): FinishedVoyage {
-  const { players, absent, name } = profile;
+  const { players, absent, name, helm } = profile;
   let { state, random, assisted } = position;
   const { history } = position;
   const draw = (length: number) =>
@@ -133,7 +134,7 @@ function sailFrom(
         phase: state.phase,
       });
     assert.ok(history.length < maxMoves, checkpoint());
-    let seat = 0;
+    let seat: number = helm;
     let volunteers: number[] = [];
     if (state.phase === "cards") {
       const waiting = state.crew.flatMap((_, i) =>
@@ -149,7 +150,7 @@ function sailFrom(
         i < players && i !== absent && draw(2) ? [i] : [],
       );
     }
-    const choices = seatMoves(state, seat, players, volunteers);
+    const choices = seatMoves(state, seat, players, volunteers, helm);
     assert.ok(choices.length, checkpoint());
     let move: Move | undefined;
     if (state.phase === "salvage" && opening)
@@ -164,7 +165,10 @@ function sailFrom(
       (state.phase === "cards" || state.phase === "recover") &&
       seat === absent
     ) {
-      assert.ok(assistSeats(state, 0, players).includes(seat), checkpoint());
+      assert.ok(
+        assistSeats(state, helm, players, helm).includes(seat),
+        checkpoint(),
+      );
       move = botMove(state, seat);
       assisted++;
     }

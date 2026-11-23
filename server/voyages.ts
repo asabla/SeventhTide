@@ -42,6 +42,8 @@ interface Row {
   route_recommendations: Partial<Record<number, string>>;
   rematch_id: string | null;
   previous_voyage: string | null;
+  helm_seat: number;
+  helm_away: boolean;
   guests: number;
   seat: number;
 }
@@ -65,7 +67,7 @@ function crewChoices(row: Row, state: Voyage) {
   const volunteers = state.crew.flatMap((_, i) =>
     volunteered(row, i) ? [i] : [],
   );
-  return seatMoves(state, row.seat, row.guests + 1, volunteers);
+  return seatMoves(state, row.seat, row.guests + 1, volunteers, row.helm_seat);
 }
 
 function snapshot(row: Row, state: Voyage, token: string) {
@@ -82,6 +84,13 @@ function snapshot(row: Row, state: Voyage, token: string) {
     crewRevision: row.crew_revision,
     rematchId: row.rematch_id,
     sameCrew: row.previous_voyage !== null,
+    helmSeat: row.helm_seat,
+    helmAway:
+      row.crew_launched &&
+      row.guests > 0 &&
+      row.helm_away &&
+      state.phase !== "won" &&
+      state.phase !== "lost",
     signals: state.crew.map((_, i) =>
       state.phase === "cards" || state.phase === "event"
         ? (row.crew_signals[i] ?? null)
@@ -90,7 +99,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
     routeRecommendations: state.crew.map((_, seat) =>
       row.crew_launched &&
       state.phase === "event" &&
-      seat > 0 &&
+      seat !== row.helm_seat &&
       seat <= row.guests
         ? (row.route_recommendations[seat] ?? null)
         : null,
@@ -133,7 +142,7 @@ function snapshot(row: Row, state: Voyage, token: string) {
           }
         : null,
     choices: crewChoices(row, state),
-    assistSeats: assistSeats(state, row.seat, row.guests + 1),
+    assistSeats: assistSeats(state, row.seat, row.guests + 1, row.helm_seat),
     channelScouts: state.phase === "board" ? channelScouts(state) : [],
     offerRevision: row.offer_revision,
     volunteers: state.crew.flatMap((_, i) => (volunteered(row, i) ? [i] : [])),
@@ -155,8 +164,9 @@ const params = {
   properties: { id: { type: "string", format: "uuid" } },
 };
 
-const crewColumns =
-  "crew_launched, joined_mask, crew_revision, assisted_tides, crew_signals, route_recommendations";
+const helmExpired = "helm_seen_at + interval '90 seconds' <= now()";
+const crewColumns = `crew_launched, joined_mask, crew_revision, assisted_tides, crew_signals, route_recommendations,
+  helm_seat, (${helmExpired}) AS helm_away`;
 const roomColumns = `id, rules_version, seed, moves, revision, volunteer_mask, offer_revision,
   ${crewColumns}, previous_voyage, cardinality(guest_digests) AS guests,
   (SELECT next.id FROM voyages AS next WHERE next.previous_voyage = voyages.id) AS rematch_id`;
@@ -168,6 +178,8 @@ type CrewState = Pick<
   | "assisted_tides"
   | "crew_signals"
   | "route_recommendations"
+  | "helm_seat"
+  | "helm_away"
 >;
 
 function digest(token: string) {
@@ -353,6 +365,7 @@ export async function voyageRoutes(
       if (row.crew_launched) return snapshot(row, replay(row), token);
       const launched = await pool.query<Row>(
         `UPDATE voyages SET crew_launched = true,
+          helm_seen_at = now(),
           crew_revision = crew_revision + CASE WHEN crew_launched THEN 0 ELSE 1 END
           WHERE id = $1 RETURNING ${roomColumns}, 0 AS seat`,
         [row.id],
@@ -360,6 +373,59 @@ export async function voyageRoutes(
       const saved = launched.rows[0];
       if (!saved) return reply.code(404).send({ error: "Voyage unavailable." });
       return snapshot(saved, replay(saved), token);
+    },
+  );
+
+  app.put<{ Params: { id: string } }>(
+    "/:id/presence",
+    { schema: { params } },
+    async (request, reply) => {
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row, token } = session;
+      if (!row.crew_launched || !row.guests || row.seat !== row.helm_seat)
+        return snapshot(row, replay(row), token);
+      const updated = await pool.query<Row>(
+        `UPDATE voyages SET helm_seen_at = now()
+          WHERE id = $1 AND helm_seat = $2 AND helm_seen_at + interval '15 seconds' <= now()
+          RETURNING ${roomColumns}, $2::integer AS seat`,
+        [row.id, row.seat],
+      );
+      const present = updated.rows[0] ?? row;
+      return snapshot(present, replay(present), token);
+    },
+  );
+
+  app.put<{ Params: { id: string } }>(
+    "/:id/helm",
+    { schema: { params } },
+    async (request, reply) => {
+      const session = await load(request, reply);
+      if (!session) return reply;
+      const { row, token } = session;
+      const state = replay(row);
+      if (
+        !row.crew_launched ||
+        !row.guests ||
+        state.phase === "won" ||
+        state.phase === "lost"
+      )
+        return reply
+          .code(422)
+          .send({ error: "The crew cannot change the helm right now." });
+      if (row.seat === row.helm_seat) return snapshot(row, state, token);
+      const updated = await pool.query<Row>(
+        `UPDATE voyages SET helm_seat = $2, helm_seen_at = now(), crew_revision = crew_revision + 1,
+          route_recommendations = route_recommendations - $2::text
+          WHERE id = $1 AND revision = $3 AND helm_seat = $4 AND (${helmExpired})
+            AND (joined_mask & (1 << $2::integer)) <> 0
+          RETURNING ${roomColumns}, $2::integer AS seat`,
+        [row.id, row.seat, row.revision, row.helm_seat],
+      );
+      const lead = updated.rows[0];
+      if (!lead)
+        return reply.code(409).send({ error: "The helm is no longer open." });
+      return snapshot(lead, state, token);
     },
   );
 
@@ -441,8 +507,10 @@ export async function voyageRoutes(
       if (!session) return reply;
       const { row, token } = session;
       const { expectedRevision, routeId } = request.body;
-      if (row.seat === 0)
-        return reply.code(403).send({ error: "The host chooses the route." });
+      if (row.seat === row.helm_seat)
+        return reply
+          .code(403)
+          .send({ error: "The sailor at the helm chooses the route." });
       const conflict = () =>
         reply.code(409).send({ error: "The route decision has changed." });
       if (!row.crew_launched || row.revision !== expectedRevision)
@@ -456,8 +524,9 @@ export async function voyageRoutes(
           route_recommendations = CASE WHEN $4::text IS NULL THEN route_recommendations - $3::text
             ELSE route_recommendations || jsonb_build_object($3::text, $4::text) END,
           crew_revision = crew_revision + CASE WHEN route_recommendations ->> $3::text IS DISTINCT FROM $4::text THEN 1 ELSE 0 END
-          WHERE id = $1 AND revision = $2 RETURNING ${roomColumns}, $3::integer AS seat`,
-        [row.id, expectedRevision, row.seat, routeId],
+          WHERE id = $1 AND revision = $2 AND helm_seat = $5
+          RETURNING ${roomColumns}, $3::integer AS seat`,
+        [row.id, expectedRevision, row.seat, routeId, row.helm_seat],
       );
       const saved = result.rows[0];
       if (!saved) return conflict();
@@ -544,7 +613,7 @@ export async function voyageRoutes(
               maximum: 2147483647,
             },
             moveId: { type: "string", minLength: 1, maxLength: 64 },
-            assistSailor: { type: "integer", minimum: 1, maximum: 2 },
+            assistSailor: { type: "integer", minimum: 0, maximum: 2 },
           },
         },
       },
@@ -569,7 +638,9 @@ export async function voyageRoutes(
       const choice =
         assistSailor === undefined
           ? crewChoices(row, before).find((move) => move.id === moveId)
-          : assistSeats(before, row.seat, players).includes(assistSailor)
+          : assistSeats(before, row.seat, players, row.helm_seat).includes(
+                assistSailor,
+              )
             ? botMove(before, assistSailor)
             : undefined;
       if (!choice) {
@@ -587,8 +658,9 @@ export async function voyageRoutes(
         `UPDATE voyages SET moves = moves || $1::text[], volunteer_mask = 0,
           assisted_tides = assisted_tides || $5::jsonb,
           crew_signals = CASE WHEN $6::boolean THEN '{}'::jsonb ELSE crew_signals END,
-          route_recommendations = CASE WHEN $6::boolean THEN '{}'::jsonb ELSE route_recommendations END
-          WHERE id = $2 AND revision = $3 AND offer_revision = $4
+          route_recommendations = CASE WHEN $6::boolean THEN '{}'::jsonb ELSE route_recommendations END,
+          helm_seen_at = CASE WHEN helm_seat = $8 THEN now() ELSE helm_seen_at END
+          WHERE id = $2 AND revision = $3 AND offer_revision = $4 AND helm_seat = $7
           RETURNING revision, volunteer_mask, ${crewColumns}`,
         [
           next.history,
@@ -597,6 +669,8 @@ export async function voyageRoutes(
           row.offer_revision,
           JSON.stringify(assisted),
           before.phase === "event",
+          row.helm_seat,
+          row.seat,
         ],
       );
       const saved = updated.rows[0];

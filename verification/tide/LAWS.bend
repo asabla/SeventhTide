@@ -141,13 +141,19 @@ law each_stage_has_a_move:
   for stage: Progress.Stage
   { Progress.accepts(stage, Progress.fallback(stage)) == True{} : Bool }
 
-law host_can_play:
+law helm_can_play:
   for ready: Bool
-  { Progress.crew_access(True{}, Progress.HostSeat{}, ready) == Progress.Access{True{}, False{}, False{}} : Progress.Access }
+  { Progress.crew_access(True{}, Progress.HelmSeat{}, ready) == Progress.Access{True{}, False{}, False{}} : Progress.Access }
 
-law guest_can_play_or_be_covered:
+law helm_controls_public_choices:
+  { Progress.can_steer(Progress.HelmSeat{}) == True{} : Bool }
+
+law crewmates_cannot_commit_public_choices:
+  { Progress.can_steer(Progress.CrewSeat{}) == False{} : Bool }
+
+law crewmate_can_play_or_be_covered:
   for ready: Bool
-  { Progress.crew_access(True{}, Progress.GuestSeat{}, ready) == Progress.Access{True{}, True{}, False{}} : Progress.Access }
+  { Progress.crew_access(True{}, Progress.CrewSeat{}, ready) == Progress.Access{True{}, True{}, False{}} : Progress.Access }
 
 law bot_plays_after_humans:
   { Progress.crew_access(True{}, Progress.BotSeat{}, True{}) == Progress.Access{False{}, True{}, True{}} : Progress.Access }

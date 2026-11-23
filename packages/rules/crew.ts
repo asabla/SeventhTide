@@ -18,11 +18,12 @@ export function seatMoves(
   seat: number,
   players: number,
   volunteers: readonly number[] = [],
+  helm = 0,
 ) {
   const available = moves(state);
   if (state.phase === "cards" || state.phase === "recover")
     return available.filter(({ actor }) => actor === seat);
-  if (seat !== 0) return [];
+  if (seat !== helm) return [];
   if (state.phase !== "board" || !volunteers.length) return available;
   return available.filter(({ id }) => {
     const sailor = Number(id.slice(5));
@@ -41,14 +42,21 @@ function humansPlayed(state: Voyage, players: number) {
   return state.crew.slice(0, players).every((_, i) => state.acted.includes(i));
 }
 
-export function assistSeats(state: Voyage, seat: number, players: number) {
-  if (seat !== 0) return [];
+export function assistSeats(
+  state: Voyage,
+  seat: number,
+  players: number,
+  helm = 0,
+) {
+  if (seat !== helm) return [];
   if (state.phase === "recover")
-    return state.swimmer !== null && state.swimmer > 0 ? [state.swimmer] : [];
+    return state.swimmer !== null && state.swimmer !== helm
+      ? [state.swimmer]
+      : [];
   if (state.phase !== "cards") return [];
   const ready = humansPlayed(state, players);
   return state.crew.flatMap((_, i) =>
-    i > 0 && (i < players || ready) && !state.acted.includes(i) ? [i] : [],
+    i !== helm && (i < players || ready) && !state.acted.includes(i) ? [i] : [],
   );
 }
 
