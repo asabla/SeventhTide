@@ -1117,7 +1117,7 @@ await test("one returning crewmate can take an empty helm and finish a tide", as
   assert.deepEqual((await get(host)).tideResult, resolved.tideResult);
 });
 
-for (const { phase, seed, deal } of [
+for (const { phase, seed, deal, passHelm } of [
   {
     phase: "lost",
     seed: 1013904226,
@@ -1128,8 +1128,15 @@ for (const { phase, seed, deal } of [
     seed: 977028564,
     deal: "canvas swim-1 bell-1 belt-2 lash-0 dive swim-1 hook-0 glass-1 wrap-2-1 hull swim-2 cask-1 comb-0 feed-2-0 hull swim-0 lash-2 iron-0 feed-1-2 hull swim-1 lantern-1 patch-0 line-2 hull swim-1 feed-2-1 line-1 feed-0-1 dive swim-2 anchor-1 net-0 hook-2 channel",
   },
+  {
+    phase: "lost",
+    seed: 1013904226,
+    deal: "canvas swim-1 lash-0 line-1 lash-2 dive",
+    passHelm: true,
+  },
 ]) {
-  await test(`the crew can sail again after a voyage is ${phase}`, async (t) => {
+  const leader = passHelm ? "the returning helm" : "the host";
+  await test(`${leader} can start another voyage after the crew is ${phase}`, async (t) => {
     let server = await launch(t);
     const base = () => server.address + "/api/voyages";
     const room = await readSnapshot(
@@ -1171,9 +1178,21 @@ for (const { phase, seed, deal } of [
     let expected = start(seed, 13);
     const history = deal.split(" ");
     for (const [expectedRevision, moveId] of history.entries()) {
+      const finalMove = expectedRevision === history.length - 1;
+      if (passHelm && finalMove) {
+        await readSnapshot(await request(room.id, ivo, "/seat", "PUT"));
+        await pool.query(
+          "UPDATE voyages SET helm_seen_at = now() - interval '2 minutes' WHERE id = $1",
+          [room.id],
+        );
+        const handoff = await readSnapshot(
+          await request(room.id, ivo, "/helm", "PUT"),
+        );
+        assert.equal(handoff.helmSeat, 1);
+      }
       const move = moves(expected).find(({ id }) => id === moveId);
       assert.ok(move, moveId);
-      const token = tokens[move.actor ?? 0];
+      const token = tokens[move.actor ?? (passHelm && finalMove ? 1 : 0)];
       assert.ok(token);
       const played = await fetch(base() + "/" + room.id + "/moves", {
         method: "POST",
@@ -1192,8 +1211,9 @@ for (const { phase, seed, deal } of [
     assert.equal(archived.rematchId, null);
     assert.deepEqual(archived.choices, []);
     assert.deepEqual(archived.crew, expected.crew);
-    assert.equal((await rematch(ivo)).status, 403);
-    const created = await Promise.all([rematch(host), rematch(host)]);
+    assert.equal((await rematch(nell)).status, 403);
+    const preparer = passHelm ? ivo : host;
+    const created = await Promise.all([rematch(preparer), rematch(preparer)]);
     assert.deepEqual(
       created.map(({ status }) => status),
       [200, 200],
@@ -1218,20 +1238,32 @@ for (const { phase, seed, deal } of [
     assert.equal(guest.revision, 0);
     assert.equal(guest.crewLaunched, false);
     assert.equal(guest.sameCrew, true);
-    assert.deepEqual(guest.joinedSeats, [0, 1]);
+    assert.equal(guest.helmSeat, passHelm ? 1 : 0);
+    assert.deepEqual(guest.joinedSeats, passHelm ? [1] : [0, 1]);
     assert.deepEqual(guest.invites, []);
     assert.equal(
       (await request(first.id, Buffer.alloc(32, 1).toString("base64url")))
         .status,
       404,
     );
+    assert.equal((await request(first.id, nell, "/launch", "PUT")).status, 403);
     const next = await readSnapshot(
-      await request(first.id, host, "/launch", "PUT"),
+      await request(first.id, preparer, "/launch", "PUT"),
     );
+    assert.equal(next.seat, passHelm ? 1 : 0);
     assert.equal(next.crewLaunched, true);
     assert.equal(next.phase, "salvage");
     assert.equal(next.rulesVersion, rulesVersion);
     assert.equal(next.choices.length, 2);
+    if (passHelm) {
+      const returning = await readSnapshot(
+        await request(first.id, host, "/seat", "PUT"),
+      );
+      assert.equal(returning.seat, 0);
+      assert.deepEqual(returning.joinedSeats, [0, 1]);
+      assert.deepEqual(returning.choices, []);
+      assert.deepEqual(returning.invites, invites);
+    }
   });
 }
 

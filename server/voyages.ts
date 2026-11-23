@@ -301,10 +301,10 @@ export async function voyageRoutes(
       const session = await load(request, reply);
       if (!session) return reply;
       const { row } = session;
-      if (row.seat !== 0)
-        return reply
-          .code(403)
-          .send({ error: "Only the host can prepare another voyage." });
+      if (row.seat !== 0 && row.seat !== row.helm_seat)
+        return reply.code(403).send({
+          error: "The host or sailor at the helm can prepare another voyage.",
+        });
       const { phase } = replay(row);
       if (!row.guests || (phase !== "won" && phase !== "lost"))
         return reply
@@ -312,12 +312,20 @@ export async function voyageRoutes(
           .send({ error: "The crew must finish this voyage first." });
       if (row.rematch_id) return { id: row.rematch_id };
 
-      // A unique predecessor allows only one successor even when hosts retry together.
+      // The first authorized sailor to prepare the next voyage takes its helm.
       const created = await pool.query<{ id: string }>(
-        `INSERT INTO voyages (id, owner_digest, rules_version, seed, guest_digests, crew_launched, previous_voyage)
-          SELECT $2, owner_digest, $3, $4, guest_digests, false, id FROM voyages WHERE id = $1
+        `INSERT INTO voyages (id, owner_digest, rules_version, seed, guest_digests, crew_launched,
+          previous_voyage, helm_seat, joined_mask)
+          SELECT $2, owner_digest, $3, $4, guest_digests, false, id, $5::smallint, 1 << $5::smallint
+          FROM voyages WHERE id = $1
           ON CONFLICT (previous_voyage) DO NOTHING RETURNING id`,
-        [row.id, randomUUID(), rulesVersion, randomBytes(4).readUInt32BE()],
+        [
+          row.id,
+          randomUUID(),
+          rulesVersion,
+          randomBytes(4).readUInt32BE(),
+          row.seat,
+        ],
       );
       if (created.rows[0]) return created.rows[0];
       const existing = await pool.query<{ id: string }>(
@@ -358,17 +366,17 @@ export async function voyageRoutes(
       const session = await load(request, reply);
       if (!session) return reply;
       const { row, token } = session;
-      if (row.seat !== 0)
-        return reply
-          .code(403)
-          .send({ error: "Only the host can begin the voyage." });
+      if (row.seat !== 0 && row.seat !== row.helm_seat)
+        return reply.code(403).send({
+          error: "The host or sailor at the helm can begin the voyage.",
+        });
       if (row.crew_launched) return snapshot(row, replay(row), token);
       const launched = await pool.query<Row>(
         `UPDATE voyages SET crew_launched = true,
           helm_seen_at = now(),
           crew_revision = crew_revision + CASE WHEN crew_launched THEN 0 ELSE 1 END
-          WHERE id = $1 RETURNING ${roomColumns}, 0 AS seat`,
-        [row.id],
+          WHERE id = $1 RETURNING ${roomColumns}, $2::integer AS seat`,
+        [row.id, row.seat],
       );
       const saved = launched.rows[0];
       if (!saved) return reply.code(404).send({ error: "Voyage unavailable." });
