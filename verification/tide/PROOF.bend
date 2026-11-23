@@ -88,6 +88,12 @@ def Laws.fatal_cold(excess):
 def Laws.four_cold_is_safe():
   {==}
 
+def Laws.slipping_the_towline_spares_the_hull_for_one_extra_cold(since, brace):
+  {==}
+
+def Laws.archived_towline_costs_two_extra_cold(brace):
+  {==}
+
 def Laws.each_stage_has_a_move(stage):
   match stage:
     case Progress.Salvage{}:

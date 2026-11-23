@@ -128,6 +128,15 @@ law fatal_cold:
 law four_cold_is_safe:
   { Encounter.fatal(4n) == False{} : Bool }
 
+law slipping_the_towline_spares_the_hull_for_one_extra_cold:
+  for since: Nat
+  for brace: Nat
+  { Encounter.effects(Encounter.Dive{}, brace, 14n+since, 2n, Encounter.towline_cold(14n+since)) == Encounter.Effects{0n, 1n, 2n, 1n} : Encounter.Effects }
+
+law archived_towline_costs_two_extra_cold:
+  for brace: Nat
+  { Encounter.effects(Encounter.Dive{}, brace, 13n, 2n, Encounter.towline_cold(13n)) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+
 law each_stage_has_a_move:
   for stage: Progress.Stage
   { Progress.accepts(stage, Progress.fallback(stage)) == True{} : Bool }

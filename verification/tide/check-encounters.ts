@@ -4,6 +4,7 @@ import {
   pried,
   unmarked,
 } from "../../tests/fixtures/landfall-pursuit.ts";
+import { towlineHistory, towlineSeed } from "../../tests/fixtures/towline.ts";
 import {
   crewMember,
   currentEvent,
@@ -140,7 +141,9 @@ function checkResolution(
   const locker = waterAt(state) === "DriftingLocker";
   const diveCold = grip
     ? call("grip_haul_cost", state.guard, state.rulesVersion ?? 1)
-    : storedCold;
+    : water[0] === "The towline"
+      ? call("towline_cold", state.rulesVersion ?? 1)
+      : storedCold;
   assert.equal(currentEvent(state)[4], diveCold, context);
   const kind: TideResult["route"]["kind"] =
     id === "hull" ? (locker ? "leave-locker" : grip ? "cut" : "hull") : id;
@@ -390,6 +393,12 @@ export function checkEncounters(call: BendCall) {
       water: "RaftGrip",
     },
   );
+  for (const version of [13, rulesVersion])
+    fixtures.push({
+      name: `towline / version ${version}`,
+      state: replay(towlineSeed, version, towlineHistory),
+      water: "OpenWater",
+    });
   for (const { seed, history, plays } of [unmarked, marked]) {
     for (const version of [9, 10]) {
       const state = history.reduce(play, start(seed, version));
