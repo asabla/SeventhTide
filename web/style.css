@@ -2003,6 +2003,7 @@ body.voyage {
 #voyage-closeout:not([hidden]) {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
   margin: 20px 3px -30px;
   border-top: 1px solid #8367428c;
 }
@@ -2031,6 +2032,19 @@ body.voyage {
 
 .crew-return {
   margin-top: -10px;
+}
+
+#voyage-closeout:has(#rematch-voyage:not([hidden])) #leave-voyage {
+  width: fit-content;
+  aspect-ratio: auto;
+  padding-inline: 5px;
+  background: none;
+  color: var(--ink);
+  filter: none;
+  translate: 0 -6px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-shadow: none;
 }
 
 .voyage-options > div > .clasp-control {

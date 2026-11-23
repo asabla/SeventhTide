@@ -999,6 +999,124 @@ for (const players of [2, 3]) {
   );
 }
 
+for (const { phase, seed, deal } of [
+  {
+    phase: "lost",
+    seed: 1013904226,
+    deal: "canvas swim-1 lash-0 line-1 lash-2 dive",
+  },
+  {
+    phase: "won",
+    seed: 977028564,
+    deal: "canvas swim-1 bell-1 belt-2 lash-0 dive swim-1 hook-0 glass-1 wrap-2-1 hull swim-2 cask-1 comb-0 feed-2-0 hull swim-0 lash-2 iron-0 feed-1-2 hull swim-1 lantern-1 patch-0 line-2 hull swim-1 feed-2-1 line-1 feed-0-1 dive swim-2 anchor-1 net-0 hook-2 channel",
+  },
+]) {
+  await test(`the crew can sail again after a voyage is ${phase}`, async (t) => {
+    let server = await launch(t);
+    const base = () => server.address + "/api/voyages";
+    const room = await readSnapshot(
+      await fetch(base(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ players: 3 }),
+      }),
+    );
+    const host = room.token;
+    assert.ok(typeof host === "string" && Array.isArray(room.invites));
+    const invites: unknown[] = room.invites;
+    const [ivo, nell] = invites;
+    assert.ok(typeof ivo === "string" && typeof nell === "string");
+    const tokens = [host, ivo, nell];
+    const pool = new Pool({ connectionString: databaseUrl });
+    t.after(async () => {
+      try {
+        await pool.query(
+          "DELETE FROM voyages WHERE id = $1 OR previous_voyage = $1",
+          [room.id],
+        );
+      } finally {
+        await pool.end();
+      }
+    });
+    await pool.query(
+      "UPDATE voyages SET seed = $1, rules_version = 13 WHERE id = $2",
+      [seed, room.id],
+    );
+    const request = (id: string, token: string, action = "", method = "GET") =>
+      fetch(base() + "/" + id + action, {
+        method,
+        headers: { Authorization: "Bearer " + token },
+      });
+    const rematch = (token: string) =>
+      request(room.id, token, "/rematch", "POST");
+    assert.equal((await rematch(host)).status, 422);
+    let expected = start(seed, 13);
+    const history = deal.split(" ");
+    for (const [expectedRevision, moveId] of history.entries()) {
+      const move = moves(expected).find(({ id }) => id === moveId);
+      assert.ok(move, moveId);
+      const token = tokens[move.actor ?? 0];
+      assert.ok(token);
+      const played = await fetch(base() + "/" + room.id + "/moves", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ expectedRevision, moveId }),
+      });
+      assert.equal(played.status, 200, moveId);
+      expected = play(expected, moveId);
+    }
+
+    const archived = await readSnapshot(await request(room.id, ivo));
+    assert.equal(archived.phase, phase);
+    assert.equal(archived.rematchId, null);
+    assert.deepEqual(archived.choices, []);
+    assert.deepEqual(archived.crew, expected.crew);
+    assert.equal((await rematch(ivo)).status, 403);
+    const created = await Promise.all([rematch(host), rematch(host)]);
+    assert.deepEqual(
+      created.map(({ status }) => status),
+      [200, 200],
+    );
+    const responses: unknown[] = await Promise.all(
+      created.map((response) => response.json()),
+    );
+    const [first, second] = responses;
+    assert.deepEqual(first, second);
+    assert.ok(
+      isRecord(first) && typeof first.id === "string" && first.id !== room.id,
+    );
+
+    await server.stop();
+    server = await launch(t);
+    const reloaded = await readSnapshot(await request(room.id, ivo));
+    assert.deepEqual(reloaded, { ...archived, rematchId: first.id });
+    const guest = await readSnapshot(
+      await request(first.id, ivo, "/seat", "PUT"),
+    );
+    assert.equal(guest.seat, 1);
+    assert.equal(guest.revision, 0);
+    assert.equal(guest.crewLaunched, false);
+    assert.equal(guest.sameCrew, true);
+    assert.deepEqual(guest.joinedSeats, [0, 1]);
+    assert.deepEqual(guest.invites, []);
+    assert.equal(
+      (await request(first.id, Buffer.alloc(32, 1).toString("base64url")))
+        .status,
+      404,
+    );
+    const next = await readSnapshot(
+      await request(first.id, host, "/launch", "PUT"),
+    );
+    assert.equal(next.crewLaunched, true);
+    assert.equal(next.phase, "salvage");
+    assert.equal(next.rulesVersion, rulesVersion);
+    assert.equal(next.choices.length, 2);
+  });
+}
+
 await test("a stored version-one room can rejoin and complete all seven tides", async (t) => {
   const server = await launch(t);
   const base = server.address + "/api/voyages";

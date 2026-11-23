@@ -106,7 +106,7 @@ Choose **Play solo** to play Mara with Ivo and Nell as bot crewmates. You choose
 
 Start the server with [PostgreSQL](#durable-voyages). For friends on the same Wi-Fi, set `HOST=0.0.0.0` when starting the server. Open the game using the host computer’s LAN address on **all** devices, including the host. An invite created on `localhost` or `127.0.0.1` points back to the device that opens it. For remote play, use a shared HTTPS address.
 
-Open **Play with friends** and choose **Invite one friend** or **Invite two friends**. Copy each friend’s private link from the crew lobby. A seat shows **Joined** once the friend opens it. The host plays Mara and makes the salvage, boarding, and event decisions. The first friend plays Ivo. Nell is a bot in a two-player room, and the second friend plays Nell in a three-player room. The host can begin with open seats, and friends can still join through their links.
+Choose **Invite one friend** or **Invite two friends** from the launch table. Copy each friend’s private link from the crew lobby. A seat shows **Joined** once the friend opens it. The host plays Mara and makes the salvage, boarding, and event decisions. The first friend plays Ivo. Nell is a bot in a two-player room, and the second friend plays Nell in a three-player room. The host can begin with open seats, and friends can still join through their links.
 
 During boarding, each player can volunteer or withdraw their sailor. The host assigns a volunteer or a bot. With no volunteers, the host can assign any sailor. The preview shows exposure and rations before cards and events change the outcome. On tide six, the crew can see which sailors can mark the channel.
 
@@ -115,6 +115,8 @@ Players can act in any order. Bots play after the human turns. After the host pl
 During card play, open the signal pennant beside the other header tools. Choose a flag to ask for warmth or brace, or to offer a ration. The Ship’s log marks active signals beside each sailor. On narrow screens, the log shows a short condition summary and the active callouts. Open it to see every sailor’s cold and rations. Select your raised flag again to lower it. All signals clear when the tide resolves. Bot callouts reflect the crew’s public resources.
 
 When the tide calls for a route, each friend can select a route to place their pennant beside it. Select a different route to move your pennant, or select the same route again to withdraw it. The host chooses when to commit, and the tide clears the pennants.
+
+After rescue or loss, the host can choose **Sail again with this crew**. Each friend can join from the finished voyage with their own seat. The new voyage starts with a fresh deal in the crew lobby. A player who wants to leave can keep reading the result and return to the launch table when ready.
 
 ## Durable voyages
 

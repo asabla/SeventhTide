@@ -313,10 +313,18 @@
         ></section>
         <div id="tide-result" hidden>
           <div id="tide-result-detail" aria-live="polite"></div>
-          <div id="voyage-closeout" hidden>
+          <div id="voyage-closeout" aria-live="polite" hidden>
             <a id="leave-voyage" class="crew-return" href="./" hidden
               >Leave voyage</a
             >
+            <button
+              id="rematch-voyage"
+              class="crew-return"
+              type="button"
+              hidden
+            >
+              Sail again with this crew
+            </button>
             <button id="choose-crew" class="crew-return" type="button" hidden>
               Choose your crew
             </button>
