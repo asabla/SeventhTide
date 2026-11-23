@@ -114,6 +114,8 @@ During boarding, each player can volunteer or withdraw their sailor. The host as
 
 Players can act in any order. Bots play after the human turns. After the host plays, the game asks whether to wait for a friend or let a bot take their turn. The returning friend sees which tide the bot covered and can act again on the next tide. An open room refreshes while its tab is visible. Refreshing the page restores the seat in the same tab. The host can reopen the latest room with **Resume voyage with friends**. Guests can rejoin with their invite link. Anyone with that link can play the seat.
 
+If the sailor at the helm has been away from the table for 90 seconds, a connected friend can take the helm. They make the public choices and can ask a bot to cover another sailor. Each player keeps their own hand and seat, including the returning host.
+
 During card play, open the signal pennant beside the other header tools. Choose a flag to ask for warmth or brace, or to offer a ration. The Ship’s log marks active signals beside each sailor. On narrow screens, the log shows a short condition summary and the active callouts. Open it to see every sailor’s cold and rations. Select your raised flag again to lower it. All signals clear when the tide resolves. Bot callouts reflect the crew’s public resources.
 
 When the tide calls for a route, each friend can select a route to place their pennant beside it. Select a different route to move your pennant, or select the same route again to withdraw it. The host chooses when to commit, and the tide clears the pennants.

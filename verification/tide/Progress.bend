@@ -19,20 +19,27 @@ type Action is Data:
   KeepHand{}
 
 type Role is Data:
-  HostSeat{}
-  GuestSeat{}
+  HelmSeat{}
+  CrewSeat{}
   BotSeat{}
 
 type Access is Data:
   Access{direct: Bool, cover: Bool, automatic: Bool}
 
+def can_steer(role: Role) -> Bool:
+  match role:
+    case HelmSeat{}:
+      True{}
+    case _:
+      False{}
+
 def crew_access(pending: Bool, role: Role, ready: Bool) -> Access:
   match pending role ready:
     case False{} _ _:
       Access{False{}, False{}, False{}}
-    case True{} HostSeat{} _:
+    case True{} HelmSeat{} _:
       Access{True{}, False{}, False{}}
-    case True{} GuestSeat{} _:
+    case True{} CrewSeat{} _:
       Access{True{}, True{}, False{}}
     case True{} BotSeat{} False{}:
       Access{False{}, False{}, False{}}

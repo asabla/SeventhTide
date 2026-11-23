@@ -23,6 +23,8 @@ Use the same crew portraits on the launch table, in the room, and when choosing 
 
 After a multiplayer voyage, put the clasp for sailing again on the final entry. Guests can join the new voyage once the host prepares it. Keep the result visible until each player chooses to leave or join.
 
+If the sailor at the helm is away, ask the remaining crew whether to take the helm or keep waiting. Use the same prompt surface as bot cover. After a handoff, indicate who has the helm in the Ship’s log.
+
 Reuse the closest approved surface before making a new one. Inspect illustrations at the actual rendered size against the nearby card art. A new asset must read clearly in its crop and depict the action it represents.
 
 ## Verify in the running game

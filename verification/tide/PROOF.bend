@@ -111,10 +111,16 @@ def Laws.each_stage_has_a_move(stage):
     case Progress.Recovery{}:
       {==}
 
-def Laws.host_can_play(ready):
+def Laws.helm_can_play(ready):
   {==}
 
-def Laws.guest_can_play_or_be_covered(ready):
+def Laws.helm_controls_public_choices():
+  {==}
+
+def Laws.crewmates_cannot_commit_public_choices():
+  {==}
+
+def Laws.crewmate_can_play_or_be_covered(ready):
   {==}
 
 def Laws.bot_plays_after_humans():

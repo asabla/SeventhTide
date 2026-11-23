@@ -141,20 +141,25 @@ function ids(choices: Move[]) {
   return choices.map(({ id }) => id);
 }
 
-function checkBoardingSeats(state: Voyage, players: number, context: string) {
+function checkBoardingSeats(
+  state: Voyage,
+  players: number,
+  helm: number,
+  context: string,
+) {
   const humans = seats.slice(0, players);
   const bots = seats.slice(players);
   for (let mask = 0; mask < 2 ** players; mask++) {
     const volunteers = humans.filter((seat) => (mask & (1 << seat)) !== 0);
     const candidates = volunteers.length ? [...volunteers, ...bots] : seats;
     assert.deepEqual(
-      ids(seatMoves(state, 0, players, volunteers)),
+      ids(seatMoves(state, helm, players, volunteers, helm)),
       candidates.map((sailor) => "swim-" + sailor),
       context,
     );
-    for (const guest of humans.slice(1)) {
+    for (const guest of humans.filter((seat) => seat !== helm)) {
       assert.deepEqual(
-        seatMoves(state, guest, players, volunteers),
+        seatMoves(state, guest, players, volunteers, helm),
         [],
         context,
       );
@@ -209,16 +214,25 @@ function checkFallback(
       break;
   }
   for (const players of [1, 2, 3]) {
-    if (state.phase === "board") {
-      checkBoardingSeats(state, players, context);
-    } else if (state.phase === "cards") {
-      checkCrewSeats(call, state, legal, waiting, players, context);
-    } else if (state.phase === "recover") {
-      checkRecoverySeats(call, state, legal, players, context);
-    } else {
-      assert.deepEqual(seatMoves(state, 0, players), legal, context);
-      for (const guest of seats.slice(1, players)) {
-        assert.deepEqual(seatMoves(state, guest, players), [], context);
+    for (const helm of seats.slice(0, players)) {
+      if (state.phase === "board") {
+        checkBoardingSeats(state, players, helm, context);
+      } else if (state.phase === "cards") {
+        checkCrewSeats(call, state, legal, waiting, players, helm, context);
+      } else if (state.phase === "recover") {
+        checkRecoverySeats(call, state, legal, players, helm, context);
+      } else {
+        for (const seat of seats.slice(0, players)) {
+          const steers = call(
+            "can_steer",
+            tag(seat === helm ? "HelmSeat" : "CrewSeat"),
+          );
+          assert.deepEqual(
+            seatMoves(state, seat, players, [], helm),
+            steers ? legal : [],
+            context,
+          );
+        }
       }
     }
   }
@@ -229,25 +243,26 @@ function checkRecoverySeats(
   state: Voyage,
   legal: Move[],
   players: number,
+  helm: number,
   context: string,
 ) {
   const cover: number[] = [];
   let automatic = false;
   for (const seat of seats) {
     const role =
-      seat === 0 ? "HostSeat" : seat < players ? "GuestSeat" : "BotSeat";
+      seat === helm ? "HelmSeat" : seat < players ? "CrewSeat" : "BotSeat";
     const access = call("crew_access", seat === state.swimmer, tag(role), true);
     record(access);
     if (access.cover) cover.push(seat);
     if (access.automatic) automatic = true;
     if (seat < players)
       assert.deepEqual(
-        seatMoves(state, seat, players),
+        seatMoves(state, seat, players, [], helm),
         access.direct ? legal : [],
         context,
       );
   }
-  assert.deepEqual(assistSeats(state, 0, players), cover, context);
+  assert.deepEqual(assistSeats(state, helm, players, helm), cover, context);
   const result = finishBotTurns(state, players);
   assert.equal(result.history.length, Number(automatic), context);
   assert.deepEqual(result.state, result.history.reduce(play, state), context);
@@ -268,6 +283,7 @@ function checkCrewSeats(
   legal: Move[],
   waiting: number[],
   players: number,
+  helm: number,
   context: string,
 ) {
   const ready = waiting.every((sailor) => sailor >= players);
@@ -276,7 +292,7 @@ function checkCrewSeats(
   let humanCanPlay = false;
   for (const sailor of seats) {
     const role =
-      sailor === 0 ? "HostSeat" : sailor < players ? "GuestSeat" : "BotSeat";
+      sailor === helm ? "HelmSeat" : sailor < players ? "CrewSeat" : "BotSeat";
     const access = call(
       "crew_access",
       waiting.includes(sailor),
@@ -284,7 +300,7 @@ function checkCrewSeats(
       ready,
     );
     record(access);
-    const choices = seatMoves(state, sailor, players);
+    const choices = seatMoves(state, sailor, players, [], helm);
     assert.deepEqual(
       choices,
       legal.filter(({ actor }) => actor === sailor),
@@ -294,12 +310,12 @@ function checkCrewSeats(
       assert.equal(choices.length > 0, access.direct, context);
       humanCanPlay ||= choices.length > 0;
     }
-    if (sailor > 0)
-      assert.deepEqual(assistSeats(state, sailor, players), [], context);
+    if (sailor !== helm)
+      assert.deepEqual(assistSeats(state, sailor, players, helm), [], context);
     if (access.cover === true) cover.push(sailor);
     if (access.automatic === true) automatic.push(sailor);
   }
-  assert.deepEqual(assistSeats(state, 0, players), cover, context);
+  assert.deepEqual(assistSeats(state, helm, players, helm), cover, context);
   for (const sailor of cover) {
     const choice = botMove(state, sailor);
     assert.ok(choice && choice.actor === sailor, context);
