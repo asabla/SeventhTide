@@ -31,7 +31,7 @@
     "simulate": "node verification/voyage/simulate.ts",
     "balance": "node verification/voyage/balance.ts",
     "audit:routes": "node verification/voyage/audit-routes.ts",
-    "check:ci": "npm run check && npm run test:db && npm run simulate -- 256 && npm run audit:routes -- 4 --summary"
+    "check:ci": "npm run check && npm run test:db && npm run simulate -- 256 && npm run audit:routes -- 4 --all-decisions --summary"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

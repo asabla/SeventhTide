@@ -81,11 +81,15 @@ interface FinishedVoyage {
 interface RunOptions {
   version?: number;
   opening?: string;
-  observeRoute?: (
-    position: Voyage,
-    choice: Move,
-    follow: (id: string) => FinishedVoyage,
-  ) => void;
+  decisions?: {
+    phases: readonly Voyage["phase"][];
+    observe: (
+      position: Voyage,
+      choice: Move,
+      choices: readonly Move[],
+      follow: (id: string) => FinishedVoyage,
+    ) => void;
+  };
 }
 
 export function sail(
@@ -116,7 +120,7 @@ function sailFrom(
   profile: Profile,
   policy: Policy,
   position: SailingPosition,
-  { opening, observeRoute }: RunOptions = {},
+  { opening, decisions }: RunOptions = {},
 ): FinishedVoyage {
   const { players, absent, name, helm } = profile;
   let { state, random, assisted } = position;
@@ -161,10 +165,9 @@ function sailFrom(
     )
       move = choices[draw(choices.length)];
     else move = bestChoice(state, choices);
-    if (
-      (state.phase === "cards" || state.phase === "recover") &&
-      seat === absent
-    ) {
+    const delegated =
+      (state.phase === "cards" || state.phase === "recover") && seat === absent;
+    if (delegated) {
       assert.ok(
         assistSeats(state, helm, players, helm).includes(seat),
         checkpoint(),
@@ -173,11 +176,36 @@ function sailFrom(
       assisted++;
     }
     assert.ok(move && choices.some(({ id }) => id === move.id), checkpoint());
-    if (state.phase === "event" && observeRoute) {
+    const advance = (id: string) => {
+      const next = playWithBots(state, id, players);
+      if (state.phase === "cards") {
+        assert.ok(next.state.acted.length > state.acted.length, checkpoint());
+        assert.equal(
+          new Set(next.state.acted).size,
+          next.state.acted.length,
+          checkpoint(),
+        );
+        for (const botId of next.history.slice(1)) {
+          const actor = next.state.plays.find(
+            (candidate) => candidate.id === botId,
+          )?.actor;
+          assert.ok(actor !== undefined && actor >= players, checkpoint());
+        }
+        if (next.state.phase === "cards")
+          assert.ok(
+            next.state.crew.some(
+              (_, i) => i < players && !next.state.acted.includes(i),
+            ),
+            checkpoint(),
+          );
+      }
+      return next;
+    };
+    if (!delegated && decisions?.phases.includes(state.phase)) {
       const decision = { state, random, history: history.slice(), assisted };
-      observeRoute(decision.state, move, (id) => {
+      decisions.observe(decision.state, move, choices, (id) => {
         assert.ok(choices.some((choice) => choice.id === id));
-        const next = playWithBots(decision.state, id, players);
+        const next = advance(id);
         return sailFrom(seed, startState, profile, policy, {
           ...decision,
           state: next.state,
@@ -185,28 +213,7 @@ function sailFrom(
         });
       });
     }
-    const next = playWithBots(state, move.id, players);
-    if (state.phase === "cards") {
-      assert.ok(next.state.acted.length > state.acted.length, checkpoint());
-      assert.equal(
-        new Set(next.state.acted).size,
-        next.state.acted.length,
-        checkpoint(),
-      );
-      for (const id of next.history.slice(1)) {
-        const actor = next.state.plays.find(
-          (candidate) => candidate.id === id,
-        )?.actor;
-        assert.ok(actor !== undefined && actor >= players, checkpoint());
-      }
-      if (next.state.phase === "cards")
-        assert.ok(
-          next.state.crew.some(
-            (_, i) => i < players && !next.state.acted.includes(i),
-          ),
-          checkpoint(),
-        );
-    }
+    const next = advance(move.id);
     history.push(...next.history);
     state = next.state;
   }

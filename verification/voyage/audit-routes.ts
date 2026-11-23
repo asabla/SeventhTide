@@ -4,16 +4,19 @@ import {
   coldLimit,
   currentEvent,
   isRulesVersion,
-  previewRoutes,
   rulesVersion,
   start,
+  type Move,
   type Voyage,
 } from "@seventh-tide/rules";
 import { profiles, sail, type Policy, type Profile } from "./sail.ts";
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { summary: { type: "boolean" } },
+  options: {
+    summary: { type: "boolean" },
+    "all-decisions": { type: "boolean" },
+  },
 });
 const [countArg = "128", firstArg = "0", versionArg = String(rulesVersion)] =
   positionals;
@@ -30,6 +33,10 @@ assert.ok(
 );
 assert.ok(isRulesVersion(version), "Use a supported rules version.");
 
+const phases: Voyage["phase"][] = values["all-decisions"]
+  ? ["salvage", "board", "cards", "event", "recover"]
+  : ["event"];
+
 function ending(state: Voyage) {
   if (state.phase === "won") return "rescue";
   assert.equal(state.phase, "lost");
@@ -39,7 +46,7 @@ function ending(state: Voyage) {
     : "hull";
 }
 
-function emptyRoute() {
+function emptyChoice() {
   return {
     offered: 0,
     survivesTide: 0,
@@ -47,7 +54,7 @@ function emptyRoute() {
   };
 }
 
-interface RouteExample {
+interface DecisionExample {
   seed: number;
   tide: number;
   first: string[];
@@ -55,20 +62,36 @@ interface RouteExample {
 }
 
 function emptyPair() {
-  const examples: Partial<Record<"firstOnly" | "secondOnly", RouteExample>> =
+  const examples: Partial<Record<"firstOnly" | "secondOnly", DecisionExample>> =
     {};
   return { both: 0, neither: 0, firstOnly: 0, secondOnly: 0, examples };
 }
 
-interface EncounterAudit {
+interface DecisionAudit {
   positions: number;
   missedRescues: number;
-  routes: Map<string, ReturnType<typeof emptyRoute>>;
+  choices: Map<string, ReturnType<typeof emptyChoice>>;
   pairs: Map<string, ReturnType<typeof emptyPair>>;
 }
 
+function decisionName(position: Voyage, chosen: Move) {
+  const [encounter] = currentEvent(position);
+  switch (position.phase) {
+    case "salvage":
+      return "Salvage";
+    case "board":
+      return `Choose swimmer · ${encounter}`;
+    case "cards":
+      return `${chosen.actor === position.swimmer ? "Swimmer" : "Raft"} play · ${encounter}`;
+    case "recover":
+      return `Stow equipment · ${encounter}`;
+    default:
+      return encounter;
+  }
+}
+
 function audit(profile: Profile, policy: Policy) {
-  const encounters = new Map<string, EncounterAudit>();
+  const decisions = new Map<string, DecisionAudit>();
   let baselineVoyages = 0;
   let continuations = 0;
   for (let deal = first; deal < first + seeds; deal++) {
@@ -79,68 +102,75 @@ function audit(profile: Profile, policy: Policy) {
       const voyage = sail(seed, profile, policy, {
         version,
         opening,
-        observeRoute(position, chosen, follow) {
-          const [name] = currentEvent(position);
-          let encounter = encounters.get(name);
-          if (!encounter) {
-            encounter = {
-              positions: 0,
-              missedRescues: 0,
-              routes: new Map(),
-              pairs: new Map(),
-            };
-            encounters.set(name, encounter);
-          }
-          encounter.positions++;
-          const { routes, pairs } = encounter;
-          const results = previewRoutes(position)
-            .map((route) => {
-              const finished = follow(route.id);
-              if (route.id === chosen.id) chosenContinuations.push(finished);
-              const outcome = ending(finished.state);
-              let counts = routes.get(route.name);
-              if (!counts) {
-                counts = emptyRoute();
-                routes.set(route.name, counts);
-              }
-              counts.offered++;
-              counts.survivesTide += Number(route.forecast.outcome !== "lost");
-              counts.endings[outcome]++;
-              continuations++;
-              return {
-                id: route.id,
-                name: route.name,
-                rescued: outcome === "rescue",
-                history: finished.history,
+        decisions: {
+          phases,
+          observe(position, chosen, choices, follow) {
+            const name = decisionName(position, chosen);
+            let group = decisions.get(name);
+            if (!group) {
+              group = {
+                positions: 0,
+                missedRescues: 0,
+                choices: new Map(),
+                pairs: new Map(),
               };
-            })
-            .toSorted((a, b) => a.id.localeCompare(b.id));
-          const selected = results.find(({ id }) => id === chosen.id);
-          assert.ok(selected);
-          if (!selected.rescued && results.some(({ rescued }) => rescued))
-            encounter.missedRescues++;
-          for (const [index, firstRoute] of results.entries()) {
-            for (const secondRoute of results.slice(index + 1)) {
-              const key = firstRoute.name + " / " + secondRoute.name;
-              let counts = pairs.get(key);
-              if (!counts) {
-                counts = emptyPair();
-                pairs.set(key, counts);
-              }
-              if (firstRoute.rescued === secondRoute.rescued) {
-                counts[firstRoute.rescued ? "both" : "neither"]++;
-              } else {
-                const outcome = firstRoute.rescued ? "firstOnly" : "secondOnly";
-                counts[outcome]++;
-                counts.examples[outcome] ??= {
-                  seed,
-                  tide: position.tide,
-                  first: firstRoute.history,
-                  second: secondRoute.history,
+              decisions.set(name, group);
+            }
+            group.positions++;
+            const results = choices
+              .map((choice) => {
+                const finished = follow(choice.id);
+                if (choice.id === chosen.id) chosenContinuations.push(finished);
+                const outcome = ending(finished.state);
+                let counts = group.choices.get(choice.name);
+                if (!counts) {
+                  counts = emptyChoice();
+                  group.choices.set(choice.name, counts);
+                }
+                counts.offered++;
+                counts.survivesTide += Number(
+                  finished.state.phase === "won" ||
+                    finished.state.tide > position.tide,
+                );
+                counts.endings[outcome]++;
+                continuations++;
+                return {
+                  id: choice.id,
+                  name: choice.name,
+                  rescued: outcome === "rescue",
+                  history: finished.history,
                 };
+              })
+              .toSorted((a, b) => a.id.localeCompare(b.id));
+            const selected = results.find(({ id }) => id === chosen.id);
+            assert.ok(selected);
+            if (!selected.rescued && results.some(({ rescued }) => rescued))
+              group.missedRescues++;
+            for (const [index, firstChoice] of results.entries()) {
+              for (const secondChoice of results.slice(index + 1)) {
+                const key = firstChoice.name + " / " + secondChoice.name;
+                let counts = group.pairs.get(key);
+                if (!counts) {
+                  counts = emptyPair();
+                  group.pairs.set(key, counts);
+                }
+                if (firstChoice.rescued === secondChoice.rescued) {
+                  counts[firstChoice.rescued ? "both" : "neither"]++;
+                } else {
+                  const outcome = firstChoice.rescued
+                    ? "firstOnly"
+                    : "secondOnly";
+                  counts[outcome]++;
+                  counts.examples[outcome] ??= {
+                    seed,
+                    tide: position.tide,
+                    first: firstChoice.history,
+                    second: secondChoice.history,
+                  };
+                }
               }
             }
-          }
+          },
         },
       });
       // Following the policy's own choice must reproduce its entire voyage.
@@ -153,12 +183,13 @@ function audit(profile: Profile, policy: Policy) {
     policy,
     baselineVoyages,
     continuations,
-    encounters: Object.fromEntries(
-      Array.from(encounters, ([name, { routes, pairs, ...counts }]) => [
+    [values["all-decisions"] ? "decisions" : "encounters"]: Object.fromEntries(
+      Array.from(decisions, ([name, { choices, pairs, ...counts }]) => [
         name,
         {
           ...counts,
-          routes: Object.fromEntries(routes),
+          [values["all-decisions"] ? "choices" : "routes"]:
+            Object.fromEntries(choices),
           pairs: Object.fromEntries(pairs),
         },
       ]),
@@ -172,6 +203,7 @@ const crewReports = profiles.flatMap((profile) =>
 );
 const summary = {
   version,
+  ...(values["all-decisions"] ? { phases } : {}),
   first,
   seeds,
   baselineVoyages: crewReports.reduce(

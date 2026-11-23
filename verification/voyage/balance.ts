@@ -87,34 +87,42 @@ function compareOpenings(profile: Profile, policy: Policy) {
       const { state } = sail(seed, profile, policy, {
         version,
         opening,
-        observeRoute(position, choice) {
-          const forecasts = previewRoutes(position);
-          const survivors = forecasts.filter(
-            ({ forecast }) => forecast.outcome !== "lost",
-          );
-          const chosen = forecasts.find(({ id }) => id === choice.id);
-          assert.ok(chosen);
-          if (!survivors.length) doomedAtDecision++;
-          else if (chosen.forecast.outcome === "lost") choseFatalRoute++;
+        decisions: {
+          phases: ["event"],
+          observe(position, choice) {
+            const forecasts = previewRoutes(position);
+            const survivors = forecasts.filter(
+              ({ forecast }) => forecast.outcome !== "lost",
+            );
+            const chosen = forecasts.find(({ id }) => id === choice.id);
+            assert.ok(chosen);
+            if (!survivors.length) doomedAtDecision++;
+            else if (chosen.forecast.outcome === "lost") choseFatalRoute++;
 
-          const [encounter] = currentEvent(position);
-          let routes = encounters.get(encounter);
-          if (!routes) {
-            routes = new Map();
-            encounters.set(encounter, routes);
-          }
-          for (const { name, forecast, id } of forecasts) {
-            let counts = routes.get(name);
-            if (!counts) {
-              counts = { offered: 0, survives: 0, soleSurvivor: 0, chosen: 0 };
-              routes.set(name, counts);
+            const [encounter] = currentEvent(position);
+            let routes = encounters.get(encounter);
+            if (!routes) {
+              routes = new Map();
+              encounters.set(encounter, routes);
             }
-            const survives = forecast.outcome !== "lost";
-            counts.offered++;
-            counts.survives += Number(survives);
-            counts.soleSurvivor += Number(survives && survivors.length === 1);
-            counts.chosen += Number(id === choice.id);
-          }
+            for (const { name, forecast, id } of forecasts) {
+              let counts = routes.get(name);
+              if (!counts) {
+                counts = {
+                  offered: 0,
+                  survives: 0,
+                  soleSurvivor: 0,
+                  chosen: 0,
+                };
+                routes.set(name, counts);
+              }
+              const survives = forecast.outcome !== "lost";
+              counts.offered++;
+              counts.survives += Number(survives);
+              counts.soleSurvivor += Number(survives && survivors.length === 1);
+              counts.chosen += Number(id === choice.id);
+            }
+          },
         },
       });
 
