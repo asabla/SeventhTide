@@ -237,10 +237,14 @@ law bare_raft_cannot_shelter_the_haul:
   for timber: Nat
   { Encounter.effects(Encounter.Dive{}, 0n, version, timber, Encounter.grip_haul_cost(0n, version)) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
 
-law one_brace_cannot_shelter_the_haul:
-  for version: Nat
+law one_brace_shelters_the_haul:
+  for since: Nat
   for timber: Nat
-  { Encounter.effects(Encounter.Dive{}, 1n, version, timber, Encounter.grip_haul_cost(1n, version)) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Dive{}, 1n, 15n+since, timber, Encounter.grip_haul_cost(1n, 15n+since)) == Encounter.Effects{0n, 1n, 2n, 1n} : Encounter.Effects }
+
+law archived_one_brace_does_not_shelter_the_haul:
+  for timber: Nat
+  { Encounter.effects(Encounter.Dive{}, 1n, 14n, timber, Encounter.grip_haul_cost(1n, 14n)) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
 
 law archived_grip_haul_costs_two_extra_cold:
   for brace: Nat

@@ -13,9 +13,9 @@ export { handPreview, equipmentPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 14;
+export const rulesVersion = 15;
 export type RulesVersion =
-  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
+  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -364,7 +364,16 @@ export function currentEvent(voyage: Voyage) {
   const grip = underRaft(voyage);
   if (grip) {
     event = [...raftGrip];
-    if ((voyage.rulesVersion ?? 1) >= 13) {
+    const version = voyage.rulesVersion ?? 1;
+    if (version >= 15) {
+      event[1] =
+        "Rig both tools to pry it loose. Brace the raft to ease the haul.";
+      if (voyage.guard >= 1) {
+        event[2] =
+          "The brace holds the timbers apart. The swimmer can come in.";
+        event[4] = 1;
+      }
+    } else if (version >= 13) {
       event[1] =
         "Rig both tools to pry it loose. Gain 2 brace to haul the swimmer with less cold.";
       if (voyage.guard >= 2) event[4] = 1;

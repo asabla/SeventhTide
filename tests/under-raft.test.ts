@@ -95,12 +95,27 @@ await test("hauling trades one extra cold for the timber and preserves earlier r
   assert.equal(hauled.hull, current.hull);
   assert.equal(hauled.phase, "board");
   assert.equal(hauled.creatureFollowing, true);
-  const oneBrace = ["canvas", "swim-1", "lash-0", "line-1", "lash-2"].reduce(
-    play,
-    start(seed),
-  );
+  const lightBrace = ["canvas", "swim-1", "lash-0", "line-1", "lash-2"];
+  const archived = play(lightBrace.reduce(play, start(seed, 14)), "dive");
+  assert.equal(archived.phase, "lost");
+  assert.equal(archived.crew[1]?.cold, 5);
+  assert.deepEqual(archived.tideResult?.route, { kind: "dive", cold: 2 });
+
+  const oneBrace = lightBrace.reduce(play, start(seed));
   assert.equal(oneBrace.guard, 1);
-  assert.equal(play(oneBrace, "dive").phase, "lost");
+  assert.deepEqual(
+    previewRoutes(oneBrace).find(({ id }) => id === "dive")?.forecast,
+    {
+      hull: oneBrace.hull,
+      cold: [1, 4, 1],
+      ration: 1,
+      outcome: "board",
+    },
+  );
+  const braced = play(oneBrace, "dive");
+  assert.equal(braced.phase, "board");
+  assert.equal(braced.crew[1]?.cold, 4);
+  assert.deepEqual(braced.tideResult?.route, { kind: "dive", cold: 1 });
 });
 
 await test("solo bots consider both positions when Mara plays part of the pair", () => {
