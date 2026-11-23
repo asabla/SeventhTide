@@ -30,7 +30,8 @@
     "coverage": "node --test --experimental-test-coverage \"--test-coverage-include=packages/rules/**/*.ts\" --test-coverage-lines=95 --test-coverage-branches=90 --test-coverage-functions=95 tests/*.test.ts",
     "simulate": "node verification/voyage/simulate.ts",
     "balance": "node verification/voyage/balance.ts",
-    "check:ci": "npm run check && npm run test:db && npm run simulate -- 256"
+    "audit:routes": "node verification/voyage/audit-routes.ts",
+    "check:ci": "npm run check && npm run test:db && npm run simulate -- 256 && npm run audit:routes -- 4 --summary"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
