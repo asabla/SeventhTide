@@ -82,6 +82,29 @@ function landingAt({ tide, channelMarked }: Voyage | RoomSnapshot) {
   if (channelMarked === undefined || tide < 6) return undefined;
   return tide === 6 ? "approach" : "reef";
 }
+
+function lostEncounter({
+  phase,
+  tideResult,
+  rulesVersion: savedVersion,
+}: TableState & {
+  rulesVersion?: number;
+}) {
+  if (phase !== "lost" || !tideResult) return undefined;
+  const version = savedVersion ?? 1;
+  switch (tideResult.event) {
+    case "The second wake":
+      return version >= 6 ? "wake" : undefined;
+    case "The bell buoy":
+      return version >= 7 ? "buoy" : undefined;
+    case "Something under the raft":
+      return version >= 8 ? "grip" : undefined;
+    case "The drifting locker":
+      return version >= 9 ? "locker" : undefined;
+    default:
+      return undefined;
+  }
+}
 const roomId = new URLSearchParams(location.search).get("room");
 const room = roomId ? readRoom(roomId) : null;
 let turn: RoomSnapshot | undefined;
@@ -1255,10 +1278,21 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
     if (played.previousElementSibling !== playSpace) playSpace.after(played);
   } else if (deckSide.hidden && played.previousElementSibling !== assist)
     assist.after(played);
-  const seeLights = landing && !(phase === "event" && (wake || buoy || grip));
-  const seaWake = seeLights ? undefined : wake;
-  const seaBuoy = seeLights ? undefined : buoy;
-  const seaGrip = Boolean(!seeLights && grip && phase !== "board");
+  const finalEncounter = lostEncounter(s);
+  const seeLights =
+    landing &&
+    !finalEncounter &&
+    !(phase === "event" && (wake || buoy || grip));
+  const seaWake = seeLights
+    ? undefined
+    : (wake ?? (finalEncounter === "wake" ? "following" : undefined));
+  const seaBuoy = seeLights
+    ? undefined
+    : (buoy ?? (finalEncounter === "buoy" ? "echo" : undefined));
+  const seaGrip =
+    finalEncounter === "grip" ||
+    Boolean(!seeLights && grip && phase !== "board");
+  const seaLocker = Boolean(find || finalEncounter === "locker");
   const showReef = Boolean(seeLights && landing === "reef");
   const seaPursuit = showReef && pursuit === "following" && phase !== "won";
   const localEvent = room ? null : currentEvent(state);
@@ -1279,11 +1313,11 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
                 ? "wreck"
                 : "passage";
   const scene = select("scene");
-  scene.hidden = !seeLights && !seaWake && !seaBuoy && !seaGrip && !find;
+  scene.hidden = !seeLights && !seaWake && !seaBuoy && !seaGrip && !seaLocker;
   scene.dataset.wake = seaWake ?? "";
   scene.dataset.buoy = seaBuoy ?? "";
   scene.toggleAttribute("data-grip", seaGrip);
-  scene.toggleAttribute("data-locker", Boolean(find));
+  scene.toggleAttribute("data-locker", seaLocker);
   scene.dataset.landing = seeLights ? landing : "";
   scene.toggleAttribute("data-reef-pursuit", seaPursuit);
   scene.dataset.landfall = phase === "won" || phase === "lost" ? phase : "";
@@ -1298,7 +1332,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("wake-art").hidden = !seaWake;
   select("buoy-art").hidden = !seaBuoy;
   select("grip-art").hidden = !seaGrip;
-  select("locker-art").hidden = !find;
+  select("locker-art").hidden = !seaLocker;
   renderGrip(grip, phase === "cards");
   table.toggleAttribute("data-routes", phase === "event");
   select("landing-rules").hidden = s.channelMarked === undefined;
