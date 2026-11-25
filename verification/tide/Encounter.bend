@@ -174,6 +174,8 @@ def effects(route: Route, brace: Nat, version: Nat, incoming: Nat, dive_cold: Na
       Effects{0n, 0n, 1n, 1n}
     case Chain{}:
       match brace version:
+        case 0n 17n+_:
+          Effects{0n, 1n, 2n, 1n}
         case 0n _:
           Effects{0n, 2n, 2n, 1n}
         case 1n+_ 12n+_:

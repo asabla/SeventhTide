@@ -22,6 +22,7 @@ import {
   start,
   rulesVersion,
   bellBuoy,
+  falseBellExtraCold,
   secondWake,
   reefPursuit,
   underRaft,
@@ -1340,6 +1341,9 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("landing-rules").hidden = s.channelMarked === undefined;
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   select("buoy-rules").hidden = (s.rulesVersion ?? 1) < 7;
+  select("false-bell-cold").textContent = String(
+    falseBellExtraCold(s.rulesVersion),
+  );
   select("grip-rules").hidden = (s.rulesVersion ?? 1) < 8;
   select("grip-cut-damage").textContent = String(gripCutDamage(s.rulesVersion));
   select("pursuit-rules").hidden = (s.rulesVersion ?? 1) < 10;

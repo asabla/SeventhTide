@@ -50,19 +50,48 @@ await test("a saved version-eleven voyage keeps its original chain reward", () =
   assert.deepEqual(result.crew[1], { name: "Ivo", cold: 3, food: 3 });
 });
 
-await test("following the false bell adds cold and gives the usual ration", () => {
+await test("following the false bell trades one extra cold for the hull", () => {
   const event = unbraced.reduce(play, start(256));
   assert.equal(bellBuoy(event), "echo");
   assert.match(currentEvent(event)[2], /bell calls first/);
-  assert.match(moves(event)[1]?.detail ?? "", /4 cold and recovers 1 ration\./);
+  assert.match(moves(event)[1]?.detail ?? "", /3 cold and recovers 1 ration\./);
   assert.match(moves(event)[0]?.detail ?? "", /^Lose 1 hull\./);
   const follow = play(event, "chain");
   const leave = play(event, "hull");
-  assert.equal(follow.crew[1]?.cold, 4);
+  assert.equal(follow.crew[1]?.cold, 3);
   assert.equal(follow.crew[1]?.food, 2);
+  assert.equal(follow.hull, event.hull);
   assert.equal(leave.hull, event.hull - 1);
   assert.equal(leave.crew[1]?.cold, 2);
   assert.equal(leave.phase, "board");
+});
+
+await test("a swimmer at one cold can follow the false bell in a new voyage", () => {
+  const history = ["spar", "swim-0", "mitts-0", "lash-1", "lash-2"];
+  const event = history.reduce(play, start(256));
+  const archived = history.reduce(play, start(256, 16));
+  assert.equal(bellBuoy(event), "echo");
+  assert.equal(event.crew[0]?.cold, 1);
+  assert.deepEqual(
+    previewRoutes(event).find(({ id }) => id === "chain")?.forecast,
+    {
+      hull: 5,
+      cold: [4, 1, 1],
+      ration: 1,
+      outcome: "board",
+    },
+  );
+  const result = play(event, "chain");
+  assert.equal(result.phase, "board");
+  assert.equal(result.crew[0]?.cold, 4);
+  assert.deepEqual(result.tideResult?.route, { kind: "chain", cold: 1 });
+  const archivedResult = play(archived, "chain");
+  assert.equal(archivedResult.phase, "lost");
+  assert.equal(archivedResult.crew[0]?.cold, 5);
+  assert.deepEqual(archivedResult.tideResult?.route, {
+    kind: "chain",
+    cold: 2,
+  });
 });
 
 await test("a saved version-six voyage keeps its original bell buoy outcome", () => {

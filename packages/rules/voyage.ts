@@ -13,9 +13,9 @@ export { handPreview, equipmentPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 16;
+export const rulesVersion = 17;
 export type RulesVersion =
-  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16;
+  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -318,8 +318,13 @@ export function underRaft(s: Voyage) {
   };
 }
 
+export function falseBellExtraCold(version = 1) {
+  return version >= 17 ? 1 : 2;
+}
+
 function chainCost(s: Voyage) {
-  if (bellBuoy(s) !== "chain") return { cold: 2, ration: swimmerRation };
+  if (bellBuoy(s) !== "chain")
+    return { cold: falseBellExtraCold(s.rulesVersion), ration: swimmerRation };
   const extraRations = (s.rulesVersion ?? 1) >= 12 ? 2 : 1;
   return { cold: 1, ration: swimmerRation + extraRations };
 }

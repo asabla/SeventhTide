@@ -357,6 +357,11 @@ export function checkEncounters(call: BendCall) {
       water: "BellBuoy",
     },
     {
+      name: "buoy / archived bare raft",
+      state: replay(256, 16, "locker swim-1 lash-0 float-1 lash-2"),
+      water: "BellBuoy",
+    },
+    {
       name: "buoy / brace",
       state: replay(256, rulesVersion, "locker swim-1 mitts-0 float-1 lash-2"),
       water: "BellBuoy",
