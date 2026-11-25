@@ -49,6 +49,8 @@ Run `mise exec -- npm run balance -- 512 1024 11` to play both offered salvage c
 
 Run `mise exec -- npm run audit:routes -- 128 1024` to follow every legal route at each route decision reached on the sampled deals. Add `--all-decisions` to include salvage, the swimmer, card and crew actions for the acting seat, and equipment swaps. Each continuation starts from the same crew, hull, deck, and policy state. The report counts survival through the tide and final rescue separately. For each pair offered together, it counts which choice led to rescue and gives replayable examples when their outcomes differed. The optional third argument selects a rules version. CI runs all decision types on four deals.
 
+Run `mise exec -- npm run audit:landfall -- 16 1024` to try every legal final-tide sequence from each state reached by the mixed policy. The audit checks each possible swimmer, the order and actions of the human seats, and every landing route. It uses the game's bot policy for bot seats and absent players. The report counts landfall entries with a rescue available and gives a replay when the mixed policy missed one. It also checks that every landing forecast gives the actual hull, cold, rations, and ending. CI audits four deals.
+
 ### Verify the tide outcome laws
 
 From the repository root, run `mise trust verification/tide/mise.toml` once, then `mise -C verification/tide run verify`. The verification configuration pins Bend and Lean for macOS and Linux. The GitHub Actions job `tide-laws` runs the same verification command.
