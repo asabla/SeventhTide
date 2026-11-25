@@ -185,7 +185,11 @@ def effects(route: Route, brace: Nat, version: Nat, incoming: Nat, dive_cold: Na
     case Pry{}:
       Effects{0n, 0n, 2n, 1n}
     case Cut{}:
-      Effects{1n, 0n, 2n, 1n}
+      match version:
+        case 16n+_:
+          Effects{2n, 0n, 2n, 1n}
+        case _:
+          Effects{1n, 0n, 2n, 1n}
     case HaulLocker{}:
       Effects{0n, 1n, 2n, 1n}
     case LeaveLocker{}:

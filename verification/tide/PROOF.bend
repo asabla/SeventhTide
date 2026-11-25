@@ -199,7 +199,13 @@ def Laws.legacy_crew_cannot_pry():
 def Laws.prying_only_costs_normal_exposure(version, brace, incoming, extra):
   {==}
 
-def Laws.a_cut_timber_costs_one_hull_despite_brace(version, brace, incoming, extra):
+def Laws.a_cut_timber_costs_two_hull_despite_brace(since, brace, incoming, extra):
+  {==}
+
+def Laws.archived_cut_costs_one_hull_despite_brace(brace, incoming, extra):
+  {==}
+
+def Laws.cutting_a_timber_sinks_a_two_hull_raft(since, brace):
   {==}
 
 def Laws.bracing_shelters_the_haul(since, brace, timber):

@@ -59,8 +59,8 @@ await test("a missing tool or a tool played in the wrong position leaves two fal
   const ready = ["line-0", "hook-1", "lash-2"].reduce(play, atGrip);
   assert.ok(ready.guard > 0);
   const cut = play(ready, "hull");
-  assert.equal(cut.hull, ready.hull - 1);
-  assert.deepEqual(cut.tideResult?.route, { kind: "cut", lost: 1 });
+  assert.equal(cut.hull, ready.hull - 2);
+  assert.deepEqual(cut.tideResult?.route, { kind: "cut", lost: 2 });
   assert.equal(cut.crew[0]?.cold, crewMember(ready, 0).cold + 2);
   const haul = play(ready, "dive");
   assert.equal(haul.hull, ready.hull);
@@ -87,7 +87,7 @@ await test("hauling trades one extra cold for the timber and preserves earlier r
       forecast.outcome,
     ]),
     [
-      ["hull", current.hull - 1, 3, "board"],
+      ["hull", current.hull - 2, 3, "board"],
       ["dive", current.hull, 4, "board"],
     ],
   );
@@ -103,6 +103,19 @@ await test("hauling trades one extra cold for the timber and preserves earlier r
 
   const oneBrace = lightBrace.reduce(play, start(seed));
   assert.equal(oneBrace.guard, 1);
+  const archivedCut = play(lightBrace.reduce(play, start(seed, 15)), "hull");
+  assert.equal(archivedCut.hull, 4);
+  assert.deepEqual(archivedCut.tideResult?.route, { kind: "cut", lost: 1 });
+  assert.deepEqual(
+    previewRoutes(oneBrace).find(({ id }) => id === "hull")?.forecast,
+    {
+      hull: 3,
+      cold: [1, 3, 1],
+      ration: 1,
+      outcome: "board",
+    },
+  );
+  assert.equal(play(oneBrace, "hull").hull, 3);
   assert.deepEqual(
     previewRoutes(oneBrace).find(({ id }) => id === "dive")?.forecast,
     {

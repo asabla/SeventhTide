@@ -25,6 +25,7 @@ import {
   secondWake,
   reefPursuit,
   underRaft,
+  gripCutDamage,
   lockerFind,
   handPreview,
   salvagePreview,
@@ -1340,6 +1341,7 @@ function render(previous?: Voyage | RoomSnapshot, origin?: CardOrigin) {
   select("wake-rules").hidden = (s.rulesVersion ?? 1) < 6;
   select("buoy-rules").hidden = (s.rulesVersion ?? 1) < 7;
   select("grip-rules").hidden = (s.rulesVersion ?? 1) < 8;
+  select("grip-cut-damage").textContent = String(gripCutDamage(s.rulesVersion));
   select("pursuit-rules").hidden = (s.rulesVersion ?? 1) < 10;
   select("locker-rules").hidden = (s.rulesVersion ?? 1) < 9;
   const eventDescription = turn?.event?.description ?? localEvent?.[2] ?? "";
