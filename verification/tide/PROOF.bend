@@ -49,7 +49,16 @@ def Laws.buoy_braced_chain(since, brace, incoming, dive_cold):
 def Laws.archived_buoy_braced_chain(brace, incoming, dive_cold):
   {==}
 
-def Laws.buoy_false_bell(version, incoming, dive_cold):
+def Laws.buoy_false_bell(since, incoming, dive_cold):
+  {==}
+
+def Laws.archived_buoy_false_bell(incoming, dive_cold):
+  {==}
+
+def Laws.one_cold_swimmer_can_follow_false_bell(since, timber):
+  {==}
+
+def Laws.two_cold_swimmer_cannot_follow_false_bell(since, timber):
   {==}
 
 def Laws.hull_route_always_available(plan):

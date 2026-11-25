@@ -74,10 +74,25 @@ law archived_buoy_braced_chain:
   { Encounter.effects(Encounter.Chain{}, 1n+brace, 11n, incoming, dive_cold) == Encounter.Effects{0n, 1n, 2n, 2n} : Encounter.Effects }
 
 law buoy_false_bell:
-  for version: Nat
+  for since: Nat
   for incoming: Nat
   for dive_cold: Nat
-  { Encounter.effects(Encounter.Chain{}, 0n, version, incoming, dive_cold) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Chain{}, 0n, 17n+since, incoming, dive_cold) == Encounter.Effects{0n, 1n, 2n, 1n} : Encounter.Effects }
+
+law archived_buoy_false_bell:
+  for incoming: Nat
+  for dive_cold: Nat
+  { Encounter.effects(Encounter.Chain{}, 0n, 16n, incoming, dive_cold) == Encounter.Effects{0n, 2n, 2n, 1n} : Encounter.Effects }
+
+law one_cold_swimmer_can_follow_false_bell:
+  for since: Nat
+  for timber: Nat
+  { Encounter.resolve(Encounter.effects(Encounter.Chain{}, 0n, 17n+since, 1n, 1n), 1n+timber, 1n, 2n, 2n, False{}) == Encounter.Resolution{1n+timber, 4n, 1n, 1n, 1n, Tide.VoyageAdrift{}} : Encounter.Resolution }
+
+law two_cold_swimmer_cannot_follow_false_bell:
+  for since: Nat
+  for timber: Nat
+  { Encounter.resolve(Encounter.effects(Encounter.Chain{}, 0n, 17n+since, 1n, 1n), 1n+timber, 2n, 2n, 2n, False{}) == Encounter.Resolution{1n+timber, 5n, 1n, 1n, 1n, Tide.VoyageLost{}} : Encounter.Resolution }
 
 law hull_route_always_available:
   for plan: Encounter.Routes
