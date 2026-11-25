@@ -219,12 +219,23 @@ law prying_only_costs_normal_exposure:
   for extra: Nat
   { Encounter.effects(Encounter.Pry{}, brace, version, incoming, extra) == Encounter.Effects{0n, 0n, 2n, 1n} : Encounter.Effects }
 
-law a_cut_timber_costs_one_hull_despite_brace:
-  for version: Nat
+law a_cut_timber_costs_two_hull_despite_brace:
+  for since: Nat
   for brace: Nat
   for incoming: Nat
   for extra: Nat
-  { Encounter.effects(Encounter.Cut{}, brace, version, incoming, extra) == Encounter.Effects{1n, 0n, 2n, 1n} : Encounter.Effects }
+  { Encounter.effects(Encounter.Cut{}, brace, 16n+since, incoming, extra) == Encounter.Effects{2n, 0n, 2n, 1n} : Encounter.Effects }
+
+law archived_cut_costs_one_hull_despite_brace:
+  for brace: Nat
+  for incoming: Nat
+  for extra: Nat
+  { Encounter.effects(Encounter.Cut{}, brace, 15n, incoming, extra) == Encounter.Effects{1n, 0n, 2n, 1n} : Encounter.Effects }
+
+law cutting_a_timber_sinks_a_two_hull_raft:
+  for since: Nat
+  for brace: Nat
+  { Encounter.resolve(Encounter.effects(Encounter.Cut{}, brace, 16n+since, 2n, 0n), 2n, 0n, 0n, 0n, False{}) == Encounter.Resolution{0n, 2n, 0n, 0n, 1n, Tide.VoyageLost{}} : Encounter.Resolution }
 
 law bracing_shelters_the_haul:
   for since: Nat

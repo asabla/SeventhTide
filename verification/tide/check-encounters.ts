@@ -4,7 +4,11 @@ import {
   pried,
   unmarked,
 } from "../../tests/fixtures/landfall-pursuit.ts";
-import { towlineHistory, towlineSeed } from "../../tests/fixtures/towline.ts";
+import {
+  towlineHistory,
+  towlineSeed,
+  towlineV16History,
+} from "../../tests/fixtures/towline.ts";
 import {
   crewMember,
   currentEvent,
@@ -393,13 +397,17 @@ export function checkEncounters(call: BendCall) {
       water: "RaftGrip",
     },
   );
-  for (const version of [13, 14, rulesVersion])
+  for (const version of [13, 14, 15, rulesVersion])
     fixtures.push({
       name: `towline / version ${version}`,
-      state: replay(towlineSeed, version, towlineHistory),
+      state: replay(
+        towlineSeed,
+        version,
+        version >= 16 ? towlineV16History : towlineHistory,
+      ),
       water: "OpenWater",
     });
-  for (const version of [13, 14, rulesVersion])
+  for (const version of [13, 14, 15, rulesVersion])
     fixtures.push({
       name: `raft grip / one brace / version ${version}`,
       state: replay(1013904226, version, "canvas swim-1 lash-0 line-1 lash-2"),

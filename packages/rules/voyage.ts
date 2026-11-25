@@ -13,9 +13,9 @@ export { handPreview, equipmentPreview } from "./hands.ts";
 export function salvagePreview(id: string) {
   return cardInfo(salvageCard(id));
 }
-export const rulesVersion = 15;
+export const rulesVersion = 16;
 export type RulesVersion =
-  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+  1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16;
 export function isRulesVersion(value: unknown): value is RulesVersion {
   return (
     typeof value === "number" &&
@@ -324,6 +324,10 @@ function chainCost(s: Voyage) {
   return { cold: 1, ration: swimmerRation + extraRations };
 }
 
+export function gripCutDamage(version = 1) {
+  return version >= 16 ? 2 : 1;
+}
+
 export function currentEvent(voyage: Voyage) {
   let event = voyage.events[voyage.tide - 1];
   if (!event) throw new RangeError("Unknown tide: " + voyage.tide);
@@ -363,8 +367,9 @@ export function currentEvent(voyage: Voyage) {
     ];
   const grip = underRaft(voyage);
   if (grip) {
-    event = [...raftGrip];
     const version = voyage.rulesVersion ?? 1;
+    event = [...raftGrip];
+    event[3] = gripCutDamage(version);
     if (version >= 15) {
       event[1] =
         "Rig both tools to pry it loose. Brace the raft to ease the haul.";
