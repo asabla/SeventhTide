@@ -6,6 +6,7 @@ import {
   moves,
   currentEvent,
   crewMember,
+  rulesVersion,
 } from "@seventh-tide/rules";
 
 function board(seed = 17) {
@@ -91,6 +92,28 @@ await test("exposure can end a voyage before the seventh tide", () => {
   assert.equal(s.phase, "lost");
   assert.ok(s.tide < 7);
   assert.match(s.log.at(-1) ?? "", /cold/);
+});
+
+await test("the final entry includes every cause when a voyage is lost", () => {
+  const history =
+    "canvas swim-2 line-0 net-2 lash-1 hull swim-2 anchor-1 belt-0 feed-2-1".split(
+      " ",
+    );
+  for (const version of [16, rulesVersion]) {
+    const ready = history.reduce(play, start(4112119562, version));
+    const hullOnly = play(ready, "hull");
+    assert.equal(hullOnly.phase, "lost");
+    assert.equal(hullOnly.log.at(-1), "The last timber came loose.");
+
+    const combined = play(ready, "dive");
+    assert.equal(combined.phase, "lost");
+    assert.equal(combined.hull, 0);
+    assert.equal(crewMember(combined, 2).cold, 5);
+    assert.equal(
+      combined.log.at(-1),
+      "The last timber came loose. Nell succumbed to cold.",
+    );
+  }
 });
 
 await test("floating trades one hull for one cold and leaves the previous turn intact", () => {

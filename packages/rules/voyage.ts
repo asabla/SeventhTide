@@ -1046,11 +1046,13 @@ export function play(state: Voyage, moveId: string): Voyage {
     }
     s.phase = outcome;
     if (outcome === "lost") {
-      s.log.push(
-        !s.hull
-          ? "The last timber came loose."
-          : lost.map((p) => p.name).join(" and ") + " succumbed to cold.",
-      );
+      const reasons: string[] = [];
+      if (s.hull === 0) reasons.push("The last timber came loose.");
+      if (lost.length)
+        reasons.push(
+          lost.map((p) => p.name).join(" and ") + " succumbed to cold.",
+        );
+      s.log.push(reasons.join(" "));
     } else if (outcome === "won") {
       s.log.push("All three reached the rescue vessel.");
     } else if (outcome === "recover") {
