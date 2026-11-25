@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
+import { parseArgs } from "node:util";
 import { reefPursuit, rulesVersion } from "@seventh-tide/rules";
-import { maxMoves, profiles, sail } from "./sail.ts";
+import { maxMoves, profiles, sail, voyageEnding } from "./sail.ts";
 
-const [countArg = "512", startArg = "0"] = process.argv.slice(2);
+const { positionals, values } = parseArgs({
+  allowPositionals: true,
+  options: { "require-all-endings": { type: "boolean" } },
+});
+const [countArg = "512", startArg = "0"] = positionals;
 const count = Number(countArg);
 const first = Number(startArg);
 assert.ok(
@@ -15,10 +20,6 @@ assert.ok(
 );
 const profilesReport = profiles.map((profile) => {
   const counts = {
-    won: 0,
-    lost: 0,
-    hullLoss: 0,
-    coldLoss: 0,
     marked: 0,
     wakeDecoys: 0,
     buoyChains: 0,
@@ -31,8 +32,9 @@ const profilesReport = profiles.map((profile) => {
     assisted: 0,
     longest: 0,
   };
+  const endings = { rescue: 0, hull: 0, cold: 0, hullAndCold: 0 };
   const examples = new Map<
-    string,
+    ReturnType<typeof voyageEnding>,
     { seed: number; cautious: boolean; moves: string[] }
   >();
   for (let n = first; n < first + count; n++) {
@@ -43,8 +45,6 @@ const profilesReport = profiles.map((profile) => {
         profile,
         cautious ? "cautious" : "random",
       );
-      if (state.phase === "won") counts.won++;
-      else counts.lost++;
       counts.longest = Math.max(counts.longest, history.length);
       counts.assisted += assisted;
       counts.marked += Number(state.channelMarked);
@@ -56,21 +56,26 @@ const profilesReport = profiles.map((profile) => {
       if (history.includes("echo-crossing")) counts.echoCrossings++;
       if (history.includes("haul-locker")) counts.lockerHauls++;
       if (history.some((id) => id.startsWith("stow-"))) counts.lockerSwaps++;
-      const outcome =
-        state.phase === "won"
-          ? "won"
-          : state.hull === 0
-            ? "hullLoss"
-            : "coldLoss";
-      if (outcome !== "won") counts[outcome]++;
-      if (!examples.has(outcome))
-        examples.set(outcome, { seed, cautious, moves: history });
+      const ending = voyageEnding(state);
+      endings[ending]++;
+      if (!examples.has(ending))
+        examples.set(ending, { seed, cautious, moves: history });
     }
   }
   return {
     mode: profile.name,
+    won: endings.rescue,
+    lost: endings.hull + endings.cold + endings.hullAndCold,
+    hullLoss: endings.hull + endings.hullAndCold,
+    coldLoss: endings.cold,
     ...counts,
-    examples: Object.fromEntries(examples),
+    endings,
+    examples: {
+      won: examples.get("rescue"),
+      hullLoss: examples.get("hull") ?? examples.get("hullAndCold"),
+      coldLoss: examples.get("cold"),
+      hullAndColdLoss: examples.get("hullAndCold"),
+    },
   };
 });
 console.log(
@@ -87,3 +92,15 @@ console.log(
     2,
   ),
 );
+if (values["require-all-endings"]) {
+  const missing = profilesReport.flatMap(({ mode, endings }) =>
+    Object.entries(endings).flatMap(([ending, occurrences]) =>
+      occurrences ? [] : [`${mode}: ${ending}`],
+    ),
+  );
+  assert.deepEqual(
+    missing,
+    [],
+    "The sample must reach each ending in every crew setup.",
+  );
+}

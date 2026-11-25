@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { parseArgs } from "node:util";
 import {
-  coldLimit,
   currentEvent,
   isRulesVersion,
   rulesVersion,
@@ -9,7 +8,13 @@ import {
   type Move,
   type Voyage,
 } from "@seventh-tide/rules";
-import { profiles, sail, type Policy, type Profile } from "./sail.ts";
+import {
+  profiles,
+  sail,
+  voyageEnding,
+  type Policy,
+  type Profile,
+} from "./sail.ts";
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -36,15 +41,6 @@ assert.ok(isRulesVersion(version), "Use a supported rules version.");
 const phases: Voyage["phase"][] = values["all-decisions"]
   ? ["salvage", "board", "cards", "event", "recover"]
   : ["event"];
-
-function ending(state: Voyage) {
-  if (state.phase === "won") return "rescue";
-  assert.equal(state.phase, "lost");
-  if (state.hull > 0) return "cold";
-  return state.crew.some(({ cold }) => cold >= coldLimit)
-    ? "hullAndCold"
-    : "hull";
-}
 
 function emptyChoice() {
   return {
@@ -121,7 +117,7 @@ function audit(profile: Profile, policy: Policy) {
               .map((choice) => {
                 const finished = follow(choice.id);
                 if (choice.id === chosen.id) chosenContinuations.push(finished);
-                const outcome = ending(finished.state);
+                const outcome = voyageEnding(finished.state);
                 let counts = group.choices.get(choice.name);
                 if (!counts) {
                   counts = emptyChoice();

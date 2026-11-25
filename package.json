@@ -32,7 +32,7 @@
     "balance": "node verification/voyage/balance.ts",
     "audit:routes": "node verification/voyage/audit-routes.ts",
     "audit:landfall": "node verification/voyage/audit-landfall.ts",
-    "check:ci": "npm run check && npm run test:db && npm run simulate -- 256 && npm run audit:routes -- 4 --all-decisions --summary && npm run audit:landfall -- 4"
+    "check:ci": "npm run check && npm run test:db && npm run simulate -- 384 --require-all-endings && npm run audit:routes -- 4 --all-decisions --summary && npm run audit:landfall -- 4"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

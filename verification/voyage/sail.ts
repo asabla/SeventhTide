@@ -29,6 +29,15 @@ export const profiles = [
 export type Profile = (typeof profiles)[number];
 export const maxMoves = 1 + 7 * 5 + 1;
 
+export function voyageEnding(state: Voyage) {
+  if (state.phase === "won") return "rescue";
+  assert.equal(state.phase, "lost");
+  if (state.hull > 0) return "cold";
+  return state.crew.some(({ cold }) => cold >= coldLimit)
+    ? "hullAndCold"
+    : "hull";
+}
+
 function positionScore(s: Voyage) {
   if (s.phase === "won") return 1_000;
   if (s.phase === "lost") return -1_000;
